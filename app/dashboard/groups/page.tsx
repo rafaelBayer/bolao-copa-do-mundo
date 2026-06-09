@@ -145,12 +145,12 @@ export default async function GroupsPage() {
     return (
       <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 lg:px-6">
         <Card className="p-6">
-          <Badge tone="amber">Convite pendente</Badge>
+          <Badge tone="amber">Sem bolao</Badge>
           <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
             Fase de grupos
           </h1>
           <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-            Voce ainda nao participa de nenhum bolao.
+            Use um link de convite valido para entrar em um bolao.
           </p>
         </Card>
       </main>

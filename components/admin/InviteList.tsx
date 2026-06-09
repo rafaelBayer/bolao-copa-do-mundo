@@ -11,10 +11,9 @@ import { createClient } from "@/lib/supabase/client";
 export type AdminInvite = {
   id: string;
   token: string;
-  usedBy: string | null;
-  usedAt: string | null;
   expiresAt: string | null;
   createdAt: string;
+  usesCount: number;
 };
 
 type InviteListProps = {
@@ -33,19 +32,15 @@ function formatDate(value: string | null) {
 }
 
 function inviteStatus(invite: AdminInvite) {
-  if (invite.usedAt) {
-    return "Usado";
-  }
-
   if (invite.expiresAt && new Date(invite.expiresAt).getTime() < Date.now()) {
     return "Expirado";
   }
 
-  return "Disponivel";
+  return "Ativo";
 }
 
 function statusTone(status: string): "default" | "emerald" | "amber" {
-  if (status === "Disponivel") return "emerald";
+  if (status === "Ativo") return "emerald";
   if (status === "Expirado") return "amber";
   return "default";
 }
@@ -68,11 +63,9 @@ export function InviteList({ invites }: InviteListProps) {
   }
 
   async function deleteInvite(invite: AdminInvite) {
-    if (invite.usedAt) {
-      return;
-    }
-
-    const confirmed = window.confirm("Excluir este convite?");
+    const confirmed = window.confirm(
+      "Excluir este link de convite? Participantes que ja entraram permanecem no bolao.",
+    );
 
     if (!confirmed) {
       return;
@@ -86,7 +79,6 @@ export function InviteList({ invites }: InviteListProps) {
       .from("pool_invites")
       .delete()
       .eq("id", invite.id)
-      .is("used_at", null)
       .select("id")
       .maybeSingle();
 
@@ -159,7 +151,7 @@ export function InviteList({ invites }: InviteListProps) {
                   <div className="mt-3 grid gap-2 text-xs text-slate-500 light:text-slate-500 sm:grid-cols-3">
                     <span>Criado: {formatDate(invite.createdAt)}</span>
                     <span>Expira: {formatDate(invite.expiresAt)}</span>
-                    <span>Usado: {formatDate(invite.usedAt)}</span>
+                    <span>Usos: {invite.usesCount}</span>
                   </div>
                 </div>
 
@@ -175,16 +167,14 @@ export function InviteList({ invites }: InviteListProps) {
                   <Button
                     type="button"
                     variant="ghost"
-                    disabled={Boolean(invite.usedAt) || deletingInviteId === invite.id}
+                    disabled={deletingInviteId === invite.id}
                     onClick={() => deleteInvite(invite)}
-                    title={invite.usedAt ? "Convite ja usado" : "Excluir convite"}
+                    title="Excluir convite"
                     className="text-red-300 hover:bg-red-500/10 hover:text-red-200 light:text-red-700 light:hover:bg-red-50 light:hover:text-red-800"
                   >
                     {deletingInviteId === invite.id
                       ? "Excluindo..."
-                      : invite.usedAt
-                        ? "Convite ja usado"
-                        : "Excluir"}
+                      : "Excluir"}
                   </Button>
                 </div>
               </div>

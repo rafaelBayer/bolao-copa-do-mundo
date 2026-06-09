@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { getOrCreateBrowserFingerprint } from "@/lib/invites/browserFingerprint";
 import { createClient } from "@/lib/supabase/client";
 
 type RegisterFormProps = {
@@ -51,19 +52,27 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
     if (!data.session) {
       setIsSubmitting(false);
       setError(
-        "Conta criada. Confirme seu e-mail e depois entre para concluir o convite.",
+        "Conta criada, mas o Supabase exige confirmacao de e-mail antes de entrar no bolao.",
       );
       return;
     }
 
+    const browserFingerprint = getOrCreateBrowserFingerprint();
     const { error: inviteError } = await supabase.rpc("accept_pool_invite", {
       invite_token: inviteToken,
+      browser_fingerprint: browserFingerprint,
+      user_agent: navigator.userAgent,
     });
 
     setIsSubmitting(false);
 
     if (inviteError) {
-      setError("Convite invalido, expirado ou ja utilizado.");
+      const message = inviteError.message.toLowerCase();
+      setError(
+        message.includes("browser")
+          ? "Este navegador ja usou este convite."
+          : "Convite invalido ou expirado.",
+      );
       return;
     }
 

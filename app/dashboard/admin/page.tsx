@@ -48,18 +48,13 @@ function mapInvite(row: Record<string, unknown>): AdminInvite {
   return {
     id: String(row.id),
     token: String(row.token),
-    usedBy: typeof row.used_by === "string" ? row.used_by : null,
-    usedAt: typeof row.used_at === "string" ? row.used_at : null,
     expiresAt: typeof row.expires_at === "string" ? row.expires_at : null,
     createdAt: String(row.created_at),
+    usesCount: typeof row.uses_count === "number" ? row.uses_count : 0,
   };
 }
 
 function isInviteAvailable(invite: AdminInvite) {
-  if (invite.usedAt) {
-    return false;
-  }
-
   if (!invite.expiresAt) {
     return true;
   }
@@ -101,25 +96,50 @@ export default async function AdminPage() {
         : "Meu bolao",
   };
 
-  const [{ data: participantsData }, { data: invitesData }] = await Promise.all([
+  const [
+    { data: participantsData },
+    { data: invitesData },
+    { data: inviteUsesData },
+  ] = await Promise.all([
     supabase.rpc("get_pool_participants", {
       target_pool_id: pool.id,
     }),
     supabase
       .from("pool_invites")
-      .select("id, token, used_by, used_at, expires_at, created_at")
+      .select("id, token, expires_at, created_at")
       .eq("pool_id", pool.id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("pool_invite_uses")
+      .select("invite_id")
+      .eq("pool_id", pool.id),
   ]);
 
   const participants = ((participantsData ?? []) as AdminParticipantRow[]).map((row) =>
     mapParticipant(row as Record<string, unknown>),
   );
-  const invites = (invitesData ?? []).map((row) =>
-    mapInvite(row as Record<string, unknown>),
-  );
+  const inviteUsesByInviteId = new Map<string, number>();
+  (inviteUsesData ?? []).forEach((row) => {
+    const inviteId = String(
+      (row as Record<string, unknown>).invite_id,
+    );
+    inviteUsesByInviteId.set(
+      inviteId,
+      (inviteUsesByInviteId.get(inviteId) ?? 0) + 1,
+    );
+  });
+  const invites = (invitesData ?? []).map((row) => {
+    const rawInvite = row as Record<string, unknown>;
+    return mapInvite({
+      ...rawInvite,
+      uses_count: inviteUsesByInviteId.get(String(rawInvite.id)) ?? 0,
+    });
+  });
   const availableInvitesCount = invites.filter(isInviteAvailable).length;
-  const usedInvitesCount = invites.filter((invite) => invite.usedAt).length;
+  const inviteUsesCount = invites.reduce(
+    (total, invite) => total + invite.usesCount,
+    0,
+  );
 
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
@@ -128,7 +148,7 @@ export default async function AdminPage() {
           poolName={pool.name}
           participantsCount={participants.length}
           availableInvitesCount={availableInvitesCount}
-          usedInvitesCount={usedInvitesCount}
+          inviteUsesCount={inviteUsesCount}
         />
 
         <Card className="p-5">
@@ -138,7 +158,7 @@ export default async function AdminPage() {
                 Novo convite
               </h2>
               <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-                Convites expiram em 7 dias e podem ser usados uma unica vez.
+                Convites expiram em 7 dias e podem ser compartilhados com varios amigos.
               </p>
             </div>
             <CreateInviteButton poolId={pool.id} userId={userId} />

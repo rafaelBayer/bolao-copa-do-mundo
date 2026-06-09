@@ -5,19 +5,19 @@ type AdminStatsProps = {
   poolName: string;
   participantsCount: number;
   availableInvitesCount: number;
-  usedInvitesCount: number;
+  inviteUsesCount: number;
 };
 
 export function AdminStats({
   poolName,
   participantsCount,
   availableInvitesCount,
-  usedInvitesCount,
+  inviteUsesCount,
 }: AdminStatsProps) {
   const stats = [
     { label: "participantes", value: participantsCount },
-    { label: "convites disponiveis", value: availableInvitesCount },
-    { label: "convites usados", value: usedInvitesCount },
+    { label: "links ativos", value: availableInvitesCount },
+    { label: "usos de convite", value: inviteUsesCount },
   ];
 
   return (

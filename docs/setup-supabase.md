@@ -22,10 +22,7 @@ SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 
 ## 3. Aplicar migrations
 
-Aplique as migrations em ordem:
-
-1. `supabase/migrations/0001_initial_schema.sql`
-2. `supabase/migrations/0002_world_cup_official_data.sql`
+Aplique todas as migrations em `supabase/migrations` em ordem numerica.
 
 Opcoes:
 
@@ -36,7 +33,7 @@ Opcoes:
 
 Crie o usuario owner em **Authentication > Users > Add user**.
 
-Para conseguir logar no app durante o teste, confirme o e-mail no Dashboard ou ajuste temporariamente a configuracao de confirmacao de e-mail do projeto para o ambiente de desenvolvimento.
+Para o fluxo de convite entrar direto no bolao apos o cadastro, o Supabase Auth precisa criar uma sessao logo depois do `signUp`. No ambiente de desenvolvimento, verifique em **Authentication > Providers > Email** se a confirmacao obrigatoria de e-mail esta desativada. Se o projeto exigir confirmacao, o usuario precisara confirmar o e-mail antes de concluir a entrada no bolao.
 
 ## 5. Criar o primeiro bolao e vincular o owner
 
@@ -86,7 +83,8 @@ npm run seed:worldcup:dry
 
 1. Abra o link copiado em uma sessao anonima ou outro navegador.
 2. Cadastre um novo usuario.
-3. Ao concluir, o app chama `accept_pool_invite` e redireciona para `/dashboard/groups`.
+3. Ao concluir, o app chama `accept_pool_invite`, registra o uso do link e redireciona para `/dashboard/groups`.
 4. Volte em `/dashboard/admin` com o owner e confirme que o novo participante aparece na lista.
+5. Abra o mesmo link em outro navegador/perfil e confirme que outro usuario tambem consegue entrar.
 
-Se o projeto exigir confirmacao de e-mail, o cadastro pode parar na mensagem de confirmacao. Nesse caso, confirme o usuario no Supabase Auth e depois teste login/participacao.
+O mesmo navegador e bloqueado para reutilizar o mesmo link por outro cadastro enquanto mantiver o identificador local salvo. IP hash fica para uma etapa futura server-side.
