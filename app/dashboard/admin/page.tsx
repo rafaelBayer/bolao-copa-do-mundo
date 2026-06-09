@@ -16,17 +16,31 @@ type PoolInfo = {
   name: string;
 };
 
+type AdminParticipantRow = {
+  user_id: string;
+  role: string;
+  created_at: string;
+  name: string | null;
+  avatar_url: string | null;
+  email: string | null;
+};
+
 function single<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
 }
 
 function mapParticipant(row: Record<string, unknown>): AdminParticipant {
+  const userId = String(row.user_id);
+
   return {
-    id: String(row.id),
-    userId: String(row.user_id),
+    id: userId,
+    userId,
     role: String(row.role),
     createdAt: String(row.created_at),
+    name: typeof row.name === "string" ? row.name : null,
+    email: typeof row.email === "string" ? row.email : null,
+    avatarUrl: typeof row.avatar_url === "string" ? row.avatar_url : null,
   };
 }
 
@@ -88,11 +102,9 @@ export default async function AdminPage() {
   };
 
   const [{ data: participantsData }, { data: invitesData }] = await Promise.all([
-    supabase
-      .from("pool_members")
-      .select("id, user_id, role, created_at")
-      .eq("pool_id", pool.id)
-      .order("created_at", { ascending: true }),
+    supabase.rpc("get_pool_participants", {
+      target_pool_id: pool.id,
+    }),
     supabase
       .from("pool_invites")
       .select("id, token, used_by, used_at, expires_at, created_at")
@@ -100,7 +112,7 @@ export default async function AdminPage() {
       .order("created_at", { ascending: false }),
   ]);
 
-  const participants = (participantsData ?? []).map((row) =>
+  const participants = ((participantsData ?? []) as AdminParticipantRow[]).map((row) =>
     mapParticipant(row as Record<string, unknown>),
   );
   const invites = (invitesData ?? []).map((row) =>

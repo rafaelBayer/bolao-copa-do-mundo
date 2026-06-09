@@ -1,4 +1,5 @@
 import { calculateGroupTable } from "@/lib/groups/calculateGroupTable";
+import { TeamFlag } from "./TeamFlag";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
 
 type GroupTableProps = {
@@ -10,10 +11,10 @@ export function GroupTable({ group }: GroupTableProps) {
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-800 bg-slate-950/35 light:border-slate-200 light:bg-slate-50/80">
-      <table className="w-full min-w-[620px] border-collapse text-sm">
+      <table className="w-full min-w-[760px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-500 light:border-slate-200">
-            <th className="py-4 pl-4 pr-3 font-bold">Selecao</th>
+            <th className="w-[44%] py-4 pl-4 pr-3 font-bold">Selecao</th>
             <th className="px-2 py-4 text-center font-bold">P</th>
             <th className="px-2 py-4 text-center font-bold">J</th>
             <th className="px-2 py-4 text-center font-bold">V</th>
@@ -41,14 +42,12 @@ export function GroupTable({ group }: GroupTableProps) {
                   >
                     {index + 1}
                   </span>
-                  {row.team.flagUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={row.team.flagUrl}
-                      alt=""
-                      className="h-6 w-8 rounded-md object-cover ring-1 ring-slate-700 light:ring-slate-200"
-                    />
-                  ) : null}
+                  <TeamFlag
+                    code={row.team.code}
+                    name={row.team.name}
+                    flagUrl={row.team.flagUrl}
+                    className="h-7 w-9 rounded-md"
+                  />
                   <div>
                     <p className="font-bold text-slate-100 light:text-slate-950">
                       {row.team.name}

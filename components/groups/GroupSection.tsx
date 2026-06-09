@@ -35,11 +35,11 @@ export function GroupSection({
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.65fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(460px,0.55fr)]">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(760px,1.15fr)_minmax(600px,0.85fr)]">
         <div className="min-w-0">
           <GroupTable group={group} />
         </div>
-        <aside className="min-w-0 border-t border-slate-800 pt-5 light:border-slate-200 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
+        <aside className="min-w-0 border-t border-slate-800 pt-5 light:border-slate-200 2xl:border-l 2xl:border-t-0 2xl:pl-6 2xl:pt-0">
           <GroupMatches
             poolId={poolId}
             userId={userId}

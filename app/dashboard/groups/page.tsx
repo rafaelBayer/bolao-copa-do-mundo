@@ -143,7 +143,7 @@ export default async function GroupsPage() {
 
   if (!membership?.pool_id) {
     return (
-      <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 lg:px-8">
+      <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 lg:px-6">
         <Card className="p-6">
           <Badge tone="amber">Convite pendente</Badge>
           <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
@@ -228,7 +228,7 @@ export default async function GroupsPage() {
   ).length;
 
   return (
-    <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
+    <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 sm:py-10 lg:px-6">
       <Card className="mb-6 overflow-hidden p-5 sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>

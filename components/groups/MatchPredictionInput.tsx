@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { savePrediction } from "@/lib/predictions/savePrediction";
+import { TeamFlag } from "./TeamFlag";
 import type { MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
 
@@ -183,8 +184,13 @@ export function MatchPredictionInput({
   return (
     <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3.5 shadow-sm transition hover:border-slate-700 light:border-slate-200 light:bg-white light:hover:border-slate-300">
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
-        <span className="min-w-0 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:text-left">
-          {match.homeTeam.name}
+        <span className="flex min-w-0 items-center justify-center gap-2 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:justify-start sm:text-left">
+          <TeamFlag
+            code={match.homeTeam.code}
+            name={match.homeTeam.name}
+            flagUrl={match.homeTeam.flagUrl}
+          />
+          <span className="min-w-0">{match.homeTeam.name}</span>
         </span>
         <div className="flex items-center justify-center gap-2">
           <input
@@ -211,8 +217,13 @@ export function MatchPredictionInput({
             aria-label={`Palpite de gols para ${match.awayTeam.name}`}
           />
         </div>
-        <span className="min-w-0 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:text-right">
-          {match.awayTeam.name}
+        <span className="flex min-w-0 items-center justify-center gap-2 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:justify-end sm:text-right">
+          <span className="min-w-0">{match.awayTeam.name}</span>
+          <TeamFlag
+            code={match.awayTeam.code}
+            name={match.awayTeam.name}
+            flagUrl={match.awayTeam.flagUrl}
+          />
         </span>
       </div>
 

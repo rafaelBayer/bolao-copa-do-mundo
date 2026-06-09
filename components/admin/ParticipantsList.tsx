@@ -5,6 +5,9 @@ export type AdminParticipant = {
   userId: string;
   role: string;
   createdAt: string;
+  name: string | null;
+  email: string | null;
+  avatarUrl: string | null;
 };
 
 type ParticipantsListProps = {
@@ -16,6 +19,18 @@ function formatDate(value: string) {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function shortUserId(userId: string) {
+  return userId.slice(0, 8);
+}
+
+function participantLabel(participant: AdminParticipant) {
+  return participant.name || participant.email || shortUserId(participant.userId);
+}
+
+function participantInitial(participant: AdminParticipant) {
+  return participantLabel(participant).trim().charAt(0).toUpperCase() || "U";
 }
 
 export function ParticipantsList({ participants }: ParticipantsListProps) {
@@ -45,8 +60,35 @@ export function ParticipantsList({ participants }: ParticipantsListProps) {
                 key={participant.id}
                 className="border-b border-slate-800/70 light:border-slate-200/80"
               >
-                <td className="px-4 py-3 font-mono text-xs text-slate-300 light:text-slate-700">
-                  {participant.userId}
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-slate-900 text-sm font-black text-slate-200 light:border-slate-200 light:bg-white light:text-slate-700">
+                      {participant.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={participant.avatarUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        participantInitial(participant)
+                      )}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-100 light:text-slate-950">
+                        {participantLabel(participant)}
+                      </p>
+                      {participant.name && participant.email ? (
+                        <p className="mt-0.5 break-all text-xs text-slate-500 light:text-slate-500">
+                          {participant.email}
+                        </p>
+                      ) : (
+                        <p className="mt-0.5 font-mono text-xs text-slate-500 light:text-slate-500">
+                          {shortUserId(participant.userId)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3 font-bold text-slate-100 light:text-slate-950">
                   {participant.role}

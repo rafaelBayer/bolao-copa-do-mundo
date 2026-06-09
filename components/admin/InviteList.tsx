@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Clipboard } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { createClient } from "@/lib/supabase/client";
 
 export type AdminInvite = {
   id: string;
@@ -49,7 +51,13 @@ function statusTone(status: string): "default" | "emerald" | "amber" {
 }
 
 export function InviteList({ invites }: InviteListProps) {
+  const router = useRouter();
   const [copiedInviteId, setCopiedInviteId] = useState<string | null>(null);
+  const [deletingInviteId, setDeletingInviteId] = useState<string | null>(null);
+  const [deleteStatus, setDeleteStatus] = useState<{
+    inviteId: string;
+    type: "deleted" | "error";
+  } | null>(null);
 
   async function copyInvite(invite: AdminInvite) {
     const link = `${window.location.origin}/register?invite=${invite.token}`;
@@ -57,6 +65,40 @@ export function InviteList({ invites }: InviteListProps) {
     await navigator.clipboard.writeText(link);
     setCopiedInviteId(invite.id);
     window.setTimeout(() => setCopiedInviteId(null), 1800);
+  }
+
+  async function deleteInvite(invite: AdminInvite) {
+    if (invite.usedAt) {
+      return;
+    }
+
+    const confirmed = window.confirm("Excluir este convite?");
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingInviteId(invite.id);
+    setDeleteStatus(null);
+
+    const supabase = createClient();
+    const { data: deletedInvite, error } = await supabase
+      .from("pool_invites")
+      .delete()
+      .eq("id", invite.id)
+      .is("used_at", null)
+      .select("id")
+      .maybeSingle();
+
+    setDeletingInviteId(null);
+
+    if (error || !deletedInvite) {
+      setDeleteStatus({ inviteId: invite.id, type: "error" });
+      return;
+    }
+
+    setDeleteStatus({ inviteId: invite.id, type: "deleted" });
+    router.refresh();
   }
 
   return (
@@ -97,6 +139,19 @@ export function InviteList({ invites }: InviteListProps) {
                         Copiado!
                       </span>
                     ) : null}
+                    {deleteStatus?.inviteId === invite.id ? (
+                      <span
+                        className={`text-xs font-bold ${
+                          deleteStatus.type === "deleted"
+                            ? "text-emerald-300 light:text-emerald-700"
+                            : "text-red-300 light:text-red-600"
+                        }`}
+                      >
+                        {deleteStatus.type === "deleted"
+                          ? "Convite excluido"
+                          : "Erro ao excluir convite"}
+                      </span>
+                    ) : null}
                   </div>
                   <p className="mt-3 break-all font-mono text-xs text-slate-300 light:text-slate-700">
                     {inviteLink}
@@ -108,14 +163,30 @@ export function InviteList({ invites }: InviteListProps) {
                   </div>
                 </div>
 
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => copyInvite(invite)}
-                >
-                  <Clipboard size={16} aria-hidden="true" />
-                  Copiar
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => copyInvite(invite)}
+                  >
+                    <Clipboard size={16} aria-hidden="true" />
+                    Copiar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={Boolean(invite.usedAt) || deletingInviteId === invite.id}
+                    onClick={() => deleteInvite(invite)}
+                    title={invite.usedAt ? "Convite ja usado" : "Excluir convite"}
+                    className="text-red-300 hover:bg-red-500/10 hover:text-red-200 light:text-red-700 light:hover:bg-red-50 light:hover:text-red-800"
+                  >
+                    {deletingInviteId === invite.id
+                      ? "Excluindo..."
+                      : invite.usedAt
+                        ? "Convite ja usado"
+                        : "Excluir"}
+                  </Button>
+                </div>
               </div>
             </div>
           );
