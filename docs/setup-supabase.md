@@ -88,3 +88,12 @@ npm run seed:worldcup:dry
 5. Abra o mesmo link em outro navegador/perfil e confirme que outro usuario tambem consegue entrar.
 
 O mesmo navegador e bloqueado para reutilizar o mesmo link por outro cadastro enquanto mantiver o identificador local salvo. IP hash fica para uma etapa futura server-side.
+
+## 10. Problemas comuns no cadastro
+
+- `email rate limit exceeded`: o Supabase Auth pode limitar cadastros repetidos durante QA. Aguarde alguns minutos ou use um projeto/dev separado para testes intensos.
+- Use e-mails reais validos nos testes. Alguns dominios ou formatos descartaveis podem ser bloqueados pelo Supabase.
+- Evite dominios invalidos como `example.com` se o Supabase recusar a validacao.
+- Em QA local, tambem e possivel criar usuarios pelo Supabase Auth e depois abrir o link de convite logado.
+- Para o fluxo direto do convite, a confirmacao obrigatoria de e-mail precisa estar desativada no ambiente de desenvolvimento.
+- TODO futuro: trocar exclusao fisica de convites por `revoked_at`, mantendo historico de usos do link.
