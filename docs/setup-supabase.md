@@ -1,0 +1,92 @@
+# Setup do Supabase real
+
+Este guia prepara o primeiro bolao owner no Supabase real sem mudar o fluxo OpenFootball, RLS ou telas da aplicacao.
+
+## 1. Criar o projeto Supabase
+
+1. Crie um projeto em https://supabase.com/dashboard.
+2. Anote a `Project URL`, a `publishable key` e a `service_role key` em **Project Settings > API**.
+3. Guarde a `service_role key` somente no ambiente local/servidor. Ela ignora RLS e nunca deve ir para o frontend.
+
+## 2. Configurar `.env.local`
+
+Copie `.env.example` para `.env.local` e preencha:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+```
+
+`OPENFOOTBALL_WORLD_CUP_2026_URL` continua opcional e so e usada pelo `npm run fetch:worldcup`.
+
+## 3. Aplicar migrations
+
+Aplique as migrations em ordem:
+
+1. `supabase/migrations/0001_initial_schema.sql`
+2. `supabase/migrations/0002_world_cup_official_data.sql`
+
+Opcoes:
+
+- Pelo Dashboard: abra **SQL Editor**, cole cada arquivo e execute em ordem.
+- Pela Supabase CLI, se ja estiver configurada: rode `supabase link --project-ref <project-ref>` e depois `supabase db push`.
+
+## 4. Criar o primeiro usuario no Auth
+
+Crie o usuario owner em **Authentication > Users > Add user**.
+
+Para conseguir logar no app durante o teste, confirme o e-mail no Dashboard ou ajuste temporariamente a configuracao de confirmacao de e-mail do projeto para o ambiente de desenvolvimento.
+
+## 5. Criar o primeiro bolao e vincular o owner
+
+Use o script local com a `SUPABASE_SERVICE_ROLE_KEY` configurada:
+
+```bash
+npm run setup:owner-pool -- --email dono@example.com --pool-name "Bolao da Copa 2026"
+```
+
+Tambem da para usar o id do usuario:
+
+```bash
+npm run setup:owner-pool -- --user-id <auth-user-id> --pool-name "Bolao da Copa 2026"
+```
+
+Se rodar sem argumentos, o script pergunta o email/id e o nome do bolao. Ele reaproveita um pool ja existente com o mesmo `owner_id` e `name`, e garante que o registro em `pool_members` esteja com `role = owner`.
+
+## 6. Importar dados da Copa
+
+Depois das migrations e do owner:
+
+```bash
+npm run seed:worldcup
+```
+
+Antes de escrever no Supabase, voce pode validar localmente:
+
+```bash
+npm run validate:worldcup
+npm run seed:worldcup:dry
+```
+
+## 7. Testar `/dashboard/groups`
+
+1. Rode o app com `npm run dev`.
+2. Acesse `/login`.
+3. Entre com o usuario owner criado no Auth.
+4. Abra `/dashboard/groups` e confira grupos, jogos e inputs de palpites.
+
+## 8. Gerar convite
+
+1. Com o owner logado, acesse `/dashboard/admin`.
+2. Clique em **Gerar convite**.
+3. Na lista de convites, copie o link gerado. O formato e `/register?invite=<token>`.
+
+## 9. Testar cadastro por convite
+
+1. Abra o link copiado em uma sessao anonima ou outro navegador.
+2. Cadastre um novo usuario.
+3. Ao concluir, o app chama `accept_pool_invite` e redireciona para `/dashboard/groups`.
+4. Volte em `/dashboard/admin` com o owner e confirme que o novo participante aparece na lista.
+
+Se o projeto exigir confirmacao de e-mail, o cadastro pode parar na mensagem de confirmacao. Nesse caso, confirme o usuario no Supabase Auth e depois teste login/participacao.

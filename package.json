@@ -10,7 +10,8 @@
     "fetch:worldcup": "tsx scripts/fetch-world-cup-2026.ts",
     "validate:worldcup": "tsx scripts/validate-world-cup-2026.ts",
     "seed:worldcup": "tsx scripts/import-world-cup-2026.ts",
-    "seed:worldcup:dry": "tsx scripts/import-world-cup-2026.ts --dry-run"
+    "seed:worldcup:dry": "tsx scripts/import-world-cup-2026.ts --dry-run",
+    "setup:owner-pool": "tsx scripts/create-owner-pool.ts"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
