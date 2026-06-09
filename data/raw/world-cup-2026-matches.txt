@@ -1,0 +1,17 @@
+# Raw group match data for FIFA World Cup 2026.
+# Fill this file with checked data copied from a trusted source.
+# Do not use example or mock data as official data.
+#
+# Format, one match per line:
+# group|round_number|home_team_code|away_team_code|fifa_match_number|kickoff_at|stadium|city|country
+#
+# Rules:
+# - group: must match a group from world-cup-2026-groups.txt.
+# - round_number: 1, 2, or 3.
+# - home_team_code and away_team_code: must match team codes from the same group.
+# - fifa_match_number: optional, but unique when present.
+# - kickoff_at: optional ISO date string, for example 2026-06-11T00:00:00Z.
+# - stadium, city, country: optional.
+#
+# Example only, keep commented:
+# Grupo A|1|EX1|EX2|1|2026-06-11T00:00:00Z|Estadio exemplo|Cidade exemplo|Pais exemplo

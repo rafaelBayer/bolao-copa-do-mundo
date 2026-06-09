@@ -362,6 +362,16 @@ Tema claro:
 - O owner pode visualizar participantes do bolão.
 - A tela de administração deve respeitar Supabase Auth e RLS, sem service role no frontend.
 - A administração não altera palpites, ranking, playoffs ou dados oficiais da Copa.
+## Geracao offline dos dados da Copa
+
+- O app nao busca FIFA, Google, ESPN, GE ou outras fontes em runtime.
+- Os dados podem ser copiados de uma fonte confiavel para `data/raw/world-cup-2026-groups.txt` e `data/raw/world-cup-2026-matches.txt`.
+- O script `npm run generate:worldcup` transforma os arquivos raw em `data/world-cup-2026.ts`.
+- O script `npm run generate:worldcup:dry` valida o raw e mostra o resultado sem escrever o arquivo final.
+- O gerador so escreve `data/world-cup-2026.ts` quando o conteudo passa pela validacao completa.
+- Depois de gerar, usar `npm run validate:worldcup`, `npm run seed:worldcup:dry` e entao `npm run seed:worldcup`.
+- Esse fluxo nao apaga palpites, nao toca em `predictions` e nao substitui o Supabase como fonte lida pelo app.
+
 ## Dados oficiais da Copa - importacao validada
 
 - O app nao deve usar dados aleatorios em producao.
@@ -375,3 +385,5 @@ Tema claro:
 - O fluxo esperado e: FIFA oficial -> `data/world-cup-2026.ts` -> validacao -> importacao -> Supabase -> app le do Supabase.
 - O import nao pode apagar palpites de usuarios nem tocar em `predictions`.
 - Para testar sem gravar no Supabase, usar `npm run seed:worldcup:dry`.
+
+
