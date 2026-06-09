@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "generate:worldcup": "tsx scripts/generate-world-cup-2026.ts",
-    "generate:worldcup:dry": "tsx scripts/generate-world-cup-2026.ts --dry-run",
+    "fetch:worldcup": "tsx scripts/fetch-world-cup-2026.ts",
     "validate:worldcup": "tsx scripts/validate-world-cup-2026.ts",
     "seed:worldcup": "tsx scripts/import-world-cup-2026.ts",
     "seed:worldcup:dry": "tsx scripts/import-world-cup-2026.ts --dry-run"
