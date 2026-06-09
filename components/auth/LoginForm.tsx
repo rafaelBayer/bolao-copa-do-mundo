@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { LogIn } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -40,52 +42,60 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-slate-700">
+        <label
+          htmlFor="email"
+          className="text-sm font-bold text-slate-200 light:text-slate-700"
+        >
           E-mail
         </label>
-        <input
+        <Input
           id="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
           autoComplete="email"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="password" className="text-sm font-medium text-slate-700">
+        <label
+          htmlFor="password"
+          className="text-sm font-bold text-slate-200 light:text-slate-700"
+        >
           Senha
         </label>
-        <input
+        <Input
           id="password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
           autoComplete="current-password"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-sm font-medium text-red-300 light:border-red-200 light:bg-red-50 light:text-red-700">
+          {error}
+        </p>
+      ) : null}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full py-3"
       >
         <LogIn size={18} aria-hidden="true" />
         {isSubmitting ? "Entrando..." : "Entrar"}
-      </button>
+      </Button>
 
       {invite ? (
-        <p className="text-center text-sm text-slate-600">
+        <p className="text-center text-sm text-slate-400 light:text-slate-600">
           Tem convite?{" "}
           <Link
             href={`/register?invite=${encodeURIComponent(invite)}`}
-            className="font-medium text-emerald-700 hover:text-emerald-800"
+            className="font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
           >
             Criar conta
           </Link>

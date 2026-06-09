@@ -23,6 +23,12 @@ export function GroupMatches({
     () => Array.from(new Set(matches.map((match) => match.roundNumber))).sort(),
     [matches],
   );
+  const [localPredictions, setLocalPredictions] = useState(
+    () =>
+      new Map(
+        predictions.map((prediction) => [prediction.matchId, prediction]),
+      ),
+  );
   const [roundIndex, setRoundIndex] = useState(0);
   const currentRound = rounds[roundIndex] ?? 1;
   const currentMatches = matches.filter(
@@ -30,11 +36,44 @@ export function GroupMatches({
   );
 
   function findPrediction(matchId: string) {
-    return predictions.find((prediction) => prediction.matchId === matchId);
+    return localPredictions.get(matchId);
+  }
+
+  function handlePredictionSaved(
+    matchId: string,
+    scores: Pick<Prediction, "homeScore" | "awayScore">,
+  ) {
+    setLocalPredictions((currentPredictions) => {
+      const nextPredictions = new Map(currentPredictions);
+      const existingPrediction = nextPredictions.get(matchId);
+      const now = new Date().toISOString();
+
+      nextPredictions.set(matchId, {
+        id: existingPrediction?.id ?? `local-${matchId}`,
+        poolId,
+        userId,
+        matchId,
+        homeScore: scores.homeScore,
+        awayScore: scores.awayScore,
+        createdAt: existingPrediction?.createdAt ?? now,
+        updatedAt: now,
+      });
+
+      return nextPredictions;
+    });
   }
 
   return (
-    <div className="space-y-4">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950/35 p-4 light:border-slate-200 light:bg-slate-50/80">
+      <div className="mb-4">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
+          Jogos
+        </p>
+        <h3 className="mt-1 text-lg font-black text-slate-50 light:text-slate-950">
+          Palpites da rodada
+        </h3>
+      </div>
+
       <RoundNavigator
         currentRound={currentRound}
         minRound={rounds[0] ?? 1}
@@ -45,16 +84,21 @@ export function GroupMatches({
         }
       />
 
-      <div className="space-y-3">
-        {currentMatches.slice(0, 2).map((match) => (
-          <MatchPredictionInput
-            key={match.id}
-            poolId={poolId}
-            userId={userId}
-            match={match}
-            prediction={findPrediction(match.id)}
-          />
-        ))}
+      <div className="mt-4 space-y-3">
+        {currentMatches.slice(0, 2).map((match) => {
+          const prediction = findPrediction(match.id);
+
+          return (
+            <MatchPredictionInput
+              key={match.id}
+              poolId={poolId}
+              userId={userId}
+              match={match}
+              prediction={prediction}
+              onSaved={(scores) => handlePredictionSaved(match.id, scores)}
+            />
+          );
+        })}
       </div>
     </div>
   );

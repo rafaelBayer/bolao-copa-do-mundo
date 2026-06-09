@@ -1,4 +1,6 @@
 import { GroupSection } from "@/components/groups/GroupSection";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { mockGroups } from "@/lib/mock/groups";
 import { createClient } from "@/lib/supabase/server";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
@@ -97,9 +99,18 @@ function mapGroups(rows: Record<string, unknown>[]): GroupWithTeamsAndMatches[] 
           return {
             id: String(match.id),
             groupId: String(match.group_id),
+            fifaMatchNumber:
+              typeof match.fifa_match_number === "number"
+                ? match.fifa_match_number
+                : null,
             roundNumber: Number(match.round_number),
             matchDate:
               typeof match.match_date === "string" ? match.match_date : null,
+            kickoffAt:
+              typeof match.kickoff_at === "string" ? match.kickoff_at : null,
+            stadium: typeof match.stadium === "string" ? match.stadium : null,
+            city: typeof match.city === "string" ? match.city : null,
+            country: typeof match.country === "string" ? match.country : null,
             homeScore:
               typeof match.home_score === "number" ? match.home_score : null,
             awayScore:
@@ -133,12 +144,15 @@ export default async function GroupsPage() {
   if (!membership?.pool_id) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-bold text-slate-950">Fase de grupos</h1>
-          <p className="mt-3 text-sm text-slate-600">
+        <Card className="p-6">
+          <Badge tone="amber">Convite pendente</Badge>
+          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+            Fase de grupos
+          </h1>
+          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
             Voce ainda nao participa de nenhum bolao.
           </p>
-        </section>
+        </Card>
       </main>
     );
   }
@@ -171,8 +185,13 @@ export default async function GroupsPage() {
           matches(
             id,
             group_id,
+            fifa_match_number,
             round_number,
             match_date,
+            kickoff_at,
+            stadium,
+            city,
+            country,
             home_score,
             away_score,
             home_team:teams!matches_home_team_id_fkey(id, name, code, flag_url),
@@ -190,6 +209,8 @@ export default async function GroupsPage() {
         .eq("user_id", userId),
     ]);
 
+  // TODO: remover fallback mock antes de producao; dados reais devem vir do Supabase
+  // importados por scripts/import-world-cup-2026.ts.
   const groups =
     groupsError || !groupsData?.length
       ? mockGroups
@@ -197,17 +218,57 @@ export default async function GroupsPage() {
   const predictions = (predictionsData ?? []).map((row) =>
     mapPrediction(row as Record<string, unknown>),
   );
+  const totalMatches = groups.reduce(
+    (total, group) => total + group.matches.length,
+    0,
+  );
+  const filledPredictions = predictions.filter(
+    (prediction) =>
+      prediction.homeScore !== null || prediction.awayScore !== null,
+  ).length;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8">
-      <div className="mb-6">
-        <p className="text-sm font-semibold uppercase text-emerald-700">
-          {pool.name}
-        </p>
-        <h1 className="mt-2 text-2xl font-bold text-slate-950">
-          Fase de grupos
-        </h1>
-      </div>
+    <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
+      <Card className="mb-6 overflow-hidden p-5 sm:p-7">
+        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div>
+            <Badge tone="emerald">{pool.name}</Badge>
+            <h1 className="mt-4 text-3xl font-black text-slate-50 light:text-slate-950 sm:text-4xl">
+              Fase de grupos
+            </h1>
+            <p className="mt-3 max-w-2xl text-base text-slate-400 light:text-slate-500">
+              Faca seus palpites da Copa do Mundo.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 sm:min-w-[28rem]">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4 light:border-slate-200 light:bg-slate-50">
+              <p className="text-2xl font-black text-slate-50 light:text-slate-950">
+                {groups.length}
+              </p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400 light:text-slate-500">
+                grupos
+              </p>
+            </div>
+            <div className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4 light:border-slate-200 light:bg-slate-50">
+              <p className="text-2xl font-black text-slate-50 light:text-slate-950">
+                {totalMatches}
+              </p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400 light:text-slate-500">
+                jogos
+              </p>
+            </div>
+            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 light:border-emerald-200 light:bg-emerald-50">
+              <p className="text-2xl font-black text-emerald-300 light:text-emerald-700">
+                {filledPredictions}
+              </p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-200/80 light:text-emerald-700">
+                palpites
+              </p>
+            </div>
+          </div>
+        </div>
+      </Card>
 
       <div className="space-y-5">
         {groups.map((group) => (

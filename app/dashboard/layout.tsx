@@ -16,10 +16,20 @@ export default async function DashboardLayout({
 
   const userLabel =
     typeof data.claims.email === "string" ? data.claims.email : "Usuario";
+  const { data: ownerMembership } = await supabase
+    .from("pool_members")
+    .select("role")
+    .eq("user_id", data.claims.sub)
+    .eq("role", "owner")
+    .limit(1)
+    .maybeSingle();
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <DashboardHeader userLabel={userLabel} />
+    <div className="min-h-screen">
+      <DashboardHeader
+        userLabel={userLabel}
+        isOwner={ownerMembership?.role === "owner"}
+      />
       {children}
     </div>
   );

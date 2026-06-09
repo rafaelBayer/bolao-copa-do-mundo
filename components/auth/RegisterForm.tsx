@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { UserPlus } from "lucide-react";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 
 type RegisterFormProps = {
@@ -72,40 +74,47 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
-        <label htmlFor="name" className="text-sm font-medium text-slate-700">
+        <label
+          htmlFor="name"
+          className="text-sm font-bold text-slate-200 light:text-slate-700"
+        >
           Nome
         </label>
-        <input
+        <Input
           id="name"
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
           required
           autoComplete="name"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-slate-700">
+        <label
+          htmlFor="email"
+          className="text-sm font-bold text-slate-200 light:text-slate-700"
+        >
           E-mail
         </label>
-        <input
+        <Input
           id="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           required
           autoComplete="email"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="password" className="text-sm font-medium text-slate-700">
+        <label
+          htmlFor="password"
+          className="text-sm font-bold text-slate-200 light:text-slate-700"
+        >
           Senha
         </label>
-        <input
+        <Input
           id="password"
           type="password"
           value={password}
@@ -113,18 +122,17 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
           required
           minLength={6}
           autoComplete="new-password"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
       <div className="space-y-2">
         <label
           htmlFor="confirm-password"
-          className="text-sm font-medium text-slate-700"
+          className="text-sm font-bold text-slate-200 light:text-slate-700"
         >
           Confirmar senha
         </label>
-        <input
+        <Input
           id="confirm-password"
           type="password"
           value={confirmPassword}
@@ -132,20 +140,23 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
           required
           minLength={6}
           autoComplete="new-password"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </div>
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {error ? (
+        <p className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-sm font-medium text-red-300 light:border-red-200 light:bg-red-50 light:text-red-700">
+          {error}
+        </p>
+      ) : null}
 
-      <button
+      <Button
         type="submit"
         disabled={isSubmitting}
-        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="w-full py-3"
       >
         <UserPlus size={18} aria-hidden="true" />
         {isSubmitting ? "Criando..." : "Criar conta"}
-      </button>
+      </Button>
     </form>
   );
 }

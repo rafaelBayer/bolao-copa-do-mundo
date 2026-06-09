@@ -292,289 +292,86 @@ Regras:
 
 ## Direção visual e tema
 
-O projeto deve ter uma aparência moderna inspirada em apps esportivos, bolões e interfaces de apostas, mas sem parecer uma plataforma de aposta com dinheiro real.
-
-A identidade visual deve transmitir:
-
-* Competição entre amigos.
-* Copa do Mundo.
-* Esporte.
-* Palpites.
-* Facilidade de uso.
-* Visual moderno e limpo.
-
-O tema padrão deve ser escuro.
-
-O usuário deve ter opção de trocar para tema claro.
-
-### Tema escuro padrão
-
-O app deve iniciar em dark mode por padrão.
-
-Sugestão de estilo:
-
-* Fundo principal escuro.
-* Cards em tons de slate/zinc.
-* Bordas discretas.
-* Destaques em verde, amarelo ou azul.
-* Inputs de placar bem visíveis.
-* Feedback de salvamento claro, mas discreto.
-
-Exemplo de paleta sugerida:
-
-```txt
-Background principal: slate-950
-Cards: slate-900 ou zinc-900
-Cards secundários: slate-800
-Bordas: slate-700
-Texto principal: slate-50
-Texto secundário: slate-400
-Destaque positivo: emerald-400 / emerald-500
-Destaque esportivo: yellow-400 / amber-400
-Ações principais: emerald-500
-Erros: red-400
-```
-
-### Tema claro opcional
-
-O usuário deve conseguir alternar para tema claro.
-
-O tema claro deve manter a mesma estrutura visual, apenas ajustando cores:
-
-```txt
-Background principal: slate-50
-Cards: white
-Bordas: slate-200
-Texto principal: slate-950
-Texto secundário: slate-500
-Destaque positivo: emerald-600
-Ações principais: emerald-600
-Erros: red-600
-```
-
-### Alternância de tema
-
-Criar um botão de alternância no header.
-
-O botão pode ser simples:
-
-```txt
-🌙 Escuro
-☀️ Claro
-```
-
-Ou apenas ícone.
-
-A preferência do usuário deve ser salva no navegador usando `localStorage`.
-
-Não precisa salvar o tema no Supabase nesta etapa.
-
-Ao abrir o app novamente, o tema escolhido deve ser mantido.
-
-Se não existir preferência salva, usar tema escuro como padrão.
-
-### Estilo geral da interface
-
-A interface deve usar cards mais bonitos e modernos.
-
-Evitar aparência muito básica de formulário/tabela.
-
-Os principais elementos devem ter:
-
-* `rounded-2xl`
-* `border`
-* `shadow-sm`
-* `backdrop-blur` quando fizer sentido
-* espaçamento confortável
-* estados de hover
-* transições suaves
-
-### Layout da página de grupos
-
-A página `/dashboard/groups` deve parecer a tela principal do bolão.
-
-Adicionar um topo/hero discreto com:
-
-* Nome do bolão.
-* Texto curto, exemplo: "Faça seus palpites da fase de grupos".
-* Indicador da quantidade de grupos.
-* Indicador da quantidade de palpites preenchidos pelo usuário.
-* Indicador da quantidade de jogos totais.
-
-Exemplo:
-
-```txt
-Bolão da Copa
-Faça seus palpites da fase de grupos
-
-8 grupos
-48 jogos
-12 palpites preenchidos
-```
-
-### Cards dos grupos
-
-Cada grupo deve parecer um card esportivo.
-
-O card do grupo deve ter:
-
-* Nome do grupo em destaque.
-* Badge com quantidade de seleções.
-* Tabela do grupo à esquerda.
-* Jogos da rodada à direita.
-* Rodada atual destacada.
-* Botões de rodada com bom visual.
-
-No desktop:
-
-```txt
-Grid 12 colunas
-Tabela: 8 colunas
-Jogos: 4 colunas
-```
-
-No mobile:
-
-```txt
-Tabela: 12 colunas
-Jogos: 12 colunas
-```
-
-### Tabela do grupo
-
-A tabela deve ser visualmente limpa.
-
-Melhorias desejadas:
-
-* Cabeçalho discreto.
-* Linhas com hover.
-* Nome da seleção destacado.
-* Código ou bandeira da seleção, se existir.
-* Classificação bem alinhada.
-* Top 2 posições podem receber destaque visual sutil.
-
-Se ainda não houver cálculo real da tabela, manter tudo zerado, mas com visual final.
-
-### Jogos e palpites
-
-Os jogos precisam parecer cards pequenos.
-
-Cada jogo deve mostrar:
-
-* Time da casa.
-* Input do placar da casa.
-* Separador "x".
-* Input do placar visitante.
-* Time visitante.
-* Status de salvamento.
-
-Exemplo:
-
-```txt
-Brasil      [ 2 ]  x  [ 1 ]      Argentina
-Salvo
-```
-
-Os inputs devem ser maiores e fáceis de usar.
-
-Sugestão visual:
-
-* Input centralizado.
-* Largura fixa.
-* Texto grande.
-* Borda destacada ao focar.
-* Sem aparência padrão feia do navegador.
-* Remover setas do input number se possível, usando CSS.
-
-### Feedback de salvamento
-
-Manter o salvamento automático.
-
-Mostrar feedback discreto:
-
-* Salvando...
-* Salvo
-* Erro ao salvar
-
-Sugestão visual:
-
-```txt
-Salvando... em amarelo/amber
-Salvo em verde/emerald
-Erro ao salvar em vermelho/red
-```
-
-Não usar alert.
-
-Não usar modal.
-
-Não bloquear a tela.
-
-### Header
-
-Melhorar o header do dashboard.
-
-Deve ter:
-
-* Nome/logo textual: Bolão da Copa.
-* Link para Grupos.
-* Botão de alternar tema.
-* Botão de sair.
-* Visual escuro moderno.
-
-No mobile, o header pode quebrar de forma simples, sem menu complexo nesta etapa.
-
-### Telas de login e cadastro
-
-As telas de login e cadastro também devem seguir o novo visual.
-
-Tema escuro padrão.
-
-Criar um layout mais bonito:
-
-* Card centralizado.
-* Título forte.
-* Subtítulo curto.
-* Inputs modernos.
-* Botão principal em destaque.
-* Mensagens de erro bem posicionadas.
-
-Exemplo de texto:
-
-```txt
-Entre no seu bolão
-Acesse seus palpites da Copa do Mundo.
-```
-
-Cadastro:
-
-```txt
-Entrar no bolão
-Crie sua conta usando o convite recebido.
-```
-
-### Componentização visual
-
-Se necessário, criar componentes reutilizáveis simples:
-
-```txt
-components/ui/Button.tsx
-components/ui/Card.tsx
-components/ui/Input.tsx
-components/ui/Badge.tsx
-components/ui/ThemeToggle.tsx
-```
-
-Não instalar biblioteca pesada de UI nesta etapa.
-
-Pode usar apenas Tailwind.
-
-### Regras importantes
-
-* Não alterar a regra de negócio.
-* Não criar botão de salvar palpite.
-* Não alterar o fluxo de convite.
-* Não remover RLS nem proteções.
-* Não implementar ranking agora.
-* Não implementar playoffs agora.
-* Foco desta etapa é visual, tema e experiência de uso.
+- App com tema escuro como padrão.
+- Tema claro opcional.
+- Alternância de tema pelo header.
+- Preferência salva em `localStorage`.
+- Se não houver preferência salva, usar tema escuro.
+- Visual inspirado em bolões, Copa do Mundo, apps esportivos e dashboards.
+- Não parecer plataforma de aposta com dinheiro real.
+- Cards modernos com `rounded-2xl`, bordas suaves, sombras discretas, hover states e transições suaves.
+- Inputs de placar maiores, centralizados e fáceis de clicar.
+- Feedback de salvamento discreto no próprio card do jogo.
+- Login e cadastro com visual mais caprichado, card centralizado, título forte, subtítulo curto e botões em destaque.
+- Não alterar regras de negócio nesta etapa.
+
+### Paleta base
+
+Tema escuro:
+
+- Background principal: `slate-950`.
+- Cards: `slate-900` ou `zinc-900`.
+- Cards secundários: `slate-800`.
+- Bordas: `slate-700`.
+- Texto principal: `slate-50`.
+- Texto secundário: `slate-400`.
+- Destaque positivo: `emerald-400` / `emerald-500`.
+- Destaque esportivo: `yellow-400` / `amber-400`.
+- Ações principais: `emerald-500`.
+- Erros: `red-400`.
+
+Tema claro:
+
+- Background principal: `slate-50`.
+- Cards: `white`.
+- Bordas: `slate-200`.
+- Texto principal: `slate-950`.
+- Texto secundário: `slate-500`.
+- Destaque positivo: `emerald-600`.
+- Ações principais: `emerald-600`.
+- Erros: `red-600`.
+
+### Regras desta etapa visual
+
+- Não criar botão de salvar palpite.
+- Não remover auth, Supabase, RLS nem fluxo de convite.
+- Não implementar playoffs/mata-mata agora.
+- Não implementar ranking agora.
+- Manter salvamento automático com debounce.
+
+## Dados oficiais da Copa
+
+- O app não deve usar dados aleatórios em produção.
+- A fonte principal para conferir seleções, grupos e jogos deve ser a FIFA.
+- O projeto deve manter um arquivo local versionado com os dados oficiais da Copa.
+- O app não deve depender de API externa em runtime para carregar a tabela da fase de grupos.
+- A importação dos dados oficiais deve acontecer via script local/semiautomático.
+- O fluxo esperado é: fonte oficial FIFA -> arquivo local versionado -> script de importação -> Supabase -> app lê do Supabase.
+- Resultados em tempo real, placar ao vivo, cron job e atualização automática diária ficam fora do escopo.
+- Se a FIFA alterar algum jogo, atualizamos o arquivo local e rodamos o script novamente.
+- O seed SQL mockado pode continuar existindo para desenvolvimento inicial, mas produção deve usar `data/world-cup-2026.ts` e `scripts/import-world-cup-2026.ts`.
+- O script de importação não deve apagar palpites de usuários nem tocar em `predictions`.
+
+## Administração do bolão
+
+- Apenas usuários com role `owner` em `pool_members` podem acessar `/dashboard/admin`.
+- Usuários com role `member` não acessam a administração.
+- O header deve mostrar o link `Admin` apenas para owners.
+- O owner pode gerar convites para o próprio bolão.
+- O owner pode copiar links de convite no formato `/register?invite=TOKEN`.
+- O owner pode visualizar participantes do bolão.
+- A tela de administração deve respeitar Supabase Auth e RLS, sem service role no frontend.
+- A administração não altera palpites, ranking, playoffs ou dados oficiais da Copa.
+## Dados oficiais da Copa - importacao validada
+
+- O app nao deve usar dados aleatorios em producao.
+- A fonte principal para conferir selecoes, grupos e jogos deve ser a FIFA.
+- Os dados oficiais ficam versionados em `data/world-cup-2026.ts`.
+- A importacao deve ser feita manualmente via `scripts/import-world-cup-2026.ts`.
+- O app nao depende da FIFA em runtime.
+- Antes de importar, os dados precisam passar por `scripts/validate-world-cup-2026.ts`.
+- A fase de grupos deve ter 12 grupos, 48 selecoes e 72 jogos.
+- Cada grupo deve ter 4 selecoes, 6 jogos e 3 rodadas com 2 jogos por rodada.
+- O fluxo esperado e: FIFA oficial -> `data/world-cup-2026.ts` -> validacao -> importacao -> Supabase -> app le do Supabase.
+- O import nao pode apagar palpites de usuarios nem tocar em `predictions`.
+- Para testar sem gravar no Supabase, usar `npm run seed:worldcup:dry`.

@@ -20,8 +20,13 @@ function match(
   return {
     id,
     groupId,
+    fifaMatchNumber: null,
     roundNumber,
     matchDate: null,
+    kickoffAt: null,
+    stadium: null,
+    city: null,
+    country: null,
     homeScore: null,
     awayScore: null,
     homeTeam,

@@ -1,4 +1,5 @@
--- Seed simples e editavel para desenvolvimento.
+-- Dados mockados apenas para desenvolvimento inicial.
+-- Para producao, usar scripts/import-world-cup-2026.ts com data/world-cup-2026.ts.
 -- Os nomes sao placeholders para evitar depender de dados oficiais mutaveis.
 
 insert into public.groups (name)

@@ -8,8 +8,13 @@ export type Team = {
 export type MatchWithTeams = {
   id: string;
   groupId: string;
+  fifaMatchNumber: number | null;
   roundNumber: number;
   matchDate: string | null;
+  kickoffAt: string | null;
+  stadium: string | null;
+  city: string | null;
+  country: string | null;
   homeScore: number | null;
   awayScore: number | null;
   homeTeam: Team;
