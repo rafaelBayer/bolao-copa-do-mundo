@@ -41,6 +41,7 @@ export default async function DashboardLayout({
     <div className="min-h-screen">
       <DashboardHeader
         userLabel={userLabel}
+        userEmail={email}
         avatarUrl={profile?.avatar_url ?? null}
         isOwner={ownerMembership?.role === "owner"}
       />

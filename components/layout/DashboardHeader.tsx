@@ -1,32 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LogOut, Trophy, User } from "lucide-react";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { createClient } from "@/lib/supabase/client";
+import { Trophy } from "lucide-react";
+import { UserMenu } from "./UserMenu";
 
 type DashboardHeaderProps = {
   userLabel: string;
+  userEmail?: string | null;
   avatarUrl?: string | null;
   isOwner?: boolean;
 };
 
 export function DashboardHeader({
   userLabel,
+  userEmail = null,
   avatarUrl = null,
   isOwner = false,
 }: DashboardHeaderProps) {
-  const router = useRouter();
-  const initial = userLabel.trim().charAt(0).toUpperCase() || "U";
-
-  async function handleSignOut() {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.replace("/login");
-    router.refresh();
-  }
-
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/80 bg-slate-950/82 backdrop-blur-xl light:border-slate-200/80 light:bg-white/85">
       <div className="mx-auto flex max-w-[1536px] flex-wrap items-center justify-between gap-3 px-3 py-4 sm:px-5 lg:px-8">
@@ -45,58 +35,18 @@ export function DashboardHeader({
               href="/dashboard/groups"
               className="rounded-full px-3 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-emerald-300 light:text-slate-600 light:hover:bg-slate-100 light:hover:text-emerald-700"
             >
-              Grupos
+              Palpites
             </Link>
-            <Link
-              href="/dashboard/profile"
-              className="rounded-full px-3 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-emerald-300 light:text-slate-600 light:hover:bg-slate-100 light:hover:text-emerald-700"
-            >
-              Perfil
-            </Link>
-            {isOwner ? (
-              <Link
-                href="/dashboard/admin"
-                className="rounded-full px-3 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-emerald-300 light:text-slate-600 light:hover:bg-slate-100 light:hover:text-emerald-700"
-              >
-                Admin
-              </Link>
-            ) : null}
           </nav>
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <Link
-            href="/dashboard/profile"
-            className="hidden items-center gap-2 rounded-full px-2 py-1 transition hover:bg-slate-800 light:hover:bg-slate-100 sm:flex"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-700 bg-slate-900 text-sm font-black text-slate-200 light:border-slate-200 light:bg-slate-50 light:text-slate-700">
-              {avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : initial ? (
-                initial
-              ) : (
-                <User size={16} aria-hidden="true" />
-              )}
-            </span>
-            <span className="max-w-44 truncate text-sm font-medium text-slate-400 light:text-slate-500">
-              {userLabel}
-            </span>
-          </Link>
-          <ThemeToggle />
-          <button
-            type="button"
-            onClick={handleSignOut}
-            title="Sair"
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-slate-700 bg-slate-900/80 px-3 text-sm font-bold text-slate-100 shadow-sm transition hover:border-red-400/60 hover:bg-red-500/10 hover:text-red-300 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-red-200 light:hover:bg-red-50 light:hover:text-red-700"
-          >
-            <LogOut size={16} aria-hidden="true" />
-            <span className="hidden sm:inline">Sair</span>
-          </button>
+          <UserMenu
+            userLabel={userLabel}
+            userEmail={userEmail}
+            avatarUrl={avatarUrl}
+            isOwner={isOwner}
+          />
         </div>
       </div>
     </header>
