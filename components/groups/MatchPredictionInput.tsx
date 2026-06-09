@@ -11,7 +11,7 @@ type MatchPredictionInputProps = {
   userId: string;
   match: MatchWithTeams;
   prediction?: Prediction;
-  onSaved?: (scores: SavedScores) => void;
+  onSaved?: (prediction: Prediction) => void;
 };
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -133,7 +133,7 @@ export function MatchPredictionInput({
       setStatus("saving");
 
       try {
-        await savePrediction({
+        const savedPrediction = await savePrediction({
           poolId,
           userId,
           matchId: match.id,
@@ -142,7 +142,7 @@ export function MatchPredictionInput({
         });
 
         lastSavedRef.current = submittedScores;
-        onSaved?.(submittedScores);
+        onSaved?.(savedPrediction);
         setHasExistingPrediction(true);
 
         if (scoresAreEqual(currentScoresRef.current, submittedScores)) {
@@ -154,7 +154,7 @@ export function MatchPredictionInput({
       } catch {
         setStatus("error");
       }
-    }, 800);
+    }, 1200);
 
     return () => window.clearTimeout(timeoutId);
   }, [

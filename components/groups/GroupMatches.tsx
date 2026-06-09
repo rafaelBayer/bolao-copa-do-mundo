@@ -11,6 +11,7 @@ type GroupMatchesProps = {
   userId: string;
   matches: MatchWithTeams[];
   predictions: Prediction[];
+  onPredictionSaved: (prediction: Prediction) => void;
 };
 
 export function GroupMatches({
@@ -18,16 +19,11 @@ export function GroupMatches({
   userId,
   matches,
   predictions,
+  onPredictionSaved,
 }: GroupMatchesProps) {
   const rounds = useMemo(
     () => Array.from(new Set(matches.map((match) => match.roundNumber))).sort(),
     [matches],
-  );
-  const [localPredictions, setLocalPredictions] = useState(
-    () =>
-      new Map(
-        predictions.map((prediction) => [prediction.matchId, prediction]),
-      ),
   );
   const [roundIndex, setRoundIndex] = useState(0);
   const currentRound = rounds[roundIndex] ?? 1;
@@ -36,31 +32,7 @@ export function GroupMatches({
   );
 
   function findPrediction(matchId: string) {
-    return localPredictions.get(matchId);
-  }
-
-  function handlePredictionSaved(
-    matchId: string,
-    scores: Pick<Prediction, "homeScore" | "awayScore">,
-  ) {
-    setLocalPredictions((currentPredictions) => {
-      const nextPredictions = new Map(currentPredictions);
-      const existingPrediction = nextPredictions.get(matchId);
-      const now = new Date().toISOString();
-
-      nextPredictions.set(matchId, {
-        id: existingPrediction?.id ?? `local-${matchId}`,
-        poolId,
-        userId,
-        matchId,
-        homeScore: scores.homeScore,
-        awayScore: scores.awayScore,
-        createdAt: existingPrediction?.createdAt ?? now,
-        updatedAt: now,
-      });
-
-      return nextPredictions;
-    });
+    return predictions.find((prediction) => prediction.matchId === matchId);
   }
 
   return (
@@ -95,7 +67,7 @@ export function GroupMatches({
               userId={userId}
               match={match}
               prediction={prediction}
-              onSaved={(scores) => handlePredictionSaved(match.id, scores)}
+              onSaved={onPredictionSaved}
             />
           );
         })}

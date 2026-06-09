@@ -10,6 +10,7 @@ type GroupSectionProps = {
   predictions: Prediction[];
   poolId: string;
   userId: string;
+  onPredictionSaved: (prediction: Prediction) => void;
 };
 
 export function GroupSection({
@@ -17,6 +18,7 @@ export function GroupSection({
   predictions,
   poolId,
   userId,
+  onPredictionSaved,
 }: GroupSectionProps) {
   return (
     <Card className="overflow-hidden p-4 md:p-5 xl:p-6">
@@ -45,6 +47,7 @@ export function GroupSection({
             userId={userId}
             matches={group.matches}
             predictions={predictions}
+            onPredictionSaved={onPredictionSaved}
           />
         </aside>
       </div>
