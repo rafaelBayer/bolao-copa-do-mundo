@@ -64,7 +64,7 @@ export function GroupMatches({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950/35 p-4 light:border-slate-200 light:bg-slate-50/80">
+    <div className="rounded-2xl border border-slate-800/80 bg-slate-950/30 p-4 light:border-slate-200 light:bg-slate-50/70">
       <div className="mb-4">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500">
           Jogos

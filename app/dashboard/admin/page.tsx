@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AdminStats } from "@/components/admin/AdminStats";
 import { CreateInviteButton } from "@/components/admin/CreateInviteButton";
 import { InviteList, type AdminInvite } from "@/components/admin/InviteList";
@@ -6,7 +6,6 @@ import {
   ParticipantsList,
   type AdminParticipant,
 } from "@/components/admin/ParticipantsList";
-import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
 
@@ -72,25 +71,7 @@ export default async function AdminPage() {
     .maybeSingle();
 
   if (!membership?.pool_id || membership.role !== "owner") {
-    return (
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
-        <Card className="p-6">
-          <Badge tone="amber">Acesso negado</Badge>
-          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
-            Area restrita ao dono do bolao
-          </h1>
-          <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
-            Apenas usuarios com role owner podem gerar convites e ver esta area.
-          </p>
-          <Link
-            href="/dashboard/groups"
-            className="mt-5 inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2.5 text-sm font-bold text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
-          >
-            Voltar para grupos
-          </Link>
-        </Card>
-      </main>
-    );
+    redirect("/dashboard/groups");
   }
 
   const rawPool = single(
@@ -129,7 +110,7 @@ export default async function AdminPage() {
   const usedInvitesCount = invites.filter((invite) => invite.usedAt).length;
 
   return (
-    <main className="mx-auto max-w-6xl px-4 py-8 sm:py-10">
+    <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
       <div className="space-y-5">
         <AdminStats
           poolName={pool.name}

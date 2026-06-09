@@ -181,38 +181,42 @@ export function MatchPredictionInput({
   }[status];
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3 shadow-sm transition hover:border-slate-700 light:border-slate-200 light:bg-white light:hover:border-slate-300">
-      <div className="grid grid-cols-[minmax(0,1fr)_3.75rem_1.5rem_3.75rem_minmax(0,1fr)] items-center gap-2">
-        <span className="truncate text-sm font-bold text-slate-100 light:text-slate-800">
+    <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3.5 shadow-sm transition hover:border-slate-700 light:border-slate-200 light:bg-white light:hover:border-slate-300">
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
+        <span className="min-w-0 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:text-left">
           {match.homeTeam.name}
         </span>
-        <input
-          type="number"
-          min={0}
-          max={99}
-          inputMode="numeric"
-          value={homeScore}
-          onChange={(event) => handleScoreChange("home", event.target.value)}
-          className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
-          aria-label={`Palpite de gols para ${match.homeTeam.name}`}
-        />
-        <span className="text-center text-sm font-black text-slate-500">x</span>
-        <input
-          type="number"
-          min={0}
-          max={99}
-          inputMode="numeric"
-          value={awayScore}
-          onChange={(event) => handleScoreChange("away", event.target.value)}
-          className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
-          aria-label={`Palpite de gols para ${match.awayTeam.name}`}
-        />
-        <span className="truncate text-right text-sm font-bold text-slate-100 light:text-slate-800">
+        <div className="flex items-center justify-center gap-2">
+          <input
+            type="number"
+            min={0}
+            max={99}
+            inputMode="numeric"
+            value={homeScore}
+            onChange={(event) => handleScoreChange("home", event.target.value)}
+            className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
+            aria-label={`Palpite de gols para ${match.homeTeam.name}`}
+          />
+          <span className="w-5 text-center text-sm font-black text-slate-400 light:text-slate-500">
+            x
+          </span>
+          <input
+            type="number"
+            min={0}
+            max={99}
+            inputMode="numeric"
+            value={awayScore}
+            onChange={(event) => handleScoreChange("away", event.target.value)}
+            className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
+            aria-label={`Palpite de gols para ${match.awayTeam.name}`}
+          />
+        </div>
+        <span className="min-w-0 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:text-right">
           {match.awayTeam.name}
         </span>
       </div>
 
-      <div className={`mt-2 min-h-4 text-right text-xs font-bold ${statusClass}`}>
+      <div className={`mt-2 min-h-4 text-center text-xs font-bold ${statusClass}`}>
         {statusLabel}
       </div>
     </div>

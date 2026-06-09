@@ -19,7 +19,7 @@ export function GroupSection({
   userId,
 }: GroupSectionProps) {
   return (
-    <Card className="overflow-hidden p-4 md:p-5">
+    <Card className="overflow-hidden p-4 md:p-5 xl:p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300 light:text-amber-600">
@@ -35,11 +35,11 @@ export function GroupSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-5">
-        <div className="col-span-12 lg:col-span-8">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(420px,0.65fr)] 2xl:grid-cols-[minmax(0,1.45fr)_minmax(460px,0.55fr)]">
+        <div className="min-w-0">
           <GroupTable group={group} />
         </div>
-        <aside className="col-span-12 border-t border-slate-800 pt-5 light:border-slate-200 lg:col-span-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
+        <aside className="min-w-0 border-t border-slate-800 pt-5 light:border-slate-200 xl:border-l xl:border-t-0 xl:pl-5 xl:pt-0">
           <GroupMatches
             poolId={poolId}
             userId={userId}
