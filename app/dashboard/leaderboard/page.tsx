@@ -74,7 +74,7 @@ export default async function LeaderboardPage() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
+    <main className="mx-auto w-full max-w-[1536px] px-3 py-5 sm:px-5 sm:py-7 lg:px-8">
       {error ? (
         <Card className="mb-5 p-5">
           <Badge tone="amber">Erro</Badge>

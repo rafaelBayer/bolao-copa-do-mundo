@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Badge } from "@/components/ui/Badge";
+import { HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import type { LeaderboardEntry } from "@/lib/scoring/buildLeaderboard";
 
@@ -21,6 +21,13 @@ type LeaderboardClientProps = {
 
 const rounds = [1, 2, 3];
 const emptyLeaderboardEntries: LeaderboardEntry[] = [];
+const columnTooltips = {
+  pts: "Pontos",
+  pe: "Placares exatos",
+  rc: "Resultados corretos",
+  jp: "Jogos pontuados",
+  pf: "Palpites feitos",
+};
 
 function participantInitial(entry: Pick<LeaderboardEntry, "name">) {
   return entry.name.trim().charAt(0).toUpperCase() || "U";
@@ -79,7 +86,7 @@ function PodiumCard({
           </p>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-2 gap-2 text-xs font-bold text-slate-400 light:text-slate-500">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-400 light:text-slate-500">
         <span>PE: {entry.exactScores}</span>
         <span>RC: {entry.correctResults}</span>
       </div>
@@ -96,11 +103,41 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
             <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-500 light:border-slate-200">
               <th className="px-4 py-3">Pos</th>
               <th className="px-4 py-3">Participante</th>
-              <th className="px-4 py-3 text-right">Pts</th>
-              <th className="px-4 py-3 text-right">PE</th>
-              <th className="px-4 py-3 text-right">RC</th>
-              <th className="px-4 py-3 text-right">JP</th>
-              <th className="px-4 py-3 text-right">PF</th>
+              <th
+                className="px-4 py-3 text-right"
+                title={columnTooltips.pts}
+                aria-label={columnTooltips.pts}
+              >
+                Pts
+              </th>
+              <th
+                className="px-4 py-3 text-right"
+                title={columnTooltips.pe}
+                aria-label={columnTooltips.pe}
+              >
+                PE
+              </th>
+              <th
+                className="px-4 py-3 text-right"
+                title={columnTooltips.rc}
+                aria-label={columnTooltips.rc}
+              >
+                RC
+              </th>
+              <th
+                className="px-4 py-3 text-right"
+                title={columnTooltips.jp}
+                aria-label={columnTooltips.jp}
+              >
+                JP
+              </th>
+              <th
+                className="px-4 py-3 text-right"
+                title={columnTooltips.pf}
+                aria-label={columnTooltips.pf}
+              >
+                PF
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -159,10 +196,18 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
               </p>
             </div>
             <div className="mt-3 grid grid-cols-4 gap-2 text-xs font-bold text-slate-400 light:text-slate-500">
-              <span>PE {entry.exactScores}</span>
-              <span>RC {entry.correctResults}</span>
-              <span>JP {entry.scoredMatches}</span>
-              <span>PF {entry.filledPredictions}</span>
+              <span title={columnTooltips.pe} aria-label={columnTooltips.pe}>
+                PE {entry.exactScores}
+              </span>
+              <span title={columnTooltips.rc} aria-label={columnTooltips.rc}>
+                RC {entry.correctResults}
+              </span>
+              <span title={columnTooltips.jp} aria-label={columnTooltips.jp}>
+                JP {entry.scoredMatches}
+              </span>
+              <span title={columnTooltips.pf} aria-label={columnTooltips.pf}>
+                PF {entry.filledPredictions}
+              </span>
             </div>
           </div>
         ))}
@@ -187,6 +232,7 @@ export function LeaderboardClient({
 }: LeaderboardClientProps) {
   const [mode, setMode] = useState<RankingMode>("general");
   const [selectedRound, setSelectedRound] = useState(1);
+  const [showScoringInfo, setShowScoringInfo] = useState(false);
   const selectedRoundLeaderboard = roundLeaderboards[selectedRound];
   const activeEntries =
     mode === "general"
@@ -215,103 +261,94 @@ export function LeaderboardClient({
 
   return (
     <div className="space-y-5">
-      <Card className="overflow-hidden p-5 sm:p-7">
-        <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-          <div>
-            <Badge tone="emerald">{poolName}</Badge>
-            <h1 className="mt-4 text-3xl font-black text-slate-50 light:text-slate-950 sm:text-4xl">
-              Classificacao
-            </h1>
-            <p className="mt-3 max-w-2xl text-base text-slate-400 light:text-slate-500">
-              Ranking dos participantes com base nos jogos que ja possuem resultado.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 sm:min-w-[24rem]">
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4 light:border-slate-200 light:bg-slate-50">
-              <p className="text-2xl font-black text-slate-50 light:text-slate-950">
-                {activeEntries.length}
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400 light:text-slate-500">
-                usuarios
-              </p>
-            </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4 light:border-slate-200 light:bg-slate-50">
-              <p className="text-2xl font-black text-slate-50 light:text-slate-950">
-                {activeEntries[0]?.totalPoints ?? 0}
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400 light:text-slate-500">
-                lider
-              </p>
-            </div>
-            <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 light:border-emerald-200 light:bg-emerald-50">
-              <p className="text-2xl font-black text-emerald-300 light:text-emerald-700">
-                3/1/0
-              </p>
-              <p className="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-200/80 light:text-emerald-700">
-                pontos
-              </p>
-            </div>
-          </div>
+      <section className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-300 light:text-emerald-700">
+            {poolName}
+          </p>
+          <h1 className="mt-2 text-3xl font-black text-slate-50 light:text-slate-950">
+            Classificacao
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-400 light:text-slate-500">
+            Ranking dos participantes com base nos jogos que ja possuem resultado.
+          </p>
         </div>
-      </Card>
 
-      <Card className="p-5">
-        <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
-          Como funciona a pontuacao
-        </h2>
-        <p className="mt-3 text-sm font-bold text-slate-300 light:text-slate-700">
-          Placar exato: 3 pts · Resultado correto: 1 pt · Erro: 0 pts
-        </p>
-        <p className="mt-2 max-w-3xl text-sm text-slate-400 light:text-slate-500">
-          Resultado correto significa acertar se o jogo terminou com vitoria do
-          mandante, empate ou vitoria do visitante.
-        </p>
-      </Card>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowScoringInfo((current) => !current)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-950/45 px-3 py-2 text-sm font-bold text-slate-200 transition hover:border-slate-700 hover:bg-slate-900 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:bg-slate-50"
+            aria-expanded={showScoringInfo}
+          >
+            <HelpCircle size={16} aria-hidden="true" />
+            Como pontua?
+          </button>
 
-      <Card className="p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="inline-flex w-fit rounded-xl border border-slate-800 bg-slate-950/45 p-1 light:border-slate-200 light:bg-slate-50">
-            <button
-              type="button"
-              onClick={() => setMode("general")}
-              className={modeButtonClass(mode === "general")}
-            >
-              Ranking geral
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("round")}
-              className={modeButtonClass(mode === "round")}
-            >
-              Por rodada
-            </button>
-          </div>
-
-          {mode === "round" ? (
-            <div className="inline-flex w-fit rounded-xl border border-slate-800 bg-slate-950/45 p-1 light:border-slate-200 light:bg-slate-50">
-              {rounds.map((round) => (
-                <button
-                  key={round}
-                  type="button"
-                  onClick={() => setSelectedRound(round)}
-                  className={modeButtonClass(selectedRound === round)}
-                >
-                  Rodada {round}
-                </button>
-              ))}
+          {showScoringInfo ? (
+            <div className="absolute right-0 z-10 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-xl light:border-slate-200 light:bg-white">
+              <p className="text-sm font-black text-slate-50 light:text-slate-950">
+                Como funciona a pontuacao
+              </p>
+              <p className="mt-3 text-sm font-bold text-slate-300 light:text-slate-700">
+                Placar exato: 3 pts
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-300 light:text-slate-700">
+                Resultado correto: 1 pt
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-300 light:text-slate-700">
+                Erro: 0 pts
+              </p>
+              <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
+                Resultado correto significa acertar se o jogo terminou com
+                vitoria do mandante, empate ou vitoria do visitante.
+              </p>
             </div>
           ) : null}
         </div>
-      </Card>
+      </section>
 
-      <Card className="p-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <section className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="inline-flex w-fit rounded-xl border border-slate-800 bg-slate-950/45 p-1 light:border-slate-200 light:bg-slate-50">
+          <button
+            type="button"
+            onClick={() => setMode("general")}
+            className={modeButtonClass(mode === "general")}
+          >
+            Ranking geral
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("round")}
+            className={modeButtonClass(mode === "round")}
+          >
+            Por rodada
+          </button>
+        </div>
+
+        {mode === "round" ? (
+          <div className="inline-flex w-fit rounded-xl border border-slate-800 bg-slate-950/45 p-1 light:border-slate-200 light:bg-slate-50">
+            {rounds.map((round) => (
+              <button
+                key={round}
+                type="button"
+                onClick={() => setSelectedRound(round)}
+                className={modeButtonClass(selectedRound === round)}
+              >
+                Rodada {round}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </section>
+
+      <Card className="p-4 sm:p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
               {podiumTitle}
             </h2>
-            <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
+            <p className="mt-1 text-xs text-slate-400 light:text-slate-500">
               {mode === "general"
                 ? "Melhores participantes considerando todos os jogos com resultado."
                 : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}
@@ -320,11 +357,11 @@ export function LeaderboardClient({
         </div>
 
         {!activeHasResult ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/35 p-4 text-sm text-slate-400 light:border-slate-200 light:bg-slate-50 light:text-slate-500">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-3 text-sm text-slate-400 light:border-slate-200 light:bg-slate-50 light:text-slate-500">
             {emptyMessage}
           </div>
         ) : podiumEntries.length === 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-950/35 p-4 text-sm text-slate-400 light:border-slate-200 light:bg-slate-50 light:text-slate-500">
+          <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-3 text-sm text-slate-400 light:border-slate-200 light:bg-slate-50 light:text-slate-500">
             {noScoreMessage}
           </div>
         ) : (
@@ -340,19 +377,15 @@ export function LeaderboardClient({
         )}
       </Card>
 
-      <Card className="p-5">
-        <div className="mb-4">
+      <Card className="p-4 sm:p-5">
+        <div className="mb-3">
           <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
             {tableTitle}
           </h2>
-          <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Pts = pontos, PE = placares exatos, RC = resultados corretos, JP =
-            jogos pontuados, PF = palpites feitos.
-          </p>
         </div>
 
         {!activeHasResult ? (
-          <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm font-medium text-amber-200 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
+          <div className="mb-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm font-medium text-amber-200 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
             {emptyMessage}
           </div>
         ) : null}
