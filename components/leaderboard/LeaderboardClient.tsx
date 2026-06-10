@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
@@ -57,6 +58,44 @@ function ParticipantAvatar({
   );
 }
 
+function ParticipantIdentity({
+  entry,
+  avatarSize = "sm",
+  strong = false,
+}: {
+  entry: Pick<LeaderboardEntry, "avatarUrl" | "name" | "username">;
+  avatarSize?: "sm" | "md" | "lg";
+  strong?: boolean;
+}) {
+  const content = (
+    <>
+      <ParticipantAvatar entry={entry} size={avatarSize} />
+      <span
+        className={`truncate ${
+          strong
+            ? "font-black text-slate-50 light:text-slate-950"
+            : "font-bold text-slate-100 light:text-slate-950"
+        }`}
+      >
+        {entry.name}
+      </span>
+    </>
+  );
+
+  if (!entry.username) {
+    return <div className="flex min-w-0 items-center gap-3">{content}</div>;
+  }
+
+  return (
+    <Link
+      href={`/dashboard/users/${entry.username}`}
+      className="flex min-w-0 items-center gap-3 rounded-xl transition hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 light:hover:text-emerald-700"
+    >
+      {content}
+    </Link>
+  );
+}
+
 function PodiumCard({
   entry,
   highlight = false,
@@ -76,11 +115,12 @@ function PodiumCard({
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-emerald-300 light:bg-white light:text-emerald-700">
           {entry.position}o
         </div>
-        <ParticipantAvatar entry={entry} size={highlight ? "lg" : "md"} />
         <div className="min-w-0">
-          <p className="truncate font-black text-slate-50 light:text-slate-950">
-            {entry.name}
-          </p>
+          <ParticipantIdentity
+            entry={entry}
+            avatarSize={highlight ? "lg" : "md"}
+            strong
+          />
           <p className="mt-1 text-sm font-bold text-emerald-300 light:text-emerald-700">
             {entry.totalPoints} pts
           </p>
@@ -150,12 +190,7 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
                   {entry.position}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center gap-3">
-                    <ParticipantAvatar entry={entry} size="sm" />
-                    <p className="font-bold text-slate-100 light:text-slate-950">
-                      {entry.name}
-                    </p>
-                  </div>
+                  <ParticipantIdentity entry={entry} avatarSize="sm" />
                 </td>
                 <td className="px-4 py-3 text-right font-black text-emerald-300 light:text-emerald-700">
                   {entry.totalPoints}
@@ -186,10 +221,7 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
                 <span className="text-lg font-black text-slate-50 light:text-slate-950">
                   {entry.position}
                 </span>
-                <ParticipantAvatar entry={entry} size="sm" />
-                <p className="truncate font-bold text-slate-100 light:text-slate-950">
-                  {entry.name}
-                </p>
+                <ParticipantIdentity entry={entry} avatarSize="sm" />
               </div>
               <p className="text-lg font-black text-emerald-300 light:text-emerald-700">
                 {entry.totalPoints} pts

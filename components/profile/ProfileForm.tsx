@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Camera, Loader2, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -10,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 type ProfileFormProps = {
   userId: string;
   initialName: string;
+  initialUsername: string;
   initialAvatarUrl: string;
 };
 
@@ -42,6 +44,7 @@ function validateAvatarFile(file: File) {
 export function ProfileForm({
   userId,
   initialName,
+  initialUsername,
   initialAvatarUrl,
 }: ProfileFormProps) {
   const router = useRouter();
@@ -187,7 +190,7 @@ export function ProfileForm({
             Perfil
           </h1>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Nome e foto usados no cabecalho.
+            Nome, foto e link publico usados no bolao.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label
@@ -208,6 +211,27 @@ export function ProfileForm({
             onChange={handleAvatarChange}
             className="sr-only"
           />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-slate-200 light:text-slate-700">
+            Link publico
+          </label>
+          {initialUsername ? (
+            <Link
+              href={`/dashboard/users/${initialUsername}`}
+              className="block rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm font-bold text-emerald-300 transition hover:border-emerald-400/60 hover:text-emerald-200 light:border-slate-200 light:bg-slate-50 light:text-emerald-700 light:hover:border-emerald-300 light:hover:text-emerald-800"
+            >
+              /dashboard/users/{initialUsername}
+            </Link>
+          ) : (
+            <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-sm font-medium text-amber-200 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
+              Seu username sera criado automaticamente ao entrar em um bolao.
+            </p>
+          )}
+          <p className="text-xs text-slate-500 light:text-slate-500">
+            O username e automatico e nao pode ser editado nesta versao.
+          </p>
         </div>
       </div>
 

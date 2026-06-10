@@ -3,6 +3,7 @@ import { calculatePredictionScore } from "@/lib/scoring/calculatePredictionScore
 export type LeaderboardDataRow = {
   user_id: string;
   profile_name: string | null;
+  username: string | null;
   avatar_url: string | null;
   match_id: string | null;
   round_number: number | null;
@@ -16,6 +17,7 @@ export type LeaderboardEntry = {
   position: number;
   userId: string;
   name: string;
+  username: string | null;
   avatarUrl: string | null;
   totalPoints: number;
   exactScores: number;
@@ -62,6 +64,7 @@ export function buildLeaderboard(
         position: 0,
         userId: row.user_id,
         name: participantName(row),
+        username: row.username?.trim() || null,
         avatarUrl: row.avatar_url,
         totalPoints: 0,
         exactScores: 0,

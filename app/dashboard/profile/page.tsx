@@ -15,13 +15,38 @@ export default async function ProfilePage() {
 
   const { data: profileData } = await supabase
     .from("profiles")
-    .select("name, avatar_url")
+    .select("name, username, avatar_url")
     .eq("id", userId)
     .maybeSingle();
-  const profile = profileData as {
+  let profile = profileData as {
     name?: string | null;
+    username?: string | null;
     avatar_url?: string | null;
   } | null;
+
+  if (!profile?.username) {
+    const { data: membership } = await supabase
+      .from("pool_members")
+      .select("pool_id")
+      .eq("user_id", userId)
+      .limit(1)
+      .maybeSingle();
+
+    if (membership?.pool_id) {
+      await supabase.rpc("ensure_user_profile_for_pool", {
+        target_pool_id: membership.pool_id,
+        preferred_name: profile?.name ?? null,
+      });
+
+      const { data: refreshedProfile } = await supabase
+        .from("profiles")
+        .select("name, username, avatar_url")
+        .eq("id", userId)
+        .maybeSingle();
+
+      profile = refreshedProfile as typeof profile;
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
@@ -29,6 +54,7 @@ export default async function ProfilePage() {
         <ProfileForm
           userId={userId}
           initialName={profile?.name ?? ""}
+          initialUsername={profile?.username ?? ""}
           initialAvatarUrl={profile?.avatar_url ?? ""}
         />
       </Card>
