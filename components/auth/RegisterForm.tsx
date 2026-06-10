@@ -11,7 +11,7 @@ import {
   inviteErrorMessage,
   logUnexpectedAuthError,
 } from "@/lib/auth/authErrorMessages";
-import { getOrCreateBrowserFingerprint } from "@/lib/invites/browserFingerprint";
+import { acceptInviteForCurrentUser } from "@/lib/invites/acceptInviteForCurrentUser";
 import { createClient } from "@/lib/supabase/client";
 
 type RegisterFormProps = {
@@ -50,38 +50,14 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
     });
   }, []);
 
-  async function ensureProfileForPool(
-    supabase: ReturnType<typeof createClient>,
-    poolId: string,
-  ) {
-    const preferredName = name.trim() || null;
-    const { error: profileError } = await supabase.rpc(
-      "ensure_user_profile_for_pool",
-      {
-        target_pool_id: poolId,
-        preferred_name: preferredName,
-      },
-    );
-
-    if (profileError) {
-      logUnexpectedAuthError(profileError);
-    }
-  }
-
   async function acceptInvite(accountWasJustCreated = false) {
     setError(null);
     setIsSubmitting(true);
 
-    const supabase = createClient();
-    const browserFingerprint = getOrCreateBrowserFingerprint();
-    const { data: poolId, error: inviteError } = await supabase.rpc(
-      "accept_pool_invite",
-      {
-        invite_token: inviteToken,
-        browser_fingerprint: browserFingerprint,
-        user_agent: navigator.userAgent,
-      },
-    );
+    const { error: inviteError } = await acceptInviteForCurrentUser({
+      inviteToken,
+      preferredName: name,
+    });
 
     if (inviteError) {
       setIsSubmitting(false);
@@ -89,10 +65,6 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
       setError(inviteErrorMessage(inviteError));
       logUnexpectedAuthError(inviteError);
       return;
-    }
-
-    if (typeof poolId === "string") {
-      await ensureProfileForPool(supabase, poolId);
     }
 
     setIsSubmitting(false);
@@ -133,8 +105,8 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
       setIsSubmitting(false);
       setError(
         userHasNoIdentities(data.user)
-          ? "Este e-mail ja esta cadastrado. Faca login e abra o convite novamente."
-          : "Nao foi possivel entrar automaticamente. Se este e-mail ja existe, faca login e abra o convite novamente. Se a conta foi criada agora, confirme o e-mail antes de tentar entrar no bolao.",
+          ? "Este e-mail ja esta cadastrado. Faca login para continuar."
+          : "Sua conta foi criada, mas o login automatico nao foi liberado. Verifique a configuracao de confirmacao de e-mail no Supabase.",
       );
       return;
     }
@@ -165,7 +137,7 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
         {error ? (
           <p className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-sm font-medium text-red-300 light:border-red-200 light:bg-red-50 light:text-red-700">
             {accountCreatedNeedsInvite
-              ? "Sua conta foi criada, mas nao conseguimos vincular ao bolao. Faca login e tente abrir o convite novamente."
+              ? "Sua conta foi criada, mas nao conseguimos vincular ao bolao. Clique abaixo para tentar entrar novamente."
               : error}
           </p>
         ) : null}
@@ -189,7 +161,7 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
           htmlFor="name"
           className="text-sm font-bold text-slate-200 light:text-slate-700"
         >
-          Nome
+          Nome ou apelido
         </label>
         <Input
           id="name"
@@ -257,7 +229,7 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
         <div className="space-y-3">
           <p className="rounded-xl border border-red-400/25 bg-red-400/10 px-3 py-2 text-sm font-medium text-red-300 light:border-red-200 light:bg-red-50 light:text-red-700">
             {accountCreatedNeedsInvite
-              ? "Sua conta foi criada, mas nao conseguimos vincular ao bolao. Faca login e tente abrir o convite novamente."
+              ? "Sua conta foi criada, mas nao conseguimos vincular ao bolao. Clique abaixo para tentar entrar novamente."
               : error}
           </p>
           {accountCreatedNeedsInvite ? (
@@ -273,7 +245,7 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
           ) : null}
           {error.includes("ja esta cadastrado") ? (
             <Link
-              href="/login"
+              href={`/login?invite=${encodeURIComponent(inviteToken)}`}
               className="block text-center text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
             >
               Ir para login
@@ -288,7 +260,7 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
         className="w-full py-3"
       >
         <UserPlus size={18} aria-hidden="true" />
-        {isSubmitting ? "Criando..." : "Criar conta"}
+        {isSubmitting ? "Entrando..." : "Entrar no bolao"}
       </Button>
     </form>
   );

@@ -6,6 +6,11 @@ import { FormEvent, useState } from "react";
 import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import {
+  inviteErrorMessage,
+  logUnexpectedAuthError,
+} from "@/lib/auth/authErrorMessages";
+import { acceptInviteForCurrentUser } from "@/lib/invites/acceptInviteForCurrentUser";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -28,13 +33,26 @@ export function LoginForm() {
       password,
     });
 
-    setIsSubmitting(false);
-
     if (signInError) {
+      setIsSubmitting(false);
       setError("E-mail ou senha invalidos.");
       return;
     }
 
+    if (invite) {
+      const { error: inviteError } = await acceptInviteForCurrentUser({
+        inviteToken: invite,
+      });
+
+      if (inviteError) {
+        setIsSubmitting(false);
+        setError(inviteErrorMessage(inviteError));
+        logUnexpectedAuthError(inviteError);
+        return;
+      }
+    }
+
+    setIsSubmitting(false);
     router.replace("/dashboard/groups");
     router.refresh();
   }

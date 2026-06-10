@@ -35,6 +35,26 @@ Crie o usuario owner em **Authentication > Users > Add user**.
 
 Para o fluxo de convite entrar direto no bolao apos o cadastro, o Supabase Auth precisa criar uma sessao logo depois do `signUp`. No ambiente de desenvolvimento, verifique em **Authentication > Providers > Email** se a confirmacao obrigatoria de e-mail esta desativada. Se o projeto exigir confirmacao, o usuario precisara confirmar o e-mail antes de concluir a entrada no bolao.
 
+## 4.1. Configuracao obrigatoria para cadastro simples
+
+Para o fluxo de convite funcionar direto para amigos, o Supabase precisa permitir login automatico logo apos o cadastro.
+
+Checklist no Supabase Dashboard:
+
+```txt
+Authentication
+-> Providers / Email
+-> Confirm email: desativado
+```
+
+O nome exato do menu pode variar na interface atual do Supabase. Procure pela configuracao de confirmacao obrigatoria de e-mail do provider Email e deixe desativada no ambiente do bolao.
+
+Tambem recomendamos:
+
+- usar e-mails reais e validos nos testes;
+- evitar muitos cadastros seguidos para nao bater rate limit;
+- testar `/login?invite=TOKEN` para usuarios que ja tem conta.
+
 ## 5. Criar o primeiro bolao e vincular o owner
 
 Use o script local com a `SUPABASE_SERVICE_ROLE_KEY` configurada:

@@ -37,7 +37,7 @@ export function authErrorMessage(error: unknown, email?: string) {
   }
 
   if (message.includes("already registered")) {
-    return "Este e-mail ja esta cadastrado. Faca login e abra o convite novamente.";
+    return "Este e-mail ja esta cadastrado. Faca login para continuar.";
   }
 
   if (message.includes("password should be at least")) {

@@ -18,7 +18,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
             Bolao da Copa
           </p>
           <h1 className="mt-3 text-3xl font-black text-slate-50 light:text-slate-950">
-            Entrar no bolao
+            Criar conta para entrar no bolao
           </h1>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
             Crie sua conta usando o convite recebido.
@@ -41,7 +41,7 @@ export default async function RegisterPage({ searchParams }: RegisterPageProps) 
         <p className="mt-6 text-center text-sm text-slate-400 light:text-slate-600">
           Ja tem conta?{" "}
           <Link
-            href="/login"
+            href={invite ? `/login?invite=${encodeURIComponent(invite)}` : "/login"}
             className="font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
           >
             Entrar
