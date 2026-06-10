@@ -11,7 +11,10 @@
     "validate:worldcup": "tsx scripts/validate-world-cup-2026.ts",
     "seed:worldcup": "tsx scripts/import-world-cup-2026.ts",
     "seed:worldcup:dry": "tsx scripts/import-world-cup-2026.ts --dry-run",
-    "setup:owner-pool": "tsx scripts/create-owner-pool.ts"
+    "setup:owner-pool": "tsx scripts/create-owner-pool.ts",
+    "scores:map-fixtures:dry": "tsx scripts/map-live-score-fixtures.ts --dry-run",
+    "scores:map-fixtures": "tsx scripts/map-live-score-fixtures.ts",
+    "scores:map-api-football:dry": "tsx scripts/map-api-football-fixtures.ts --dry-run"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

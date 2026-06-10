@@ -29,6 +29,13 @@ function match(
     country: null,
     homeScore: null,
     awayScore: null,
+    apiFootballFixtureId: null,
+    statusShort: null,
+    statusLong: null,
+    elapsed: null,
+    homeScoreLive: null,
+    awayScoreLive: null,
+    scoreUpdatedAt: null,
     homeTeam,
     awayTeam,
   };

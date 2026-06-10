@@ -6,6 +6,7 @@ import { GroupTable } from "./GroupTable";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { calculateGroupStandings } from "@/lib/groups/calculateGroupStandings";
+import { getMatchDisplayScore } from "@/lib/groups/getMatchDisplayScore";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
 import type { Prediction } from "@/types/prediction";
 
@@ -60,10 +61,7 @@ export function GroupSection({
       new Map(
         group.matches.map((match) => [
           match.id,
-          {
-            homeScore: match.homeScore,
-            awayScore: match.awayScore,
-          },
+          getMatchDisplayScore(match),
         ]),
       ),
     [group.matches],
@@ -95,7 +93,7 @@ export function GroupSection({
   const tableSubtitle =
     tableMode === "simulation"
       ? "Baseada nos seus palpites preenchidos."
-      : "Baseada nos resultados ja cadastrados.";
+      : "Baseada nos resultados finais e placares ao vivo.";
   const emptyMessage =
     tableMode === "simulation"
       ? "Preencha seus palpites para simular a classificacao do grupo."

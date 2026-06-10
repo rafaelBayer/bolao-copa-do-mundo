@@ -10,6 +10,12 @@ import {
   useState,
 } from "react";
 import { savePrediction } from "@/lib/predictions/savePrediction";
+import { getMatchDisplayScore } from "@/lib/groups/getMatchDisplayScore";
+import {
+  isFinalMatchStatus,
+  isHalftimeStatus,
+  isLiveMatchStatus,
+} from "@/lib/scores/liveScoreStatus";
 import { TeamFlag } from "./TeamFlag";
 import type { MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
@@ -70,6 +76,59 @@ function sanitizeScore(value: string) {
   return String(Math.trunc(numberValue));
 }
 
+function formatKickoff(kickoffAt: string | null) {
+  if (!kickoffAt) {
+    return "Horario a definir";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(kickoffAt));
+}
+
+function matchStatusLabel(match: MatchWithTeams) {
+  const displayScore = getMatchDisplayScore(match);
+  const scoreLabel =
+    displayScore.homeScore !== null && displayScore.awayScore !== null
+      ? `${match.homeTeam.name} ${displayScore.homeScore} x ${displayScore.awayScore} ${match.awayTeam.name}`
+      : null;
+
+  if (isFinalMatchStatus(match.statusShort)) {
+    return {
+      tone: "default" as const,
+      title: "Finalizado",
+      detail: scoreLabel ?? "Resultado final indisponivel",
+    };
+  }
+
+  if (isHalftimeStatus(match.statusShort)) {
+    return {
+      tone: "amber" as const,
+      title: "Intervalo",
+      detail: scoreLabel ?? "Placar ao vivo indisponivel",
+    };
+  }
+
+  if (isLiveMatchStatus(match.statusShort)) {
+    return {
+      tone: "live" as const,
+      title: "AO VIVO",
+      detail: `${scoreLabel ?? "Placar ao vivo indisponivel"}${
+        match.elapsed !== null ? ` · ${match.elapsed}'` : ""
+      }`,
+    };
+  }
+
+  return {
+    tone: "default" as const,
+    title: match.statusLong ?? "Nao iniciado",
+    detail: formatKickoff(match.kickoffAt),
+  };
+}
+
 export const MatchPredictionInput = forwardRef<
   MatchPredictionInputHandle,
   MatchPredictionInputProps
@@ -77,6 +136,7 @@ export const MatchPredictionInput = forwardRef<
   { poolId, userId, match, prediction, onSaved },
   ref,
 ) {
+  const liveStatus = matchStatusLabel(match);
   const isLocked = Boolean(
     match.kickoffAt && new Date(match.kickoffAt) <= new Date(),
   );
@@ -267,6 +327,23 @@ export const MatchPredictionInput = forwardRef<
         isLocked ? "opacity-75" : ""
       }`}
     >
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <span
+          className={`rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-wide ${
+            liveStatus.tone === "live"
+              ? "bg-red-500 text-white shadow-sm shadow-red-950/30"
+              : liveStatus.tone === "amber"
+                ? "bg-amber-400/15 text-amber-200 light:bg-amber-100 light:text-amber-800"
+                : "bg-slate-800 text-slate-300 light:bg-slate-100 light:text-slate-600"
+          }`}
+        >
+          {liveStatus.title}
+        </span>
+        <span className="text-xs font-bold text-slate-400 light:text-slate-500">
+          {liveStatus.detail}
+        </span>
+      </div>
+
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
         <span className="flex min-w-0 items-center justify-center gap-2 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:justify-start sm:text-left">
           <TeamFlag

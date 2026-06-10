@@ -3,6 +3,10 @@ import { AdminStats } from "@/components/admin/AdminStats";
 import { CreateInviteButton } from "@/components/admin/CreateInviteButton";
 import { InviteList, type AdminInvite } from "@/components/admin/InviteList";
 import {
+  LiveScoreAdminPanel,
+  type AdminLiveMatch,
+} from "@/components/admin/LiveScoreAdminPanel";
+import {
   ParticipantsList,
   type AdminParticipant,
 } from "@/components/admin/ParticipantsList";
@@ -26,6 +30,19 @@ type AdminParticipantRow = {
   name: string | null;
   avatar_url: string | null;
   email: string | null;
+};
+
+type AdminMatchRow = {
+  id: string;
+  kickoff_at: string | null;
+  status_short: string | null;
+  elapsed: number | null;
+  home_score_live: number | null;
+  away_score_live: number | null;
+  home_score: number | null;
+  away_score: number | null;
+  home_team: { name: string } | { name: string }[] | null;
+  away_team: { name: string } | { name: string }[] | null;
 };
 
 function single<T>(value: T | T[] | null | undefined): T | null {
@@ -55,6 +72,37 @@ function mapInvite(row: Record<string, unknown>): AdminInvite {
     createdAt: String(row.created_at),
     usesCount: typeof row.uses_count === "number" ? row.uses_count : 0,
   };
+}
+
+function mapAdminMatch(row: AdminMatchRow): AdminLiveMatch {
+  const homeTeam = single(row.home_team);
+  const awayTeam = single(row.away_team);
+
+  return {
+    id: row.id,
+    kickoffAt: row.kickoff_at,
+    homeTeamName: homeTeam?.name ?? "Mandante",
+    awayTeamName: awayTeam?.name ?? "Visitante",
+    statusShort: row.status_short,
+    elapsed: row.elapsed,
+    homeScoreLive: row.home_score_live,
+    awayScoreLive: row.away_score_live,
+    homeScore: row.home_score,
+    awayScore: row.away_score,
+  };
+}
+
+function isNearMatchWindow(match: AdminLiveMatch) {
+  if (!match.kickoffAt) {
+    return false;
+  }
+
+  const now = Date.now();
+  const kickoff = new Date(match.kickoffAt).getTime();
+  const startsAt = kickoff - 12 * 60 * 60 * 1000;
+  const endsAt = kickoff + 3 * 60 * 60 * 1000;
+
+  return now >= startsAt && now <= endsAt;
 }
 
 function isInviteAvailable(invite: AdminInvite) {
@@ -120,6 +168,7 @@ export default async function AdminPage() {
     { data: participantsData },
     { data: invitesData },
     { data: inviteUsesData },
+    { data: matchesData },
   ] = await Promise.all([
     supabase.rpc("get_pool_participants", {
       target_pool_id: pool.id,
@@ -133,6 +182,23 @@ export default async function AdminPage() {
       .from("pool_invite_uses")
       .select("invite_id")
       .eq("pool_id", pool.id),
+    supabase
+      .from("matches")
+      .select(
+        `
+        id,
+        kickoff_at,
+        status_short,
+        elapsed,
+        home_score_live,
+        away_score_live,
+        home_score,
+        away_score,
+        home_team:teams!matches_home_team_id_fkey(name),
+        away_team:teams!matches_away_team_id_fkey(name)
+      `,
+      )
+      .order("kickoff_at", { ascending: true }),
   ]);
 
   const participants = ((participantsData ?? []) as AdminParticipantRow[]).map((row) =>
@@ -160,6 +226,12 @@ export default async function AdminPage() {
     (total, invite) => total + invite.usesCount,
     0,
   );
+  const mappedMatches = ((matchesData ?? []) as unknown as AdminMatchRow[]).map(
+    mapAdminMatch,
+  );
+  const liveAdminMatches = mappedMatches.filter(isNearMatchWindow);
+  const adminMatches =
+    liveAdminMatches.length > 0 ? liveAdminMatches : mappedMatches.slice(0, 8);
 
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
@@ -185,6 +257,18 @@ export default async function AdminPage() {
             initialHeaderTitle={pool.headerTitle ?? ""}
             initialLogoUrl={pool.logoUrl ?? ""}
           />
+        </Card>
+
+        <Card className="p-5">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
+              Placar dos jogos
+            </h2>
+            <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
+              Fallback manual para atualizar placar ao vivo ou finalizar uma partida.
+            </p>
+          </div>
+          <LiveScoreAdminPanel poolId={pool.id} matches={adminMatches} />
         </Card>
 
         <Card className="p-5">

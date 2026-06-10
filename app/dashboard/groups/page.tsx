@@ -115,6 +115,29 @@ function mapGroups(rows: Record<string, unknown>[]): GroupWithTeamsAndMatches[] 
               typeof match.home_score === "number" ? match.home_score : null,
             awayScore:
               typeof match.away_score === "number" ? match.away_score : null,
+            apiFootballFixtureId:
+              typeof match.api_football_fixture_id === "number"
+                ? match.api_football_fixture_id
+                : null,
+            statusShort:
+              typeof match.status_short === "string"
+                ? match.status_short
+                : null,
+            statusLong:
+              typeof match.status_long === "string" ? match.status_long : null,
+            elapsed: typeof match.elapsed === "number" ? match.elapsed : null,
+            homeScoreLive:
+              typeof match.home_score_live === "number"
+                ? match.home_score_live
+                : null,
+            awayScoreLive:
+              typeof match.away_score_live === "number"
+                ? match.away_score_live
+                : null,
+            scoreUpdatedAt:
+              typeof match.score_updated_at === "string"
+                ? match.score_updated_at
+                : null,
             homeTeam,
             awayTeam,
           };
@@ -194,6 +217,13 @@ export default async function GroupsPage() {
             country,
             home_score,
             away_score,
+            api_football_fixture_id,
+            status_short,
+            status_long,
+            elapsed,
+            home_score_live,
+            away_score_live,
+            score_updated_at,
             home_team:teams!matches_home_team_id_fkey(id, name, code, flag_url),
             away_team:teams!matches_away_team_id_fkey(id, name, code, flag_url)
           )

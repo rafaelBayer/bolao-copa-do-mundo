@@ -1,0 +1,296 @@
+# Placar ao vivo
+
+O placar ao vivo usa um fluxo server-side para economizar requests e proteger a
+API key:
+
+```txt
+API-Football
+-> /api/scores/sync
+-> Supabase matches
+-> /dashboard/groups
+```
+
+O frontend nunca chama a API externa.
+
+## Providers
+
+O provider e escolhido por:
+
+```env
+LIVE_SCORE_PROVIDER=api-football
+```
+
+Valores:
+
+```txt
+api-football
+football-data
+manual
+```
+
+Observacao importante: a API-Football Free retornou que nao libera `season=2026`.
+Ela continua implementada, mas pode exigir plano pago ou outro `league/season`.
+
+Para fallback garantido, use:
+
+```env
+LIVE_SCORE_PROVIDER=manual
+```
+
+Nesse modo, `/api/scores/sync` nao chama API externa e o owner atualiza o placar
+pelo admin.
+
+## Variaveis de ambiente
+
+```env
+API_FOOTBALL_KEY=
+LIVE_SCORE_PROVIDER=
+FOOTBALL_DATA_API_KEY=
+FOOTBALL_DATA_COMPETITION_CODE=WC
+SCORES_SYNC_SECRET=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+O mapeamento de fixtures tambem aceita estes opcionais:
+
+```env
+API_FOOTBALL_WORLD_CUP_LEAGUE_ID=
+API_FOOTBALL_WORLD_CUP_SEASON=
+```
+
+Padroes atuais:
+
+```txt
+league = 1
+season = 2026
+```
+
+## Banco
+
+Rode a migration:
+
+```txt
+supabase/migrations/0015_live_scores.sql
+supabase/migrations/0016_live_score_provider_and_admin.sql
+```
+
+Ela adiciona em `matches`:
+
+```txt
+api_football_fixture_id
+score_provider
+score_provider_fixture_id
+status_short
+status_long
+elapsed
+home_score_live
+away_score_live
+score_updated_at
+```
+
+A migration `0016` adiciona os campos genericos de provider e RPCs seguras para
+o fallback manual no admin.
+
+## Mapear fixtures
+
+Antes do sync automatico funcionar, cada jogo precisa estar mapeado ao provider.
+Para providers novos, o app usa:
+
+```txt
+score_provider
+score_provider_fixture_id
+```
+
+Dry-run:
+
+```bash
+npm run scores:map-fixtures:dry
+```
+
+Aplicar:
+
+```bash
+npm run scores:map-fixtures
+```
+
+O script so atualiza matches quando encontra uma correspondencia segura por data
+local e nomes dos times. Se houver duvida, preencha manualmente:
+
+```sql
+update public.matches
+set api_football_fixture_id = 123456
+where id = 'MATCH_ID';
+```
+
+Para football-data:
+
+```env
+LIVE_SCORE_PROVIDER=football-data
+FOOTBALL_DATA_API_KEY=
+FOOTBALL_DATA_COMPETITION_CODE=WC
+```
+
+Depois rode:
+
+```bash
+npm run scores:map-fixtures:dry
+npm run scores:map-fixtures
+```
+
+## Endpoint de sync
+
+Chamada manual:
+
+```txt
+/api/scores/sync?secret=SCORES_SYNC_SECRET
+```
+
+Tambem aceita header:
+
+```txt
+x-sync-secret: SCORES_SYNC_SECRET
+```
+
+Respostas esperadas:
+
+```json
+{
+  "status": "synced",
+  "reason": "active_match_window",
+  "externalRequests": 1,
+  "updatedMatches": 2,
+  "nextRecommendedSyncInMinutes": 3
+}
+```
+
+```json
+{
+  "status": "skipped",
+  "reason": "outside_active_window",
+  "externalRequests": 0,
+  "updatedMatches": 0
+}
+```
+
+## Economia de requests
+
+O endpoint consulta `matches` antes de chamar a API externa.
+
+Janela ativa:
+
+```txt
+5 minutos antes do kickoff
+ate 2h15 depois do kickoff
+```
+
+Intervalo minimo por quantidade de horarios no dia:
+
+```txt
+1-2 horarios: 3 min
+3 horarios: 4 min
+4 horarios: 5 min
+5+ horarios: 7 min
+```
+
+Pausa no intervalo:
+
+```txt
+Se todos os jogos ativos estiverem HT e a ultima sync tem menos de 15 min,
+o endpoint nao chama a API externa.
+```
+
+## Cron
+
+Configure um cron para chamar o endpoint a cada 1 ou 2 minutos durante a Copa.
+O endpoint decide internamente se deve gastar request externo.
+
+Exemplo:
+
+```txt
+GET https://SEU_DOMINIO/api/scores/sync?secret=SCORES_SYNC_SECRET
+```
+
+Se `LIVE_SCORE_PROVIDER=manual`, o endpoint retorna `manual_provider` e nao
+gasta requests externos.
+
+## Uso na tela
+
+`/dashboard/groups` mostra:
+
+* `AO VIVO` para jogos em andamento;
+* `Intervalo` para `HT`;
+* `Finalizado` para `FT`, `AET` ou `PEN`;
+* horario do jogo quando ainda nao iniciou.
+
+A classificacao real do grupo usa:
+
+```txt
+1. home_score/away_score se finalizado
+2. home_score_live/away_score_live se em andamento ou intervalo
+3. ignora jogo nao iniciado
+```
+
+O ranking dos usuarios continua usando somente:
+
+```txt
+matches.home_score
+matches.away_score
+```
+
+## Teste sem jogo real
+
+### Pelo admin
+
+1. Entrar como owner.
+2. Abrir `/dashboard/admin`.
+3. Usar a secao `Placar dos jogos`.
+4. Preencher placar live, status e minuto.
+5. Clicar em `Salvar`.
+6. Abrir `/dashboard/groups` e confirmar `AO VIVO`.
+7. Clicar em `Finalizar` para gravar `home_score` e `away_score`.
+
+### Via SQL
+
+Simular jogo ao vivo:
+
+```sql
+update public.matches
+set
+  home_score_live = 1,
+  away_score_live = 0,
+  status_short = '1H',
+  status_long = 'First Half',
+  elapsed = 35,
+  score_updated_at = now()
+where id = 'MATCH_ID';
+```
+
+Simular intervalo:
+
+```sql
+update public.matches
+set
+  status_short = 'HT',
+  status_long = 'Halftime',
+  score_updated_at = now()
+where id = 'MATCH_ID';
+```
+
+Finalizar jogo:
+
+```sql
+update public.matches
+set
+  home_score = coalesce(home_score_live, 1),
+  away_score = coalesce(away_score_live, 0),
+  status_short = 'FT',
+  status_long = 'Match Finished',
+  score_updated_at = now()
+where id = 'MATCH_ID';
+```
+
+## Fallback manual
+
+Se API ou cron falhar durante um jogo, atualize os campos live manualmente no
+Supabase. Quando terminar, preencha `home_score` e `away_score`; so esses campos
+entram no ranking dos usuarios.

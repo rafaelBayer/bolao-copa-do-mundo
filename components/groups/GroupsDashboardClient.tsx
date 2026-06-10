@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ListChecks } from "lucide-react";
 import { GroupSection } from "@/components/groups/GroupSection";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { createClient } from "@/lib/supabase/client";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
+import type { MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
 
 type GroupsDashboardClientProps = {
@@ -20,6 +22,18 @@ function isFilledPrediction(prediction: Prediction) {
   return prediction.homeScore !== null && prediction.awayScore !== null;
 }
 
+function isInLiveRefreshWindow(match: MatchWithTeams, now: Date) {
+  if (!match.kickoffAt) {
+    return false;
+  }
+
+  const kickoff = new Date(match.kickoffAt);
+  const windowStart = new Date(kickoff.getTime() - 5 * 60 * 1000);
+  const windowEnd = new Date(kickoff.getTime() + 135 * 60 * 1000);
+
+  return now >= windowStart && now <= windowEnd;
+}
+
 export function GroupsDashboardClient({
   groups,
   initialPredictions,
@@ -27,10 +41,12 @@ export function GroupsDashboardClient({
   poolName,
   userId,
 }: GroupsDashboardClientProps) {
+  const [visibleGroups, setVisibleGroups] = useState(groups);
   const [predictions, setPredictions] = useState(initialPredictions);
   const totalMatches = useMemo(
-    () => groups.reduce((total, group) => total + group.matches.length, 0),
-    [groups],
+    () =>
+      visibleGroups.reduce((total, group) => total + group.matches.length, 0),
+    [visibleGroups],
   );
   const filledPredictions = useMemo(
     () => predictions.filter(isFilledPrediction).length,
@@ -41,6 +57,23 @@ export function GroupsDashboardClient({
     totalMatches > 0
       ? Math.round((filledPredictions / totalMatches) * 100)
       : 0;
+  const matchIds = useMemo(
+    () =>
+      visibleGroups.flatMap((group) =>
+        group.matches.map((match) => match.id),
+      ),
+    [visibleGroups],
+  );
+  const shouldRefreshLiveScores = useMemo(
+    () => {
+      const now = new Date();
+
+      return visibleGroups.some((group) =>
+        group.matches.some((match) => isInLiveRefreshWindow(match, now)),
+      );
+    },
+    [visibleGroups],
+  );
 
   const handlePredictionSaved = useCallback((savedPrediction: Prediction) => {
     setPredictions((currentPredictions) => {
@@ -63,6 +96,74 @@ export function GroupsDashboardClient({
     });
   }, []);
 
+  useEffect(() => {
+    if (!shouldRefreshLiveScores || matchIds.length === 0) {
+      return;
+    }
+
+    const supabase = createClient();
+
+    async function refreshLiveScores() {
+      const { data, error } = await supabase
+        .from("matches")
+        .select(
+          "id, status_short, status_long, elapsed, home_score_live, away_score_live, home_score, away_score, score_updated_at",
+        )
+        .in("id", matchIds);
+
+      if (error || !data) {
+        return;
+      }
+
+      const updateByMatchId = new Map(
+        data.map((match) => [
+          String(match.id),
+          {
+            statusShort:
+              typeof match.status_short === "string"
+                ? match.status_short
+                : null,
+            statusLong:
+              typeof match.status_long === "string" ? match.status_long : null,
+            elapsed: typeof match.elapsed === "number" ? match.elapsed : null,
+            homeScoreLive:
+              typeof match.home_score_live === "number"
+                ? match.home_score_live
+                : null,
+            awayScoreLive:
+              typeof match.away_score_live === "number"
+                ? match.away_score_live
+                : null,
+            homeScore:
+              typeof match.home_score === "number" ? match.home_score : null,
+            awayScore:
+              typeof match.away_score === "number" ? match.away_score : null,
+            scoreUpdatedAt:
+              typeof match.score_updated_at === "string"
+                ? match.score_updated_at
+                : null,
+          },
+        ]),
+      );
+
+      setVisibleGroups((currentGroups) =>
+        currentGroups.map((group) => ({
+          ...group,
+          matches: group.matches.map((match) => ({
+            ...match,
+            ...(updateByMatchId.get(match.id) ?? {}),
+          })),
+        })),
+      );
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshLiveScores();
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, [matchIds, shouldRefreshLiveScores]);
+
   return (
     <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 sm:py-10 lg:px-6">
       <Card className="mb-6 overflow-hidden p-5 sm:p-7">
@@ -80,7 +181,7 @@ export function GroupsDashboardClient({
           <div className="grid grid-cols-3 gap-3 sm:min-w-[28rem]">
             <div className="rounded-2xl border border-slate-800 bg-slate-950/45 p-4 light:border-slate-200 light:bg-slate-50">
               <p className="text-2xl font-black text-slate-50 light:text-slate-950">
-                {groups.length}
+                {visibleGroups.length}
               </p>
               <p className="mt-1 text-xs font-bold uppercase tracking-wide text-slate-400 light:text-slate-500">
                 grupos
@@ -158,7 +259,7 @@ export function GroupsDashboardClient({
       </Card>
 
       <div className="space-y-5">
-        {groups.map((group) => (
+        {visibleGroups.map((group) => (
           <GroupSection
             key={group.id}
             group={group}

@@ -17,6 +17,13 @@ export type MatchWithTeams = {
   country: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  apiFootballFixtureId: number | null;
+  statusShort: string | null;
+  statusLong: string | null;
+  elapsed: number | null;
+  homeScoreLive: number | null;
+  awayScoreLive: number | null;
+  scoreUpdatedAt: string | null;
   homeTeam: Team;
   awayTeam: Team;
 };

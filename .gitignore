@@ -17,6 +17,7 @@
 .DS_Store
 *.pem
 context.md
+context-live-scores.md
 
 # debug
 npm-debug.log*
