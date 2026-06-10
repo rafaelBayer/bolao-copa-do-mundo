@@ -1,43 +1,16 @@
-create or replace function public.prevent_locked_prediction_changes()
-returns trigger
-language plpgsql
-set search_path = public
-as $$
-declare
-  match_kickoff_at timestamptz;
-begin
-  select m.kickoff_at
-  into match_kickoff_at
-  from public.matches m
-  where m.id = new.match_id;
-
-  if match_kickoff_at is not null and match_kickoff_at <= now() then
-    raise exception 'Prediction locked because match already started';
-  end if;
-
-  return new;
-end;
-$$;
-
-drop trigger if exists predictions_prevent_locked_changes on public.predictions;
-
-create trigger predictions_prevent_locked_changes
-before insert or update on public.predictions
-for each row execute function public.prevent_locked_prediction_changes();
-
 create or replace function public.save_prediction(
   target_pool_id uuid,
   target_match_id uuid,
-  predicted_home_score int,
-  predicted_away_score int
+  predicted_home_score integer,
+  predicted_away_score integer
 )
 returns table (
   id uuid,
   pool_id uuid,
   user_id uuid,
   match_id uuid,
-  home_score int,
-  away_score int,
+  home_score integer,
+  away_score integer,
   created_at timestamptz,
   updated_at timestamptz
 )
@@ -105,5 +78,5 @@ begin
 end;
 $$;
 
-revoke all on function public.save_prediction(uuid, uuid, int, int) from public;
-grant execute on function public.save_prediction(uuid, uuid, int, int) to authenticated;
+revoke all on function public.save_prediction(uuid, uuid, integer, integer) from public;
+grant execute on function public.save_prediction(uuid, uuid, integer, integer) to authenticated;

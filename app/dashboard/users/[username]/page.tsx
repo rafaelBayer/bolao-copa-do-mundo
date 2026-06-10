@@ -111,8 +111,8 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
   const { data, error } = await supabase.rpc(
     "get_visible_user_predictions_by_username",
     {
-      target_pool_id: membership.pool_id,
-      target_username: username,
+      p_target_pool_id: membership.pool_id,
+      p_target_username: username,
     },
   );
   const rows = (data ?? []) as VisiblePredictionRow[];

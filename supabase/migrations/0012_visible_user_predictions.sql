@@ -1,6 +1,8 @@
+drop function if exists public.get_visible_user_predictions_by_username(uuid, text);
+
 create or replace function public.get_visible_user_predictions_by_username(
-  target_pool_id uuid,
-  target_username text
+  p_target_pool_id uuid,
+  p_target_username text
 )
 returns table (
   target_user_id uuid,
@@ -39,14 +41,14 @@ begin
     raise exception 'Authentication required';
   end if;
 
-  if not public.is_pool_member(target_pool_id) then
+  if not public.is_pool_member(p_target_pool_id) then
     raise exception 'Only pool members can view public profiles';
   end if;
 
   select *
   into target_profile
   from public.profiles p
-  where lower(p.username) = lower(public.slugify_username(target_username));
+  where lower(p.username) = lower(public.slugify_username(p_target_username));
 
   if target_profile.id is null then
     raise exception 'Profile not found';
@@ -55,7 +57,7 @@ begin
   if not exists (
     select 1
     from public.pool_members pm
-    where pm.pool_id = target_pool_id
+    where pm.pool_id = p_target_pool_id
       and pm.user_id = target_profile.id
   ) then
     raise exception 'Profile not found in this pool';
@@ -68,7 +70,7 @@ begin
     into blocked_count
     from public.predictions pr
     join public.matches m on m.id = pr.match_id
-    where pr.pool_id = target_pool_id
+    where pr.pool_id = p_target_pool_id
       and pr.user_id = target_profile.id
       and pr.home_score is not null
       and pr.away_score is not null
@@ -79,7 +81,7 @@ begin
   into visible_count
   from public.predictions pr
   join public.matches m on m.id = pr.match_id
-  where pr.pool_id = target_pool_id
+  where pr.pool_id = p_target_pool_id
     and pr.user_id = target_profile.id
     and pr.home_score is not null
     and pr.away_score is not null
@@ -141,7 +143,7 @@ begin
   join public.groups g on g.id = m.group_id
   join public.teams home_team on home_team.id = m.home_team_id
   join public.teams away_team on away_team.id = m.away_team_id
-  where pr.pool_id = target_pool_id
+  where pr.pool_id = p_target_pool_id
     and pr.user_id = target_profile.id
     and pr.home_score is not null
     and pr.away_score is not null
