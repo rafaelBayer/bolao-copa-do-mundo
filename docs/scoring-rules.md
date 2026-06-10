@@ -49,6 +49,13 @@ Um palpite incompleto e aquele em que `predictions.home_score` ou `predictions.a
 
 A classificacao e calculada sob demanda. Nao existe tabela de ranking e a pontuacao nao e salva no banco nesta etapa.
 
+Existem dois modos na tela `/dashboard/leaderboard`:
+
+- Ranking geral: soma todos os jogos que ja possuem resultado real.
+- Ranking por rodada: filtra apenas jogos da rodada selecionada usando `matches.round_number`.
+
+Os dois modos usam a mesma regra de pontuacao 3/1/0.
+
 O desempate segue esta ordem:
 
 1. pontos totais;
