@@ -13,6 +13,14 @@ type GroupSectionProps = {
   onPredictionSaved: (prediction: Prediction) => void;
 };
 
+function isFilledPrediction(prediction: Prediction | undefined) {
+  return (
+    Boolean(prediction) &&
+    prediction?.homeScore !== null &&
+    prediction?.awayScore !== null
+  );
+}
+
 export function GroupSection({
   group,
   predictions,
@@ -20,6 +28,14 @@ export function GroupSection({
   userId,
   onPredictionSaved,
 }: GroupSectionProps) {
+  const filledMatches = group.matches.filter((match) =>
+    isFilledPrediction(
+      predictions.find((prediction) => prediction.matchId === match.id),
+    ),
+  ).length;
+  const missingMatches = group.matches.length - filledMatches;
+  const isComplete = group.matches.length > 0 && missingMatches === 0;
+
   return (
     <Card className="overflow-hidden p-4 md:p-5 xl:p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -34,6 +50,13 @@ export function GroupSection({
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone="emerald">{group.teams.length} selecoes</Badge>
           <Badge tone="amber">{group.matches.length} jogos</Badge>
+          <Badge tone={isComplete ? "emerald" : "default"}>
+            {isComplete
+              ? "Completo"
+              : missingMatches === 1
+                ? "1 palpite faltando"
+                : `${filledMatches}/${group.matches.length} preenchidos`}
+          </Badge>
         </div>
       </div>
 

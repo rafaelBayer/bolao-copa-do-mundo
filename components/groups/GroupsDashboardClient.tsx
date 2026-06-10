@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { ListChecks } from "lucide-react";
 import { GroupSection } from "@/components/groups/GroupSection";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -16,7 +17,7 @@ type GroupsDashboardClientProps = {
 };
 
 function isFilledPrediction(prediction: Prediction) {
-  return prediction.homeScore !== null || prediction.awayScore !== null;
+  return prediction.homeScore !== null && prediction.awayScore !== null;
 }
 
 export function GroupsDashboardClient({
@@ -35,6 +36,11 @@ export function GroupsDashboardClient({
     () => predictions.filter(isFilledPrediction).length,
     [predictions],
   );
+  const missingPredictions = Math.max(totalMatches - filledPredictions, 0);
+  const progressPercentage =
+    totalMatches > 0
+      ? Math.round((filledPredictions / totalMatches) * 100)
+      : 0;
 
   const handlePredictionSaved = useCallback((savedPrediction: Prediction) => {
     setPredictions((currentPredictions) => {
@@ -93,10 +99,61 @@ export function GroupsDashboardClient({
                 {filledPredictions}
               </p>
               <p className="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-200/80 light:text-emerald-700">
-                palpites
+                preenchidos
               </p>
             </div>
           </div>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-slate-800 bg-slate-950/45 p-4 light:border-slate-200 light:bg-slate-50 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <ListChecks
+                  size={18}
+                  className="text-emerald-300 light:text-emerald-700"
+                  aria-hidden="true"
+                />
+                <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
+                  Progresso dos palpites
+                </h2>
+              </div>
+              <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
+                {filledPredictions} de {totalMatches} jogos preenchidos
+              </p>
+            </div>
+
+            <div className="text-left sm:text-right">
+              <p className="text-2xl font-black text-slate-50 light:text-slate-950">
+                {progressPercentage}%
+              </p>
+              <p className="mt-1 text-sm font-bold text-amber-300 light:text-amber-700">
+                {missingPredictions === 0
+                  ? "Tudo preenchido"
+                  : `${missingPredictions} ${
+                      missingPredictions === 1
+                        ? "palpite faltando"
+                        : "palpites faltando"
+                    }`}
+              </p>
+            </div>
+          </div>
+
+          <div
+            className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800 light:bg-slate-200"
+            aria-label={`${progressPercentage}% dos palpites preenchidos`}
+          >
+            <div
+              className="h-full rounded-full bg-emerald-400 transition-all duration-500 light:bg-emerald-600"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+
+          {filledPredictions === 0 ? (
+            <p className="mt-4 text-sm font-medium text-slate-300 light:text-slate-600">
+              Voce ainda nao fez nenhum palpite. Comece pela Rodada 1.
+            </p>
+          ) : null}
         </div>
       </Card>
 

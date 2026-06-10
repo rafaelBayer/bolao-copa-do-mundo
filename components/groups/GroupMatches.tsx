@@ -22,7 +22,10 @@ export function GroupMatches({
   onPredictionSaved,
 }: GroupMatchesProps) {
   const rounds = useMemo(
-    () => Array.from(new Set(matches.map((match) => match.roundNumber))).sort(),
+    () =>
+      Array.from(new Set(matches.map((match) => match.roundNumber))).sort(
+        (left, right) => left - right,
+      ),
     [matches],
   );
   const [roundIndex, setRoundIndex] = useState(0);
