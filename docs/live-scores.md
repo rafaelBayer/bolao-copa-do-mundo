@@ -17,7 +17,7 @@ O frontend nunca chama a API externa.
 O provider e escolhido por:
 
 ```env
-LIVE_SCORE_PROVIDER=api-football
+LIVE_SCORE_PROVIDER=manual
 ```
 
 Valores:
@@ -39,6 +39,35 @@ LIVE_SCORE_PROVIDER=manual
 
 Nesse modo, `/api/scores/sync` nao chama API externa e o owner atualiza o placar
 pelo admin.
+
+Se `LIVE_SCORE_PROVIDER` nao estiver definido, o app usa `manual` como fallback
+seguro e registra um aviso server-side. Isso evita tentar API-Football por
+engano durante a operacao inicial.
+
+## Operacao recomendada para amanha
+
+Use o modo manual como caminho principal:
+
+```env
+LIVE_SCORE_PROVIDER=manual
+SCORES_SYNC_SECRET=um_secret_forte
+```
+
+Checklist de operacao:
+
+1. Entrar como owner.
+2. Abrir `/dashboard/admin`.
+3. Conferir `Provider de placar: manual`.
+4. Atualizar placar live na secao `Placar dos jogos`.
+5. Conferir `/dashboard/groups`.
+6. Finalizar o jogo apos o apito final.
+7. Conferir `/dashboard/leaderboard`.
+
+Notas:
+
+* API-Football Free nao acessa a temporada 2026.
+* football-data e opcional e pode ter atraso ou cobertura diferente.
+* manual e o caminho seguro para garantir placar ao vivo no lancamento.
 
 ## Variaveis de ambiente
 

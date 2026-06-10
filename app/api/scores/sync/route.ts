@@ -88,7 +88,12 @@ function validateSecret(request: NextRequest) {
 }
 
 function currentProvider(): LiveScoreProvider {
-  const provider = process.env.LIVE_SCORE_PROVIDER?.trim() || "api-football";
+  const provider = process.env.LIVE_SCORE_PROVIDER?.trim();
+
+  if (!provider) {
+    console.warn("LIVE_SCORE_PROVIDER not defined. Falling back to manual provider.");
+    return "manual";
+  }
 
   if (
     provider === "api-football" ||
@@ -98,7 +103,10 @@ function currentProvider(): LiveScoreProvider {
     return provider;
   }
 
-  return "api-football";
+  console.warn(
+    `Invalid LIVE_SCORE_PROVIDER "${provider}". Falling back to manual provider.`,
+  );
+  return "manual";
 }
 
 function createServiceClient(): SyncSupabaseClient {

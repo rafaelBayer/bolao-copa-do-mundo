@@ -84,7 +84,12 @@ function requiredEnv(name: string) {
 }
 
 function currentProvider(): LiveScoreProvider {
-  const provider = process.env.LIVE_SCORE_PROVIDER?.trim() || "api-football";
+  const provider = process.env.LIVE_SCORE_PROVIDER?.trim();
+
+  if (!provider) {
+    console.warn("LIVE_SCORE_PROVIDER not defined. Falling back to manual provider.");
+    return "manual";
+  }
 
   if (
     provider === "api-football" ||
@@ -94,9 +99,10 @@ function currentProvider(): LiveScoreProvider {
     return provider;
   }
 
-  throw new Error(
-    `Invalid LIVE_SCORE_PROVIDER: ${provider}. Use api-football, football-data or manual.`,
+  console.warn(
+    `Invalid LIVE_SCORE_PROVIDER "${provider}". Falling back to manual provider. Use api-football, football-data or manual.`,
   );
+  return "manual";
 }
 
 function normalizeName(value: string | null | undefined) {

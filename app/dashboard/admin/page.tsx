@@ -113,6 +113,20 @@ function isInviteAvailable(invite: AdminInvite) {
   return new Date(invite.expiresAt).getTime() >= Date.now();
 }
 
+function currentLiveScoreProvider() {
+  const provider = process.env.LIVE_SCORE_PROVIDER?.trim();
+
+  if (
+    provider === "api-football" ||
+    provider === "football-data" ||
+    provider === "manual"
+  ) {
+    return provider;
+  }
+
+  return "manual";
+}
+
 export default async function AdminPage() {
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
@@ -266,6 +280,9 @@ export default async function AdminPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
               Fallback manual para atualizar placar ao vivo ou finalizar uma partida.
+            </p>
+            <p className="mt-2 inline-flex rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-emerald-200 light:border-emerald-500/25 light:bg-emerald-50 light:text-emerald-700">
+              Provider de placar: {currentLiveScoreProvider()}
             </p>
           </div>
           <LiveScoreAdminPanel poolId={pool.id} matches={adminMatches} />
