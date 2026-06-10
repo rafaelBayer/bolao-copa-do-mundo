@@ -65,6 +65,9 @@ export function MatchPredictionInput({
   prediction,
   onSaved,
 }: MatchPredictionInputProps) {
+  const isLocked = Boolean(
+    match.kickoffAt && new Date(match.kickoffAt) <= new Date(),
+  );
   const [homeScore, setHomeScore] = useState(toInputValue(prediction?.homeScore));
   const [awayScore, setAwayScore] = useState(toInputValue(prediction?.awayScore));
   const [status, setStatus] = useState<SaveStatus>("idle");
@@ -84,6 +87,10 @@ export function MatchPredictionInput({
   );
 
   const shouldSave = useCallback((scores: SavedScores) => {
+    if (isLocked) {
+      return false;
+    }
+
     const changed = !scoresAreEqual(scores, lastSavedRef.current);
 
     if (!changed) {
@@ -95,9 +102,14 @@ export function MatchPredictionInput({
     }
 
     return true;
-  }, [hasExistingPrediction]);
+  }, [hasExistingPrediction, isLocked]);
 
   function handleScoreChange(side: "home" | "away", value: string) {
+    if (isLocked) {
+      setStatus("error");
+      return;
+    }
+
     const nextValue = sanitizeScore(value);
     const nextScores = {
       homeScore: side === "home" ? toScore(nextValue) : toScore(homeScore),
@@ -123,7 +135,7 @@ export function MatchPredictionInput({
   }, [currentScores]);
 
   useEffect(() => {
-    if (!hasUserEdited || !shouldSave(currentScores)) {
+    if (isLocked || !hasUserEdited || !shouldSave(currentScores)) {
       return;
     }
 
@@ -151,7 +163,18 @@ export function MatchPredictionInput({
         } else {
           setStatus("idle");
         }
-      } catch {
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao salvar";
+        const isLockedError = message.includes(
+          "Prediction locked because match already started",
+        );
+
+        if (isLockedError) {
+          lastSavedRef.current = scoresFromPrediction(prediction);
+          setHasUserEdited(false);
+        }
+
         setStatus("error");
       }
     }, 1200);
@@ -161,20 +184,26 @@ export function MatchPredictionInput({
     awayScore,
     currentScores,
     hasUserEdited,
+    isLocked,
     match.id,
     onSaved,
     poolId,
+    prediction,
     shouldSave,
     userId,
   ]);
 
-  const statusLabel = {
+  const statusLabel = isLocked
+    ? "Palpite bloqueado"
+    : {
     idle: "",
     saving: "Salvando...",
     saved: "Salvo",
     error: "Erro ao salvar",
   }[status];
-  const statusClass = {
+  const statusClass = isLocked
+    ? "text-amber-300 light:text-amber-700"
+    : {
     idle: "text-slate-500",
     saving: "text-amber-300 light:text-amber-600",
     saved: "text-emerald-300 light:text-emerald-700",
@@ -182,7 +211,11 @@ export function MatchPredictionInput({
   }[status];
 
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-900/75 p-3.5 shadow-sm transition hover:border-slate-700 light:border-slate-200 light:bg-white light:hover:border-slate-300">
+    <div
+      className={`rounded-2xl border border-slate-800 bg-slate-900/75 p-3.5 shadow-sm transition hover:border-slate-700 light:border-slate-200 light:bg-white light:hover:border-slate-300 ${
+        isLocked ? "opacity-75" : ""
+      }`}
+    >
       <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center">
         <span className="flex min-w-0 items-center justify-center gap-2 whitespace-normal break-words text-center text-sm font-bold leading-snug text-slate-100 light:text-slate-800 sm:justify-start sm:text-left">
           <TeamFlag
@@ -199,8 +232,9 @@ export function MatchPredictionInput({
             max={99}
             inputMode="numeric"
             value={homeScore}
+            disabled={isLocked}
             onChange={(event) => handleScoreChange("home", event.target.value)}
-            className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
+            className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:disabled:bg-slate-100 light:disabled:text-slate-400 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
             aria-label={`Palpite de gols para ${match.homeTeam.name}`}
           />
           <span className="w-5 text-center text-sm font-black text-slate-400 light:text-slate-500">
@@ -212,8 +246,9 @@ export function MatchPredictionInput({
             max={99}
             inputMode="numeric"
             value={awayScore}
+            disabled={isLocked}
             onChange={(event) => handleScoreChange("away", event.target.value)}
-            className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
+            className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:disabled:bg-slate-100 light:disabled:text-slate-400 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
             aria-label={`Palpite de gols para ${match.awayTeam.name}`}
           />
         </div>

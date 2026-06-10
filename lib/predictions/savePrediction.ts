@@ -18,38 +18,37 @@ export async function savePrediction({
 }: SavePredictionInput) {
   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from("predictions")
-    .upsert(
-      {
-        pool_id: poolId,
-        user_id: userId,
-        match_id: matchId,
-        home_score: homeScore,
-        away_score: awayScore,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: "pool_id,user_id,match_id",
-      },
-    )
-    .select(
-      "id, pool_id, user_id, match_id, home_score, away_score, created_at, updated_at",
-    )
-    .single();
+  const { data, error } = await supabase.rpc("save_prediction", {
+    target_pool_id: poolId,
+    target_match_id: matchId,
+    predicted_home_score: homeScore,
+    predicted_away_score: awayScore,
+  });
 
   if (error) {
     throw error;
   }
 
+  const savedPrediction = Array.isArray(data) ? data[0] : data;
+
+  if (!savedPrediction) {
+    throw new Error("Nao foi possivel salvar o palpite.");
+  }
+
   return {
-    id: String(data.id),
-    poolId: String(data.pool_id),
-    userId: String(data.user_id),
-    matchId: String(data.match_id),
-    homeScore: typeof data.home_score === "number" ? data.home_score : null,
-    awayScore: typeof data.away_score === "number" ? data.away_score : null,
-    createdAt: String(data.created_at),
-    updatedAt: String(data.updated_at),
+    id: String(savedPrediction.id),
+    poolId: String(savedPrediction.pool_id),
+    userId,
+    matchId: String(savedPrediction.match_id),
+    homeScore:
+      typeof savedPrediction.home_score === "number"
+        ? savedPrediction.home_score
+        : null,
+    awayScore:
+      typeof savedPrediction.away_score === "number"
+        ? savedPrediction.away_score
+        : null,
+    createdAt: String(savedPrediction.created_at),
+    updatedAt: String(savedPrediction.updated_at),
   } satisfies Prediction;
 }
