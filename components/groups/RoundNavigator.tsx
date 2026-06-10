@@ -6,6 +6,7 @@ type RoundNavigatorProps = {
   currentRound: number;
   minRound: number;
   maxRound: number;
+  isBusy?: boolean;
   onPrevious: () => void;
   onNext: () => void;
 };
@@ -14,6 +15,7 @@ export function RoundNavigator({
   currentRound,
   minRound,
   maxRound,
+  isBusy = false,
   onPrevious,
   onNext,
 }: RoundNavigatorProps) {
@@ -22,7 +24,7 @@ export function RoundNavigator({
       <button
         type="button"
         onClick={onPrevious}
-        disabled={currentRound <= minRound}
+        disabled={isBusy || currentRound <= minRound}
         title="Rodada anterior"
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-emerald-400/10 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-35 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50 light:hover:text-emerald-700"
       >
@@ -36,7 +38,7 @@ export function RoundNavigator({
       <button
         type="button"
         onClick={onNext}
-        disabled={currentRound >= maxRound}
+        disabled={isBusy || currentRound >= maxRound}
         title="Proxima rodada"
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-emerald-400/10 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-35 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50 light:hover:text-emerald-700"
       >

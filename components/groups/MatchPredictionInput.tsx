@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { savePrediction } from "@/lib/predictions/savePrediction";
 import { TeamFlag } from "./TeamFlag";
 import type { MatchWithTeams } from "@/types/match";
@@ -12,6 +20,10 @@ type MatchPredictionInputProps = {
   match: MatchWithTeams;
   prediction?: Prediction;
   onSaved?: (prediction: Prediction) => void;
+};
+
+export type MatchPredictionInputHandle = {
+  flushPendingSave: () => Promise<void>;
 };
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -58,13 +70,13 @@ function sanitizeScore(value: string) {
   return String(Math.trunc(numberValue));
 }
 
-export function MatchPredictionInput({
-  poolId,
-  userId,
-  match,
-  prediction,
-  onSaved,
-}: MatchPredictionInputProps) {
+export const MatchPredictionInput = forwardRef<
+  MatchPredictionInputHandle,
+  MatchPredictionInputProps
+>(function MatchPredictionInput(
+  { poolId, userId, match, prediction, onSaved },
+  ref,
+) {
   const isLocked = Boolean(
     match.kickoffAt && new Date(match.kickoffAt) <= new Date(),
   );
@@ -72,11 +84,12 @@ export function MatchPredictionInput({
   const [awayScore, setAwayScore] = useState(toInputValue(prediction?.awayScore));
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [hasUserEdited, setHasUserEdited] = useState(false);
-  const [hasExistingPrediction, setHasExistingPrediction] = useState(
-    Boolean(prediction?.id),
-  );
+  const [, setHasExistingPrediction] = useState(Boolean(prediction?.id));
   const lastSavedRef = useRef<SavedScores>(scoresFromPrediction(prediction));
   const currentScoresRef = useRef<SavedScores>(scoresFromPrediction(prediction));
+  const hasUserEditedRef = useRef(false);
+  const hasExistingPredictionRef = useRef(Boolean(prediction?.id));
+  const timeoutRef = useRef<number | null>(null);
 
   const currentScores = useMemo(
     () => ({
@@ -97,12 +110,60 @@ export function MatchPredictionInput({
       return false;
     }
 
-    if (scoresAreEmpty(scores) && !hasExistingPrediction) {
+    if (scoresAreEmpty(scores) && !hasExistingPredictionRef.current) {
       return false;
     }
 
     return true;
-  }, [hasExistingPrediction, isLocked]);
+  }, [isLocked]);
+
+  const saveScores = useCallback(
+    async (submittedScores: SavedScores) => {
+      if (!shouldSave(submittedScores)) {
+        return;
+      }
+
+      setStatus("saving");
+
+      try {
+        const savedPrediction = await savePrediction({
+          poolId,
+          userId,
+          matchId: match.id,
+          homeScore: submittedScores.homeScore,
+          awayScore: submittedScores.awayScore,
+        });
+
+        lastSavedRef.current = submittedScores;
+        onSaved?.(savedPrediction);
+        hasExistingPredictionRef.current = true;
+        setHasExistingPrediction(true);
+
+        if (scoresAreEqual(currentScoresRef.current, submittedScores)) {
+          hasUserEditedRef.current = false;
+          setHasUserEdited(false);
+          setStatus("saved");
+        } else {
+          setStatus("idle");
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao salvar";
+        const isLockedError = message.includes(
+          "Prediction locked because match already started",
+        );
+
+        if (isLockedError) {
+          lastSavedRef.current = scoresFromPrediction(prediction);
+          hasUserEditedRef.current = false;
+          setHasUserEdited(false);
+        }
+
+        setStatus("error");
+      }
+    },
+    [match.id, onSaved, poolId, prediction, shouldSave, userId],
+  );
 
   function handleScoreChange(side: "home" | "away", value: string) {
     if (isLocked) {
@@ -117,6 +178,7 @@ export function MatchPredictionInput({
     };
 
     currentScoresRef.current = nextScores;
+    hasUserEditedRef.current = true;
     setHasUserEdited(true);
 
     if (!shouldSave(nextScores)) {
@@ -134,6 +196,27 @@ export function MatchPredictionInput({
     currentScoresRef.current = currentScores;
   }, [currentScores]);
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      async flushPendingSave() {
+        if (timeoutRef.current !== null) {
+          window.clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+
+        const latestScores = currentScoresRef.current;
+
+        if (!hasUserEditedRef.current || !shouldSave(latestScores)) {
+          return;
+        }
+
+        await saveScores(latestScores);
+      },
+    }),
+    [saveScores, shouldSave],
+  );
+
   useEffect(() => {
     if (isLocked || !hasUserEdited || !shouldSave(currentScores)) {
       return;
@@ -141,74 +224,42 @@ export function MatchPredictionInput({
 
     const submittedScores = currentScores;
 
-    const timeoutId = window.setTimeout(async () => {
-      setStatus("saving");
-
-      try {
-        const savedPrediction = await savePrediction({
-          poolId,
-          userId,
-          matchId: match.id,
-          homeScore: submittedScores.homeScore,
-          awayScore: submittedScores.awayScore,
-        });
-
-        lastSavedRef.current = submittedScores;
-        onSaved?.(savedPrediction);
-        setHasExistingPrediction(true);
-
-        if (scoresAreEqual(currentScoresRef.current, submittedScores)) {
-          setHasUserEdited(false);
-          setStatus("saved");
-        } else {
-          setStatus("idle");
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Erro ao salvar";
-        const isLockedError = message.includes(
-          "Prediction locked because match already started",
-        );
-
-        if (isLockedError) {
-          lastSavedRef.current = scoresFromPrediction(prediction);
-          setHasUserEdited(false);
-        }
-
-        setStatus("error");
-      }
+    timeoutRef.current = window.setTimeout(() => {
+      timeoutRef.current = null;
+      void saveScores(submittedScores);
     }, 1200);
 
-    return () => window.clearTimeout(timeoutId);
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
   }, [
     awayScore,
     currentScores,
     hasUserEdited,
     isLocked,
-    match.id,
-    onSaved,
-    poolId,
-    prediction,
+    saveScores,
     shouldSave,
-    userId,
   ]);
 
   const statusLabel = isLocked
     ? "Palpite bloqueado"
     : {
-    idle: "",
-    saving: "Salvando...",
-    saved: "Salvo",
-    error: "Erro ao salvar",
-  }[status];
+        idle: "",
+        saving: "Salvando...",
+        saved: "Salvo",
+        error: "Erro ao salvar",
+      }[status];
   const statusClass = isLocked
     ? "text-amber-300 light:text-amber-700"
     : {
-    idle: "text-slate-500",
-    saving: "text-amber-300 light:text-amber-600",
-    saved: "text-emerald-300 light:text-emerald-700",
-    error: "text-red-300 light:text-red-600",
-  }[status];
+        idle: "text-slate-500",
+        saving: "text-amber-300 light:text-amber-600",
+        saved: "text-emerald-300 light:text-emerald-700",
+        error: "text-red-300 light:text-red-600",
+      }[status];
 
   return (
     <div
@@ -267,4 +318,4 @@ export function MatchPredictionInput({
       </div>
     </div>
   );
-}
+});

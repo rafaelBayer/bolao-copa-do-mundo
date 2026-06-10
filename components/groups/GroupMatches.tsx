@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { MatchPredictionInput } from "./MatchPredictionInput";
+import { useMemo, useRef, useState } from "react";
+import {
+  MatchPredictionInput,
+  type MatchPredictionInputHandle,
+} from "./MatchPredictionInput";
 import { RoundNavigator } from "./RoundNavigator";
 import type { MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
@@ -21,6 +24,7 @@ export function GroupMatches({
   predictions,
   onPredictionSaved,
 }: GroupMatchesProps) {
+  const inputRefs = useRef(new Map<string, MatchPredictionInputHandle>());
   const rounds = useMemo(
     () =>
       Array.from(new Set(matches.map((match) => match.roundNumber))).sort(
@@ -29,6 +33,7 @@ export function GroupMatches({
     [matches],
   );
   const [roundIndex, setRoundIndex] = useState(0);
+  const [isFlushing, setIsFlushing] = useState(false);
   const currentRound = rounds[roundIndex] ?? 1;
   const currentMatches = matches.filter(
     (match) => match.roundNumber === currentRound,
@@ -36,6 +41,48 @@ export function GroupMatches({
 
   function findPrediction(matchId: string) {
     return predictions.find((prediction) => prediction.matchId === matchId);
+  }
+
+  async function flushPendingPredictionSaves() {
+    const currentInputs = currentMatches
+      .slice(0, 2)
+      .map((match) => inputRefs.current.get(match.id))
+      .filter((input): input is MatchPredictionInputHandle => Boolean(input));
+
+    if (currentInputs.length === 0) {
+      return;
+    }
+
+    setIsFlushing(true);
+
+    try {
+      await Promise.all(
+        currentInputs.map((input) => input.flushPendingSave()),
+      );
+    } finally {
+      setIsFlushing(false);
+    }
+  }
+
+  async function goToPreviousRound() {
+    if (currentRound <= (rounds[0] ?? 1) || isFlushing) {
+      return;
+    }
+
+    await flushPendingPredictionSaves();
+    setRoundIndex((value) => Math.max(0, value - 1));
+  }
+
+  async function goToNextRound() {
+    if (
+      currentRound >= (rounds[rounds.length - 1] ?? 1) ||
+      isFlushing
+    ) {
+      return;
+    }
+
+    await flushPendingPredictionSaves();
+    setRoundIndex((value) => Math.min(rounds.length - 1, value + 1));
   }
 
   return (
@@ -53,11 +100,16 @@ export function GroupMatches({
         currentRound={currentRound}
         minRound={rounds[0] ?? 1}
         maxRound={rounds[rounds.length - 1] ?? 1}
-        onPrevious={() => setRoundIndex((value) => Math.max(0, value - 1))}
-        onNext={() =>
-          setRoundIndex((value) => Math.min(rounds.length - 1, value + 1))
-        }
+        isBusy={isFlushing}
+        onPrevious={() => void goToPreviousRound()}
+        onNext={() => void goToNextRound()}
       />
+
+      {isFlushing ? (
+        <p className="mt-3 text-center text-xs font-bold text-amber-300 light:text-amber-700">
+          Salvando palpites...
+        </p>
+      ) : null}
 
       <div className="mt-4 space-y-3">
         {currentMatches.slice(0, 2).map((match) => {
@@ -66,6 +118,13 @@ export function GroupMatches({
           return (
             <MatchPredictionInput
               key={match.id}
+              ref={(input) => {
+                if (input) {
+                  inputRefs.current.set(match.id, input);
+                } else {
+                  inputRefs.current.delete(match.id);
+                }
+              }}
               poolId={poolId}
               userId={userId}
               match={match}

@@ -6,6 +6,7 @@ import {
   ParticipantsList,
   type AdminParticipant,
 } from "@/components/admin/ParticipantsList";
+import { PoolBrandingForm } from "@/components/admin/PoolBrandingForm";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,6 +15,8 @@ export const dynamic = "force-dynamic";
 type PoolInfo = {
   id: string;
   name: string;
+  headerTitle: string | null;
+  logoUrl: string | null;
 };
 
 type AdminParticipantRow = {
@@ -88,12 +91,29 @@ export default async function AdminPage() {
       pools?: Record<string, unknown> | Record<string, unknown>[] | null;
     }).pools,
   );
+  const { data: brandingData } = await supabase
+    .from("pools")
+    .select("header_title, logo_url")
+    .eq("id", String(membership.pool_id))
+    .maybeSingle();
+  const branding = brandingData as {
+    header_title?: string | null;
+    logo_url?: string | null;
+  } | null;
   const pool: PoolInfo = {
     id: String(membership.pool_id),
     name:
       rawPool && typeof rawPool === "object" && "name" in rawPool
         ? String(rawPool.name)
         : "Meu bolao",
+    headerTitle:
+      typeof branding?.header_title === "string"
+        ? branding.header_title
+        : null,
+    logoUrl:
+      typeof branding?.logo_url === "string"
+        ? branding.logo_url
+        : null,
   };
 
   const [
@@ -150,6 +170,22 @@ export default async function AdminPage() {
           availableInvitesCount={availableInvitesCount}
           inviteUsesCount={inviteUsesCount}
         />
+
+        <Card className="p-5">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
+              Aparencia do bolao
+            </h2>
+            <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
+              Personalize o titulo e o logo exibidos no header.
+            </p>
+          </div>
+          <PoolBrandingForm
+            poolId={pool.id}
+            initialHeaderTitle={pool.headerTitle ?? ""}
+            initialLogoUrl={pool.logoUrl ?? ""}
+          />
+        </Card>
 
         <Card className="p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
