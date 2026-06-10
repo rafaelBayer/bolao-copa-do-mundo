@@ -50,27 +50,52 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
     });
   }, []);
 
+  async function ensureProfileForPool(
+    supabase: ReturnType<typeof createClient>,
+    poolId: string,
+  ) {
+    const preferredName = name.trim() || null;
+    const { error: profileError } = await supabase.rpc(
+      "ensure_user_profile_for_pool",
+      {
+        target_pool_id: poolId,
+        preferred_name: preferredName,
+      },
+    );
+
+    if (profileError) {
+      logUnexpectedAuthError(profileError);
+    }
+  }
+
   async function acceptInvite(accountWasJustCreated = false) {
     setError(null);
     setIsSubmitting(true);
 
     const supabase = createClient();
     const browserFingerprint = getOrCreateBrowserFingerprint();
-    const { error: inviteError } = await supabase.rpc("accept_pool_invite", {
-      invite_token: inviteToken,
-      browser_fingerprint: browserFingerprint,
-      user_agent: navigator.userAgent,
-    });
-
-    setIsSubmitting(false);
+    const { data: poolId, error: inviteError } = await supabase.rpc(
+      "accept_pool_invite",
+      {
+        invite_token: inviteToken,
+        browser_fingerprint: browserFingerprint,
+        user_agent: navigator.userAgent,
+      },
+    );
 
     if (inviteError) {
+      setIsSubmitting(false);
       setAccountCreatedNeedsInvite(accountWasJustCreated);
       setError(inviteErrorMessage(inviteError));
       logUnexpectedAuthError(inviteError);
       return;
     }
 
+    if (typeof poolId === "string") {
+      await ensureProfileForPool(supabase, poolId);
+    }
+
+    setIsSubmitting(false);
     router.replace("/dashboard/groups");
     router.refresh();
   }
@@ -171,7 +196,6 @@ export function RegisterForm({ inviteToken }: RegisterFormProps) {
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
-          required
           autoComplete="name"
         />
       </div>

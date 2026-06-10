@@ -37,6 +37,12 @@ export function DashboardHeader({
             >
               Palpites
             </Link>
+            <Link
+              href="/dashboard/leaderboard"
+              className="rounded-full px-3 py-2 text-slate-300 transition hover:bg-slate-800 hover:text-emerald-300 light:text-slate-600 light:hover:bg-slate-100 light:hover:text-emerald-700"
+            >
+              Classificacao
+            </Link>
           </nav>
         </div>
 

@@ -89,6 +89,8 @@ npm run seed:worldcup:dry
 
 O mesmo navegador e bloqueado para reutilizar o mesmo link por outro cadastro enquanto mantiver o identificador local salvo. IP hash fica para uma etapa futura server-side.
 
+Depois da migration `0009_ensure_user_profile.sql`, o cadastro tambem chama `ensure_user_profile_for_pool` para garantir um registro em `profiles`. Se o usuario nao informar nome, a RPC gera `Visitante N` sem repetir dentro do bolao.
+
 ## 10. Problemas comuns no cadastro
 
 - `email rate limit exceeded`: o Supabase Auth pode limitar cadastros repetidos durante QA. Aguarde alguns minutos ou use um projeto/dev separado para testes intensos.
