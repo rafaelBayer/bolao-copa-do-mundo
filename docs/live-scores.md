@@ -141,6 +141,7 @@ Rode a migration:
 ```txt
 supabase/migrations/0015_live_scores.sql
 supabase/migrations/0016_live_score_provider_and_admin.sql
+supabase/migrations/0017_live_score_sync_logs.sql
 ```
 
 Ela adiciona em `matches`:
@@ -159,6 +160,11 @@ score_updated_at
 
 A migration `0016` adiciona os campos genericos de provider e RPCs seguras para
 o fallback manual no admin.
+
+A migration `0017` cria `live_score_sync_logs`, usada pelo admin para monitorar
+ultimas execucoes do sync, erros, jogos ativos e quantidade de jogos atualizados.
+Somente owners conseguem ler esses logs pelo app. O endpoint server-side grava
+apenas resumo operacional e nunca salva keys ou secrets.
 
 ## Mapear fixtures
 
@@ -309,6 +315,24 @@ gasta requests externos.
 
 Se `LIVE_SCORE_PROVIDER=football-data`, o endpoint chama apenas matchdays ativos
 com jogos dentro da janela ativa. Ele nao busca matchday 1, 2 e 3 em toda sync.
+
+## Monitoramento no admin
+
+Owners veem a secao `Status do placar ao vivo` em `/dashboard/admin`.
+
+Ela mostra:
+
+* provider atual;
+* ultimo sync;
+* ultimo sucesso;
+* ultimo erro;
+* jogos em janela ativa;
+* proximo jogo;
+* historico recente;
+* alerta visual quando a ultima falha ainda nao foi superada por sucesso.
+
+O botao `Rodar sincronizacao agora` chama uma rota admin-only server-side e nao
+envia `SCORES_SYNC_SECRET` para o navegador.
 
 ## Uso na tela
 

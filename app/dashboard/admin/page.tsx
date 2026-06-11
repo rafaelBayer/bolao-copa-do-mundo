@@ -7,6 +7,11 @@ import {
   type AdminLiveMatch,
 } from "@/components/admin/LiveScoreAdminPanel";
 import {
+  LiveScoreMonitorPanel,
+  type LiveScoreMonitorLog,
+  type LiveScoreMonitorMatch,
+} from "@/components/admin/LiveScoreMonitorPanel";
+import {
   ParticipantsList,
   type AdminParticipant,
 } from "@/components/admin/ParticipantsList";
@@ -35,6 +40,7 @@ type AdminParticipantRow = {
 type AdminMatchRow = {
   id: string;
   kickoff_at: string | null;
+  score_provider_fixture_id: string | null;
   status_short: string | null;
   elapsed: number | null;
   home_score_live: number | null;
@@ -43,6 +49,19 @@ type AdminMatchRow = {
   away_score: number | null;
   home_team: { name: string } | { name: string }[] | null;
   away_team: { name: string } | { name: string }[] | null;
+};
+
+type LiveScoreSyncLogRow = {
+  id: string;
+  provider: string;
+  status: "success" | "skipped" | "error";
+  reason: string | null;
+  active_matches_count: number | null;
+  updated_matches_count: number | null;
+  requested_matchdays: number[] | null;
+  error_message: string | null;
+  started_at: string;
+  finished_at: string | null;
 };
 
 function single<T>(value: T | T[] | null | undefined): T | null {
@@ -92,6 +111,40 @@ function mapAdminMatch(row: AdminMatchRow): AdminLiveMatch {
   };
 }
 
+function mapMonitorMatch(row: AdminMatchRow): LiveScoreMonitorMatch {
+  const homeTeam = single(row.home_team);
+  const awayTeam = single(row.away_team);
+
+  return {
+    id: row.id,
+    kickoffAt: row.kickoff_at,
+    homeTeamName: homeTeam?.name ?? "Mandante",
+    awayTeamName: awayTeam?.name ?? "Visitante",
+    statusShort: row.status_short,
+    elapsed: row.elapsed,
+    homeScoreLive: row.home_score_live,
+    awayScoreLive: row.away_score_live,
+    homeScore: row.home_score,
+    awayScore: row.away_score,
+    scoreProviderFixtureId: row.score_provider_fixture_id,
+  };
+}
+
+function mapSyncLog(row: LiveScoreSyncLogRow): LiveScoreMonitorLog {
+  return {
+    id: row.id,
+    provider: row.provider,
+    status: row.status,
+    reason: row.reason,
+    activeMatchesCount: row.active_matches_count ?? 0,
+    updatedMatchesCount: row.updated_matches_count ?? 0,
+    requestedMatchdays: row.requested_matchdays ?? [],
+    errorMessage: row.error_message,
+    startedAt: row.started_at,
+    finishedAt: row.finished_at,
+  };
+}
+
 function isNearMatchWindow(match: AdminLiveMatch) {
   if (!match.kickoffAt) {
     return false;
@@ -103,6 +156,28 @@ function isNearMatchWindow(match: AdminLiveMatch) {
   const endsAt = kickoff + 3 * 60 * 60 * 1000;
 
   return now >= startsAt && now <= endsAt;
+}
+
+function isActiveScoreWindow(match: LiveScoreMonitorMatch, now: number) {
+  if (!match.kickoffAt) {
+    return false;
+  }
+
+  const kickoff = new Date(match.kickoffAt).getTime();
+  const startsAt = kickoff - 5 * 60 * 1000;
+  const endsAt = kickoff + 135 * 60 * 1000;
+
+  return now >= startsAt && now <= endsAt;
+}
+
+function isNext24Hours(match: LiveScoreMonitorMatch, now: number) {
+  if (!match.kickoffAt) {
+    return false;
+  }
+
+  const kickoff = new Date(match.kickoffAt).getTime();
+
+  return kickoff >= now && kickoff <= now + 24 * 60 * 60 * 1000;
 }
 
 function isInviteAvailable(invite: AdminInvite) {
@@ -183,6 +258,7 @@ export default async function AdminPage() {
     { data: invitesData },
     { data: inviteUsesData },
     { data: matchesData },
+    { data: syncLogsData },
   ] = await Promise.all([
     supabase.rpc("get_pool_participants", {
       target_pool_id: pool.id,
@@ -202,6 +278,7 @@ export default async function AdminPage() {
         `
         id,
         kickoff_at,
+        score_provider_fixture_id,
         status_short,
         elapsed,
         home_score_live,
@@ -213,6 +290,24 @@ export default async function AdminPage() {
       `,
       )
       .order("kickoff_at", { ascending: true }),
+    supabase
+      .from("live_score_sync_logs")
+      .select(
+        [
+          "id",
+          "provider",
+          "status",
+          "reason",
+          "active_matches_count",
+          "updated_matches_count",
+          "requested_matchdays",
+          "error_message",
+          "started_at",
+          "finished_at",
+        ].join(", "),
+      )
+      .order("started_at", { ascending: false })
+      .limit(10),
   ]);
 
   const participants = ((participantsData ?? []) as AdminParticipantRow[]).map((row) =>
@@ -243,9 +338,25 @@ export default async function AdminPage() {
   const mappedMatches = ((matchesData ?? []) as unknown as AdminMatchRow[]).map(
     mapAdminMatch,
   );
+  const monitorMatches = ((matchesData ?? []) as unknown as AdminMatchRow[]).map(
+    mapMonitorMatch,
+  );
+  const syncLogs = ((syncLogsData ?? []) as unknown as LiveScoreSyncLogRow[]).map(
+    mapSyncLog,
+  );
+  const now = new Date().getTime();
   const liveAdminMatches = mappedMatches.filter(isNearMatchWindow);
   const adminMatches =
     liveAdminMatches.length > 0 ? liveAdminMatches : mappedMatches.slice(0, 8);
+  const activeMonitorMatches = monitorMatches.filter((match) =>
+    isActiveScoreWindow(match, now),
+  );
+  const nextMonitorMatch =
+    monitorMatches.find((match) => isNext24Hours(match, now)) ??
+    monitorMatches.find((match) =>
+      match.kickoffAt ? new Date(match.kickoffAt).getTime() >= now : false,
+    ) ??
+    null;
 
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
@@ -270,6 +381,23 @@ export default async function AdminPage() {
             poolId={pool.id}
             initialHeaderTitle={pool.headerTitle ?? ""}
             initialLogoUrl={pool.logoUrl ?? ""}
+          />
+        </Card>
+
+        <Card className="p-5">
+          <div className="mb-4">
+            <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
+              Status do placar ao vivo
+            </h2>
+            <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
+              Monitore o provider automatico, ultimas execucoes e jogos em janela ativa.
+            </p>
+          </div>
+          <LiveScoreMonitorPanel
+            provider={currentLiveScoreProvider()}
+            logs={syncLogs}
+            activeMatches={activeMonitorMatches}
+            nextMatch={nextMonitorMatch}
           />
         </Card>
 

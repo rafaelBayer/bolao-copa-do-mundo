@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ImageUp, Save } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -13,6 +14,11 @@ type PoolBrandingFormProps = {
 };
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+type PoolBrandingResult = {
+  header_title: string | null;
+  logo_url: string | null;
+};
 
 const LOGO_BUCKET = "pool-logos";
 const MAX_LOGO_SIZE_BYTES = 2 * 1024 * 1024;
@@ -49,6 +55,7 @@ export function PoolBrandingForm({
   initialHeaderTitle,
   initialLogoUrl,
 }: PoolBrandingFormProps) {
+  const router = useRouter();
   const [headerTitle, setHeaderTitle] = useState(initialHeaderTitle);
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -109,22 +116,27 @@ export function PoolBrandingForm({
       setLogoUrl(nextLogoUrl);
     }
 
-    const { error } = await supabase
-      .from("pools")
-      .update({
-        header_title: nextHeaderTitle || null,
-        logo_url: nextLogoUrl || null,
+    const { data, error } = await supabase
+      .rpc("update_pool_branding", {
+        target_pool_id: poolId,
+        target_header_title: nextHeaderTitle || null,
+        target_logo_url: nextLogoUrl || null,
       })
-      .eq("id", poolId);
+      .maybeSingle();
 
-    if (error) {
+    if (error || !data) {
       setStatus("error");
       setErrorMessage("Erro ao salvar aparencia.");
       return;
     }
 
+    const savedBranding = data as PoolBrandingResult;
+
+    setHeaderTitle(savedBranding.header_title ?? "");
+    setLogoUrl(savedBranding.logo_url ?? "");
     setLogoFile(null);
     setStatus("saved");
+    router.refresh();
   }
 
   const isSaving = status === "saving";
