@@ -66,31 +66,68 @@ function parseFinished(value: unknown) {
   return false;
 }
 
+const TEAM_ALIASES = new Map<string, string>([
+  ["africa do sul", "south africa"],
+  ["alemanha", "germany"],
+  ["argelia", "algeria"],
+  ["arabia saudita", "saudi arabia"],
+  ["australia", "australia"],
+  ["austria", "austria"],
+  ["belgica", "belgium"],
+  ["bosnia e herzegovina", "bosnia and herzegovina"],
+  ["brasil", "brazil"],
+  ["cabo verde", "cape verde"],
+  ["canada", "canada"],
+  ["catar", "qatar"],
+  ["colombia", "colombia"],
+  ["coreia do sul", "south korea"],
+  ["costa do marfim", "ivory coast"],
+  ["croacia", "croatia"],
+  ["curacao", "curacao"],
+  ["egito", "egypt"],
+  ["equador", "ecuador"],
+  ["escocia", "scotland"],
+  ["espanha", "spain"],
+  ["estados unidos", "united states"],
+  ["franca", "france"],
+  ["gana", "ghana"],
+  ["haiti", "haiti"],
+  ["inglaterra", "england"],
+  ["ira", "iran"],
+  ["iran", "iran"],
+  ["iraque", "iraq"],
+  ["japao", "japan"],
+  ["jordania", "jordan"],
+  ["marrocos", "morocco"],
+  ["mexico", "mexico"],
+  ["noruega", "norway"],
+  ["nova zelandia", "new zealand"],
+  ["paises baixos", "netherlands"],
+  ["panama", "panama"],
+  ["paraguai", "paraguay"],
+  ["portugal", "portugal"],
+  ["rd congo", "democratic republic of the congo"],
+  ["republica democratica do congo", "democratic republic of the congo"],
+  ["republica tcheca", "czech republic"],
+  ["senegal", "senegal"],
+  ["suecia", "sweden"],
+  ["suica", "switzerland"],
+  ["tunisia", "tunisia"],
+  ["turquia", "turkey"],
+  ["uruguai", "uruguay"],
+  ["uzbequistao", "uzbekistan"],
+]);
+
 export function normalizeWorldcup26TeamName(value: string | null | undefined) {
   const normalized = (value ?? "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
 
-  switch (normalized) {
-    case "mexico":
-      return "mexico";
-    case "africa do sul":
-    case "south africa":
-      return "south africa";
-    case "coreia do sul":
-    case "south korea":
-    case "korea republic":
-      return "south korea";
-    case "republica tcheca":
-    case "czech republic":
-    case "czechia":
-      return "czech republic";
-    default:
-      return normalized;
-  }
+  return TEAM_ALIASES.get(normalized) ?? normalized;
 }
 
 export function worldcup26TeamsMatch(input: {
