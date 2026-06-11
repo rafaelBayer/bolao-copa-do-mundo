@@ -8,7 +8,7 @@ import {
 } from "../lib/scores/providers/worldcup26";
 import type { LiveScoreFixture } from "../lib/scores/providers/types";
 
-const ACTIVE_WINDOW_BEFORE_MINUTES = 240;
+const ACTIVE_WINDOW_BEFORE_MINUTES = 150;
 const ACTIVE_WINDOW_AFTER_MINUTES = 5;
 const DEFAULT_POLL_INTERVAL_SECONDS = 60;
 

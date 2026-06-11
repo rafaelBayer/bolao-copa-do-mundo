@@ -163,9 +163,13 @@ function isActiveScoreWindow(match: LiveScoreMonitorMatch, now: number) {
     return false;
   }
 
+  if (match.statusShort === "FT") {
+    return false;
+  }
+
   const kickoff = new Date(match.kickoffAt).getTime();
   const startsAt = kickoff - 5 * 60 * 1000;
-  const endsAt = kickoff + 135 * 60 * 1000;
+  const endsAt = kickoff + 150 * 60 * 1000;
 
   return now >= startsAt && now <= endsAt;
 }
@@ -194,6 +198,7 @@ function currentLiveScoreProvider() {
   if (
     provider === "api-football" ||
     provider === "football-data" ||
+    provider === "worldcup26" ||
     provider === "manual"
   ) {
     return provider;
