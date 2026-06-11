@@ -3,6 +3,12 @@ import { fetchApiFootballFixturesByDate } from "@/lib/scores/providers/apiFootba
 import { fetchFootballDataMatchesByMatchdays } from "@/lib/scores/providers/footballData";
 import type { LiveScoreFixture } from "@/lib/scores/providers/types";
 import {
+  fetchWorldcup26GameByMongoId,
+  fetchWorldcup26Games,
+  mapWorldcup26GameToInternalScore,
+  worldcup26TeamsMatch,
+} from "@/lib/scores/providers/worldcup26";
+import {
   isFinalMatchStatus,
   isHalftimeStatus,
   isLiveMatchStatus,
@@ -10,11 +16,11 @@ import {
 
 const TIMEZONE = "America/Sao_Paulo";
 const ACTIVE_WINDOW_BEFORE_MINUTES = 5;
-const ACTIVE_WINDOW_AFTER_MINUTES = 135;
+const ACTIVE_WINDOW_AFTER_MINUTES = 150;
 const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
 
-type LiveScoreProvider = "api-football" | "football-data" | "manual";
+type LiveScoreProvider = "api-football" | "football-data" | "manual" | "worldcup26";
 type SyncStatus = "success" | "skipped" | "error";
 
 type SyncDatabase = {
@@ -55,6 +61,12 @@ type MatchRow = {
   home_score: number | null;
   away_score: number | null;
   score_updated_at: string | null;
+  home_team?: {
+    name: string;
+  } | null;
+  away_team?: {
+    name: string;
+  } | null;
 };
 
 type MatchUpdate = {
@@ -66,6 +78,8 @@ type MatchUpdate = {
   home_score: number | null;
   away_score: number | null;
   score_updated_at: string;
+  score_provider?: string | null;
+  score_provider_fixture_id?: string | null;
 };
 
 type LiveScoreSyncLogInsert = {
@@ -116,6 +130,7 @@ function currentProvider(): LiveScoreProvider {
   if (
     provider === "api-football" ||
     provider === "football-data" ||
+    provider === "worldcup26" ||
     provider === "manual"
   ) {
     return provider;
@@ -195,6 +210,16 @@ function syncIntervalForKickoffTimes(kickoffTimesCount: number) {
   return 7;
 }
 
+function worldcup26SyncIntervalInMinutes() {
+  const seconds = Number(process.env.SCORES_ACTIVE_SYNC_INTERVAL_SECONDS);
+
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.max(1, Math.round(seconds / 60));
+  }
+
+  return 1;
+}
+
 function latestScoreUpdate(matches: MatchRow[]) {
   return matches.reduce<string | null>((latest, match) => {
     if (!match.score_updated_at) {
@@ -238,6 +263,8 @@ async function fetchMatches(supabase: SyncSupabaseClient) {
         "home_score",
         "away_score",
         "score_updated_at",
+        "home_team:teams!matches_home_team_id_fkey(name)",
+        "away_team:teams!matches_away_team_id_fkey(name)",
       ].join(", "),
     )
     .not("kickoff_at", "is", null)
@@ -265,6 +292,12 @@ function providerFixtureIdForMatch(
     );
   }
 
+  if (provider === "worldcup26") {
+    return match.score_provider === provider
+      ? match.score_provider_fixture_id
+      : null;
+  }
+
   if (match.score_provider !== provider) {
     return null;
   }
@@ -284,6 +317,199 @@ async function fetchProviderFixtures(
   return fetchApiFootballFixturesByDate({
     date: today,
     timezone: TIMEZONE,
+  });
+}
+
+function isWorldcup26NotStarted(fixture: LiveScoreFixture) {
+  return fixture.statusShort === "NS";
+}
+
+function isCompleteScore(fixture: LiveScoreFixture) {
+  return (
+    typeof fixture.homeScore === "number" &&
+    typeof fixture.awayScore === "number"
+  );
+}
+
+function localScoreLabel(match: MatchRow) {
+  const homeScore =
+    typeof match.home_score_live === "number"
+      ? match.home_score_live
+      : match.home_score;
+  const awayScore =
+    typeof match.away_score_live === "number"
+      ? match.away_score_live
+      : match.away_score;
+
+  return `${homeScore ?? "null"} x ${awayScore ?? "null"}`;
+}
+
+function worldcup26FixtureMatches(match: MatchRow, fixture: LiveScoreFixture) {
+  return worldcup26TeamsMatch({
+    localHomeName: match.home_team?.name,
+    localAwayName: match.away_team?.name,
+    providerHomeName: fixture.homeTeamName,
+    providerAwayName: fixture.awayTeamName,
+  });
+}
+
+async function fetchWorldcup26FixtureForMatch(input: {
+  match: MatchRow;
+  allFixtures: LiveScoreFixture[] | null;
+}) {
+  const fixtureId = providerFixtureIdForMatch(input.match, "worldcup26");
+
+  if (fixtureId) {
+    const game = await fetchWorldcup26GameByMongoId(fixtureId);
+    const fixture = mapWorldcup26GameToInternalScore(game, {
+      homeTeamName: input.match.home_team?.name,
+      awayTeamName: input.match.away_team?.name,
+    });
+
+    return {
+      fixture,
+      fixtureId,
+      usedGamesEndpoint: false,
+    };
+  }
+
+  const fixture =
+    input.allFixtures?.find((candidate) =>
+      worldcup26FixtureMatches(input.match, candidate),
+    ) ?? null;
+
+  return {
+    fixture,
+    fixtureId: fixture ? String(fixture.providerFixtureId) : null,
+    usedGamesEndpoint: true,
+  };
+}
+
+async function runWorldcup26Sync(input: {
+  supabase: SyncSupabaseClient;
+  startedAt: Date;
+  activeMatches: MatchRow[];
+  nextRecommendedSyncInMinutes: number;
+  now: Date;
+}) {
+  let allFixtures: LiveScoreFixture[] | null = null;
+  let externalRequests = 0;
+  let updatedMatches = 0;
+  let liveFixtures = 0;
+
+  const needsFallbackMapping = input.activeMatches.some(
+    (match) => !providerFixtureIdForMatch(match, "worldcup26"),
+  );
+
+  if (needsFallbackMapping) {
+    const games = await fetchWorldcup26Games();
+    externalRequests += 1;
+    allFixtures = games
+      .map((game) => mapWorldcup26GameToInternalScore(game))
+      .filter((fixture): fixture is LiveScoreFixture => Boolean(fixture));
+  }
+
+  for (const match of input.activeMatches) {
+    console.log(
+      `[worldcup26] active match: ${match.home_team?.name ?? "Home"} x ${match.away_team?.name ?? "Away"}`,
+    );
+
+    let fixture: LiveScoreFixture | null = null;
+    let fixtureId: string | null = null;
+
+    try {
+      const result = await fetchWorldcup26FixtureForMatch({
+        match,
+        allFixtures,
+      });
+
+      fixture = result.fixture;
+      fixtureId = result.fixtureId;
+
+      if (!result.usedGamesEndpoint) {
+        externalRequests += 1;
+      }
+    } catch (error) {
+      console.warn(
+        `[worldcup26] failed to fetch mapped game: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+      continue;
+    }
+
+    if (!fixture || !fixtureId) {
+      console.log("[worldcup26] no matching fixture found");
+      continue;
+    }
+
+    console.log(`[worldcup26] game id: ${fixtureId}`);
+    console.log(
+      `[worldcup26] API score: ${fixture.homeTeamName} ${fixture.homeScore} x ${fixture.awayScore} ${fixture.awayTeamName} - ${fixture.statusLong}`,
+    );
+    console.log(`[worldcup26] local score before: ${localScoreLabel(match)}`);
+
+    if (!isCompleteScore(fixture)) {
+      console.log("[worldcup26] skipped invalid/null score");
+      continue;
+    }
+
+    if (isFinalMatchStatus(match.status_short) && !isFinalMatchStatus(fixture.statusShort)) {
+      console.log("[worldcup26] skipped downgrade from FT");
+      continue;
+    }
+
+    if (isWorldcup26NotStarted(fixture)) {
+      console.log("[worldcup26] skipped notstarted status");
+      continue;
+    }
+
+    const scoreChanged =
+      match.home_score_live !== fixture.homeScore ||
+      match.away_score_live !== fixture.awayScore;
+
+    if (scoreChanged) {
+      console.log(
+        `Gol ou alteração de placar detectada: ${match.home_team?.name ?? "Home"} ${localScoreLabel(match)} ${match.away_team?.name ?? "Away"} -> ${match.home_team?.name ?? "Home"} ${fixture.homeScore} x ${fixture.awayScore} ${match.away_team?.name ?? "Away"}`,
+      );
+    }
+
+    const isFinal = isFinalMatchStatus(fixture.statusShort);
+    const update: MatchUpdate = {
+      status_short: fixture.statusShort,
+      status_long: fixture.statusLong,
+      elapsed: fixture.elapsed,
+      home_score_live: fixture.homeScore,
+      away_score_live: fixture.awayScore,
+      home_score: isFinal ? fixture.homeScore : match.home_score,
+      away_score: isFinal ? fixture.awayScore : match.away_score,
+      score_updated_at: input.now.toISOString(),
+      score_provider: "worldcup26",
+      score_provider_fixture_id: fixtureId,
+    };
+
+    await updateMatch(input.supabase, match, update);
+    updatedMatches += 1;
+
+    if (isLiveMatchStatus(fixture.statusShort)) {
+      liveFixtures += 1;
+    }
+
+    console.log(
+      `[worldcup26] updated local score: ${fixture.homeScore} x ${fixture.awayScore}`,
+    );
+  }
+
+  return finishWithLog(input.supabase, input.startedAt, {
+    status: "synced",
+    reason: "active_match_window",
+    provider: "worldcup26",
+    externalRequests,
+    updatedMatches,
+    activeMatches: input.activeMatches.length,
+    activeMatchdays: [],
+    liveFixtures,
+    nextRecommendedSyncInMinutes: input.nextRecommendedSyncInMinutes,
   });
 }
 
@@ -389,7 +615,8 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
         datePartInTimezone(new Date(match.kickoff_at), TIMEZONE) === today,
     );
     const activeMatches = todayMatches.filter((match) =>
-      isWithinActiveWindow(match, now),
+      isWithinActiveWindow(match, now) &&
+      (provider !== "worldcup26" || !isFinalMatchStatus(match.status_short)),
     );
     const kickoffTimes = new Set(
       todayMatches
@@ -398,9 +625,10 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
           timePartInTimezone(new Date(match.kickoff_at as string), TIMEZONE),
         ),
     );
-    const nextRecommendedSyncInMinutes = syncIntervalForKickoffTimes(
-      kickoffTimes.size,
-    );
+    const nextRecommendedSyncInMinutes =
+      provider === "worldcup26"
+        ? worldcup26SyncIntervalInMinutes()
+        : syncIntervalForKickoffTimes(kickoffTimes.size);
 
     if (activeMatches.length === 0) {
       return finishWithLog(supabase, startedAt, {
@@ -412,6 +640,16 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
         activeMatches: 0,
         activeMatchdays: [],
         nextRecommendedSyncInMinutes,
+      });
+    }
+
+    if (provider === "worldcup26") {
+      return runWorldcup26Sync({
+        supabase,
+        startedAt,
+        activeMatches,
+        nextRecommendedSyncInMinutes,
+        now,
       });
     }
 

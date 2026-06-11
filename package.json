@@ -14,7 +14,9 @@
     "setup:owner-pool": "tsx scripts/create-owner-pool.ts",
     "scores:map-fixtures:dry": "tsx scripts/map-live-score-fixtures.ts --dry-run",
     "scores:map-fixtures": "tsx scripts/map-live-score-fixtures.ts",
-    "scores:map-api-football:dry": "tsx scripts/map-api-football-fixtures.ts --dry-run"
+    "scores:map-api-football:dry": "tsx scripts/map-api-football-fixtures.ts --dry-run",
+    "scores:map-worldcup26": "tsx scripts/map-worldcup26-fixtures.ts",
+    "scores:watch:local": "tsx scripts/watch-live-scores-local.ts"
   },
   "dependencies": {
     "@supabase/ssr": "latest",
