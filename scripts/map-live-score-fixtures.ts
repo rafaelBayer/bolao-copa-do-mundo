@@ -1,10 +1,12 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync } from "node:fs";
 import { fetchApiFootballFixturesByCompetition } from "../lib/scores/providers/apiFootball";
-import { fetchFootballDataMatches } from "../lib/scores/providers/footballData";
+import { fetchFootballDataMatchesByMatchdays } from "../lib/scores/providers/footballData";
 import type { LiveScoreFixture } from "../lib/scores/providers/types";
 
 const TIMEZONE = "America/Sao_Paulo";
+const FOOTBALL_DATA_GROUP_MATCHDAYS = [1, 2, 3];
+const MAX_KICKOFF_DIFF_MINUTES = 15;
 
 type LiveScoreProvider = "api-football" | "football-data" | "manual";
 
@@ -32,14 +34,17 @@ type MappingDatabase = {
 type MatchRow = {
   id: string;
   kickoff_at: string | null;
+  round_number: number | null;
   api_football_fixture_id: number | null;
   score_provider: string | null;
   score_provider_fixture_id: string | null;
   home_team: {
     name: string;
+    code: string | null;
   } | null;
   away_team: {
     name: string;
+    code: string | null;
   } | null;
 };
 
@@ -114,6 +119,10 @@ function normalizeName(value: string | null | undefined) {
     .trim();
 }
 
+function normalizeCode(value: string | null | undefined) {
+  return (value ?? "").trim().toUpperCase();
+}
+
 function datePartInTimezone(date: Date, timezone: string) {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone,
@@ -133,11 +142,12 @@ async function fetchMatches(supabase: MappingSupabaseClient) {
       `
       id,
       kickoff_at,
+      round_number,
       api_football_fixture_id,
       score_provider,
       score_provider_fixture_id,
-      home_team:teams!matches_home_team_id_fkey(name),
-      away_team:teams!matches_away_team_id_fkey(name)
+      home_team:teams!matches_home_team_id_fkey(name, code),
+      away_team:teams!matches_away_team_id_fkey(name, code)
     `,
     )
     .not("kickoff_at", "is", null)
@@ -156,13 +166,47 @@ async function fetchProviderFixtures(provider: LiveScoreProvider) {
   }
 
   if (provider === "football-data") {
-    return fetchFootballDataMatches();
+    return fetchFootballDataMatchesByMatchdays(FOOTBALL_DATA_GROUP_MATCHDAYS);
   }
 
   return fetchApiFootballFixturesByCompetition();
 }
 
-function findFixtureCandidates(match: MatchRow, fixtures: LiveScoreFixture[]) {
+function kickoffDiffInMinutes(match: MatchRow, fixture: LiveScoreFixture) {
+  if (!match.kickoff_at || !fixture.utcDate) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return Math.abs(
+    new Date(match.kickoff_at).getTime() - new Date(fixture.utcDate).getTime(),
+  ) / 60000;
+}
+
+function findFootballDataFixtureCandidates(
+  match: MatchRow,
+  fixtures: LiveScoreFixture[],
+) {
+  const homeCode = normalizeCode(match.home_team?.code);
+  const awayCode = normalizeCode(match.away_team?.code);
+
+  if (!match.round_number || !homeCode || !awayCode || !match.kickoff_at) {
+    return [];
+  }
+
+  return fixtures.filter(
+    (fixture) =>
+      fixture.provider === "football-data" &&
+      fixture.matchday === match.round_number &&
+      normalizeCode(fixture.homeTeamCode) === homeCode &&
+      normalizeCode(fixture.awayTeamCode) === awayCode &&
+      kickoffDiffInMinutes(match, fixture) <= MAX_KICKOFF_DIFF_MINUTES,
+  );
+}
+
+function findNameDateFixtureCandidates(
+  match: MatchRow,
+  fixtures: LiveScoreFixture[],
+) {
   if (!match.kickoff_at) {
     return [];
   }
@@ -188,6 +232,29 @@ function findFixtureCandidates(match: MatchRow, fixtures: LiveScoreFixture[]) {
   });
 }
 
+function findFixtureCandidates(
+  match: MatchRow,
+  fixtures: LiveScoreFixture[],
+  provider: LiveScoreProvider,
+) {
+  if (provider === "football-data") {
+    return findFootballDataFixtureCandidates(match, fixtures);
+  }
+
+  return findNameDateFixtureCandidates(match, fixtures);
+}
+
+function logFootballDataFixtureSummary(fixtures: LiveScoreFixture[]) {
+  for (const matchday of FOOTBALL_DATA_GROUP_MATCHDAYS) {
+    const count = fixtures.filter(
+      (fixture) => fixture.matchday === matchday,
+    ).length;
+    console.log(`matchday ${matchday} fixtures: ${count}`);
+  }
+
+  console.log(`total football-data fixtures: ${fixtures.length}`);
+}
+
 async function main() {
   loadEnvFile(".env.local");
   loadEnvFile(".env");
@@ -204,7 +271,12 @@ async function main() {
 
   console.log("Fetching provider fixtures...");
   const fixtures = await fetchProviderFixtures(provider);
-  console.log(`Fixtures returned: ${fixtures.length}`);
+
+  if (provider === "football-data") {
+    logFootballDataFixtureSummary(fixtures);
+  } else {
+    console.log(`Fixtures returned: ${fixtures.length}`);
+  }
 
   const supabase = createClient<MappingDatabase>(
     requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
@@ -234,7 +306,7 @@ async function main() {
       continue;
     }
 
-    const candidates = findFixtureCandidates(match, fixtures);
+    const candidates = findFixtureCandidates(match, fixtures, provider);
     const fixture = candidates.length === 1 ? candidates[0] : null;
 
     if (!fixture) {

@@ -18,6 +18,7 @@
 *.pem
 context.md
 context-live-scores.md
+context-live-scores-football-data.md
 
 # debug
 npm-debug.log*

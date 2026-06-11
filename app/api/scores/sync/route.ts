@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { fetchApiFootballFixturesByDate } from "@/lib/scores/providers/apiFootball";
-import { fetchFootballDataMatches } from "@/lib/scores/providers/footballData";
+import { fetchFootballDataMatchesByMatchdays } from "@/lib/scores/providers/footballData";
 import type { LiveScoreFixture } from "@/lib/scores/providers/types";
 import {
   isFinalMatchStatus,
@@ -38,6 +38,7 @@ type SyncDatabase = {
 type MatchRow = {
   id: string;
   kickoff_at: string | null;
+  round_number: number | null;
   api_football_fixture_id: number | null;
   score_provider: string | null;
   score_provider_fixture_id: string | null;
@@ -200,6 +201,7 @@ async function fetchMatches(supabase: SyncSupabaseClient) {
       [
         "id",
         "kickoff_at",
+        "round_number",
         "api_football_fixture_id",
         "score_provider",
         "score_provider_fixture_id",
@@ -248,9 +250,10 @@ function providerFixtureIdForMatch(
 async function fetchProviderFixtures(
   provider: LiveScoreProvider,
   today: string,
+  matchdays: number[],
 ) {
   if (provider === "football-data") {
-    return fetchFootballDataMatches();
+    return fetchFootballDataMatchesByMatchdays(matchdays);
   }
 
   return fetchApiFootballFixturesByDate({
@@ -372,6 +375,28 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const activeMatchdays = Array.from(
+    new Set(
+      mappedActiveMatches
+        .map((match) => match.round_number)
+        .filter((roundNumber): roundNumber is number =>
+          typeof roundNumber === "number",
+        ),
+    ),
+  ).sort((first, second) => first - second);
+
+  if (provider === "football-data" && activeMatchdays.length === 0) {
+    return jsonResponse({
+      status: "skipped",
+      reason: "missing_active_matchday",
+      provider,
+      externalRequests: 0,
+      updatedMatches: 0,
+      activeMatches: mappedActiveMatches.length,
+      nextRecommendedSyncInMinutes,
+    });
+  }
+
   const allActiveMatchesAreHalftime = mappedActiveMatches.every((match) =>
     isHalftimeStatus(match.status_short),
   );
@@ -407,16 +432,18 @@ export async function GET(request: NextRequest) {
   }
 
   let fixtures: LiveScoreFixture[];
+  const expectedExternalRequests =
+    provider === "football-data" ? activeMatchdays.length : 1;
 
   try {
-    fixtures = await fetchProviderFixtures(provider, today);
+    fixtures = await fetchProviderFixtures(provider, today, activeMatchdays);
   } catch (error) {
     return jsonResponse(
       {
         status: "error",
         reason: "provider_error",
         provider,
-        externalRequests: 1,
+        externalRequests: expectedExternalRequests,
         updatedMatches: 0,
         message: error instanceof Error ? error.message : "Unknown error",
       },
@@ -465,8 +492,9 @@ export async function GET(request: NextRequest) {
     status: "synced",
     reason: "active_match_window",
     provider,
-    externalRequests: 1,
+    externalRequests: expectedExternalRequests,
     updatedMatches,
+    activeMatchdays,
     liveFixtures: fixtures.filter((fixture) =>
       isLiveMatchStatus(fixture.statusShort),
     ).length,

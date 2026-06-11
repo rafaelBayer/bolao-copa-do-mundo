@@ -17,7 +17,7 @@ O frontend nunca chama a API externa.
 O provider e escolhido por:
 
 ```env
-LIVE_SCORE_PROVIDER=manual
+LIVE_SCORE_PROVIDER=football-data
 ```
 
 Valores:
@@ -27,6 +27,25 @@ api-football
 football-data
 manual
 ```
+
+Provider automatico recomendado para Copa 2026:
+
+```env
+LIVE_SCORE_PROVIDER=football-data
+FOOTBALL_DATA_API_KEY=
+FOOTBALL_DATA_COMPETITION_CODE=WC
+```
+
+O provider `football-data` usa apenas endpoints por matchday:
+
+```txt
+/v4/competitions/WC/matches?matchday=1
+/v4/competitions/WC/matches?matchday=2
+/v4/competitions/WC/matches?matchday=3
+```
+
+O endpoint `/v4/competitions/WC` pode retornar 403 no plano atual e nao deve
+ser dependencia obrigatoria.
 
 Observacao importante: a API-Football Free retornou que nao libera `season=2026`.
 Ela continua implementada, mas pode exigir plano pago ou outro `league/season`.
@@ -44,9 +63,30 @@ Se `LIVE_SCORE_PROVIDER` nao estiver definido, o app usa `manual` como fallback
 seguro e registra um aviso server-side. Isso evita tentar API-Football por
 engano durante a operacao inicial.
 
-## Operacao recomendada para amanha
+## Operacao recomendada para placar automatico
 
-Use o modo manual como caminho principal:
+Use football-data como provider principal:
+
+```env
+LIVE_SCORE_PROVIDER=football-data
+FOOTBALL_DATA_API_KEY=SUA_KEY
+FOOTBALL_DATA_COMPETITION_CODE=WC
+SCORES_SYNC_SECRET=um_secret_forte
+```
+
+Depois rode:
+
+```bash
+npm run scores:map-fixtures:dry
+npm run scores:map-fixtures
+```
+
+Para fase de grupos, o mapeamento busca matchday 1, 2 e 3. Na sync automatica,
+o endpoint busca apenas os matchdays ativos em janela de jogo.
+
+## Operacao manual de emergencia
+
+Use o modo manual quando a API atrasar, cair, falhar ou algum jogo nao mapear:
 
 ```env
 LIVE_SCORE_PROVIDER=manual
@@ -66,14 +106,14 @@ Checklist de operacao:
 Notas:
 
 * API-Football Free nao acessa a temporada 2026.
-* football-data e opcional e pode ter atraso ou cobertura diferente.
-* manual e o caminho seguro para garantir placar ao vivo no lancamento.
+* football-data e o provider automatico principal viavel para Copa 2026.
+* manual continua como fallback seguro para emergencia.
 
 ## Variaveis de ambiente
 
 ```env
 API_FOOTBALL_KEY=
-LIVE_SCORE_PROVIDER=
+LIVE_SCORE_PROVIDER=football-data
 FOOTBALL_DATA_API_KEY=
 FOOTBALL_DATA_COMPETITION_CODE=WC
 SCORES_SYNC_SECRET=
@@ -142,8 +182,24 @@ Aplicar:
 npm run scores:map-fixtures
 ```
 
-O script so atualiza matches quando encontra uma correspondencia segura por data
-local e nomes dos times. Se houver duvida, preencha manualmente:
+Com `LIVE_SCORE_PROVIDER=football-data`, o script busca:
+
+```txt
+matchday 1
+matchday 2
+matchday 3
+```
+
+O script so atualiza matches quando encontra uma correspondencia segura por:
+
+```txt
+round_number = matchday
+home_team.code = homeTeam.tla
+away_team.code = awayTeam.tla
+kickoff_at proximo de utcDate
+```
+
+Se houver duvida, preencha manualmente:
 
 ```sql
 update public.matches
@@ -164,6 +220,15 @@ Depois rode:
 ```bash
 npm run scores:map-fixtures:dry
 npm run scores:map-fixtures
+```
+
+Dry-run esperado:
+
+```txt
+matchday 1 fixtures: 24
+matchday 2 fixtures: 24
+matchday 3 fixtures: 24
+total football-data fixtures: 72
 ```
 
 ## Endpoint de sync
@@ -241,6 +306,9 @@ GET https://SEU_DOMINIO/api/scores/sync?secret=SCORES_SYNC_SECRET
 
 Se `LIVE_SCORE_PROVIDER=manual`, o endpoint retorna `manual_provider` e nao
 gasta requests externos.
+
+Se `LIVE_SCORE_PROVIDER=football-data`, o endpoint chama apenas matchdays ativos
+com jogos dentro da janela ativa. Ele nao busca matchday 1, 2 e 3 em toda sync.
 
 ## Uso na tela
 
