@@ -3,6 +3,15 @@ import { fetchApiFootballFixturesByDate } from "@/lib/scores/providers/apiFootba
 import { fetchFootballDataMatchesByMatchdays } from "@/lib/scores/providers/footballData";
 import type { LiveScoreFixture } from "@/lib/scores/providers/types";
 import {
+  espnTeamsMatch,
+  extractEspnGoals,
+  fetchEspnScoreboardByDate,
+  fetchEspnSummaryByEventId,
+  mapEspnEventToInternalMatch,
+  type EspnEvent,
+  type EspnGoal,
+} from "@/lib/scores/providers/espn";
+import {
   fetchWorldcup26GameByMongoId,
   fetchWorldcup26Games,
   mapWorldcup26GameToInternalScore,
@@ -20,7 +29,12 @@ const ACTIVE_WINDOW_AFTER_MINUTES = 150;
 const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
 
-type LiveScoreProvider = "api-football" | "football-data" | "manual" | "worldcup26";
+type LiveScoreProvider =
+  | "api-football"
+  | "football-data"
+  | "manual"
+  | "worldcup26"
+  | "espn";
 type SyncStatus = "success" | "skipped" | "error";
 
 type SyncDatabase = {
@@ -35,6 +49,12 @@ type SyncDatabase = {
       live_score_sync_logs: {
         Row: never;
         Insert: LiveScoreSyncLogInsert;
+        Update: never;
+        Relationships: [];
+      };
+      match_goals: {
+        Row: MatchGoalRow;
+        Insert: MatchGoalInsert;
         Update: never;
         Relationships: [];
       };
@@ -62,9 +82,11 @@ type MatchRow = {
   away_score: number | null;
   score_updated_at: string | null;
   home_team?: {
+    id: string;
     name: string;
   } | null;
   away_team?: {
+    id: string;
     name: string;
   } | null;
 };
@@ -94,6 +116,30 @@ type LiveScoreSyncLogInsert = {
   finished_at?: string | null;
 };
 
+type MatchGoalRow = {
+  id: string;
+  match_id: string;
+  provider: string;
+  provider_event_id: string | null;
+  minute: number | null;
+  team_name: string | null;
+  player_name: string | null;
+};
+
+type MatchGoalInsert = {
+  match_id: string;
+  provider: string;
+  provider_event_id?: string | null;
+  minute?: number | null;
+  team_name?: string | null;
+  team_id?: string | null;
+  player_name?: string | null;
+  goal_type?: string | null;
+  is_penalty?: boolean;
+  is_own_goal?: boolean;
+  raw_event?: unknown;
+};
+
 type SyncSupabaseClient = SupabaseClient<SyncDatabase>;
 
 export type LiveScoreSyncResult = {
@@ -106,6 +152,7 @@ export type LiveScoreSyncResult = {
   activeMatchdays?: number[];
   liveFixtures?: number;
   nextRecommendedSyncInMinutes?: number;
+  nextRecommendedSyncInSeconds?: number;
   message?: string;
 };
 
@@ -131,6 +178,7 @@ function currentProvider(): LiveScoreProvider {
     provider === "api-football" ||
     provider === "football-data" ||
     provider === "worldcup26" ||
+    provider === "espn" ||
     provider === "manual"
   ) {
     return provider;
@@ -220,6 +268,40 @@ function worldcup26SyncIntervalInMinutes() {
   return 1;
 }
 
+function activeSyncIntervalInSeconds(defaultSeconds: number) {
+  const seconds = Number(process.env.SCORES_ACTIVE_SYNC_INTERVAL_SECONDS);
+
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.max(15, Math.round(seconds));
+  }
+
+  return defaultSeconds;
+}
+
+function syncIntervalInMinutesFromSeconds(seconds: number) {
+  return Math.max(1, Math.ceil(seconds / 60));
+}
+
+function espnDatePart(date: Date) {
+  return date.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
+function espnCandidateDates(kickoffAt: string | null) {
+  if (!kickoffAt) {
+    return [];
+  }
+
+  const kickoff = new Date(kickoffAt);
+  const dayMs = 24 * 60 * 60 * 1000;
+
+  return Array.from(
+    new Set(
+      [kickoff.getTime() - dayMs, kickoff.getTime(), kickoff.getTime() + dayMs]
+        .map((time) => espnDatePart(new Date(time))),
+    ),
+  );
+}
+
 function latestScoreUpdate(matches: MatchRow[]) {
   return matches.reduce<string | null>((latest, match) => {
     if (!match.score_updated_at) {
@@ -263,8 +345,8 @@ async function fetchMatches(supabase: SyncSupabaseClient) {
         "home_score",
         "away_score",
         "score_updated_at",
-        "home_team:teams!matches_home_team_id_fkey(name)",
-        "away_team:teams!matches_away_team_id_fkey(name)",
+        "home_team:teams!matches_home_team_id_fkey(id, name)",
+        "away_team:teams!matches_away_team_id_fkey(id, name)",
       ].join(", "),
     )
     .not("kickoff_at", "is", null)
@@ -293,6 +375,12 @@ function providerFixtureIdForMatch(
   }
 
   if (provider === "worldcup26") {
+    return match.score_provider === provider
+      ? match.score_provider_fixture_id
+      : null;
+  }
+
+  if (provider === "espn") {
     return match.score_provider === provider
       ? match.score_provider_fixture_id
       : null;
@@ -351,6 +439,55 @@ function worldcup26FixtureMatches(match: MatchRow, fixture: LiveScoreFixture) {
     providerHomeName: fixture.homeTeamName,
     providerAwayName: fixture.awayTeamName,
   });
+}
+
+function espnFixtureMatches(match: MatchRow, fixture: LiveScoreFixture) {
+  return espnTeamsMatch({
+    localHomeName: match.home_team?.name,
+    localAwayName: match.away_team?.name,
+    providerHomeName: fixture.homeTeamName,
+    providerAwayName: fixture.awayTeamName,
+  });
+}
+
+function espnEventMatches(match: MatchRow, event: EspnEvent) {
+  const fixture = mapEspnEventToInternalMatch(event);
+
+  return Boolean(fixture && espnFixtureMatches(match, fixture));
+}
+
+function mergeEspnEvents(primary: EspnEvent, secondary: EspnEvent | null) {
+  if (!secondary) {
+    return primary;
+  }
+
+  const primaryCompetition = primary.competitions?.[0];
+  const secondaryCompetition = secondary.competitions?.[0];
+  const primaryDetails = primaryCompetition?.details ?? [];
+  const secondaryDetails = secondaryCompetition?.details ?? [];
+  const details =
+    primaryDetails.length >= secondaryDetails.length
+      ? primaryDetails
+      : secondaryDetails;
+  const competition =
+    primaryCompetition || secondaryCompetition
+      ? {
+          ...(secondaryCompetition ?? {}),
+          ...(primaryCompetition ?? {}),
+          competitors:
+            primaryCompetition?.competitors ?? secondaryCompetition?.competitors,
+          details,
+        }
+      : undefined;
+
+  return {
+    ...primary,
+    date: primary.date ?? secondary.date,
+    name: primary.name ?? secondary.name,
+    shortName: primary.shortName ?? secondary.shortName,
+    status: primary.status ?? secondary.status,
+    competitions: competition ? [competition] : primary.competitions,
+  };
 }
 
 async function fetchWorldcup26FixtureForMatch(input: {
@@ -513,6 +650,314 @@ async function runWorldcup26Sync(input: {
   });
 }
 
+async function fetchEspnEventForMatch(input: {
+  match: MatchRow;
+  eventsByDate: Map<string, EspnEvent[]>;
+}) {
+  const fixtureId = providerFixtureIdForMatch(input.match, "espn");
+  let externalRequests = 0;
+
+  if (fixtureId) {
+    const summaryEvent = await fetchEspnSummaryByEventId(fixtureId);
+    let scoreboardEvent: EspnEvent | null = null;
+    externalRequests += 1;
+
+    for (const date of espnCandidateDates(input.match.kickoff_at)) {
+      let events = input.eventsByDate.get(date);
+
+      if (!events) {
+        events = await fetchEspnScoreboardByDate(date);
+        input.eventsByDate.set(date, events);
+        externalRequests += 1;
+      }
+
+      scoreboardEvent =
+        events.find((candidate) => String(candidate.id) === fixtureId) ?? null;
+
+      if (scoreboardEvent) {
+        break;
+      }
+    }
+
+    return {
+      event: mergeEspnEvents(scoreboardEvent ?? summaryEvent, summaryEvent),
+      fixtureId,
+      usedScoreboardEndpoint: false,
+      externalRequests,
+    };
+  }
+
+  for (const date of espnCandidateDates(input.match.kickoff_at)) {
+    let events = input.eventsByDate.get(date);
+
+    if (!events) {
+      events = await fetchEspnScoreboardByDate(date);
+      input.eventsByDate.set(date, events);
+      externalRequests += 1;
+    }
+
+    const event = events.find((candidate) =>
+      espnEventMatches(input.match, candidate),
+    );
+    const fixture = event ? mapEspnEventToInternalMatch(event) : null;
+
+    if (event && fixture) {
+      return {
+        event,
+        fixtureId: String(fixture.providerFixtureId),
+        usedScoreboardEndpoint: true,
+        externalRequests,
+      };
+    }
+  }
+
+  return {
+    event: null,
+    fixtureId: null,
+    usedScoreboardEndpoint: true,
+    externalRequests,
+  };
+}
+
+function teamIdForEspnGoal(match: MatchRow, goal: EspnGoal) {
+  if (
+    espnTeamsMatch({
+      localHomeName: match.home_team?.name,
+      localAwayName: match.away_team?.name,
+      providerHomeName: goal.teamName,
+      providerAwayName: match.away_team?.name,
+    })
+  ) {
+    return match.home_team?.id ?? null;
+  }
+
+  if (
+    espnTeamsMatch({
+      localHomeName: match.away_team?.name,
+      localAwayName: match.home_team?.name,
+      providerHomeName: goal.teamName,
+      providerAwayName: match.home_team?.name,
+    })
+  ) {
+    return match.away_team?.id ?? null;
+  }
+
+  return null;
+}
+
+async function goalAlreadyExists(
+  supabase: SyncSupabaseClient,
+  match: MatchRow,
+  goal: EspnGoal,
+) {
+  let query = supabase
+    .from("match_goals")
+    .select("id")
+    .eq("match_id", match.id)
+    .eq("provider", "espn")
+    .limit(1);
+
+  if (goal.providerEventId) {
+    query = query.eq("provider_event_id", goal.providerEventId);
+  } else {
+    query = query.is("provider_event_id", null);
+    query =
+      goal.minute === null
+        ? query.is("minute", null)
+        : query.eq("minute", goal.minute);
+    query =
+      goal.teamName === null
+        ? query.is("team_name", null)
+        : query.eq("team_name", goal.teamName);
+    query =
+      goal.playerName === null
+        ? query.is("player_name", null)
+        : query.eq("player_name", goal.playerName);
+  }
+
+  const { data, error } = await query.maybeSingle();
+
+  if (error) {
+    throw error;
+  }
+
+  return Boolean(data);
+}
+
+async function saveEspnGoals(input: {
+  supabase: SyncSupabaseClient;
+  match: MatchRow;
+  event: EspnEvent;
+}) {
+  const goals = extractEspnGoals(input.event);
+  let insertedGoals = 0;
+
+  for (const goal of goals) {
+    try {
+      const exists = await goalAlreadyExists(input.supabase, input.match, goal);
+
+      if (exists) {
+        continue;
+      }
+
+      const { error } = await input.supabase.from("match_goals").insert({
+        match_id: input.match.id,
+        provider: "espn",
+        provider_event_id: goal.providerEventId,
+        minute: goal.minute,
+        team_name: goal.teamName,
+        team_id: teamIdForEspnGoal(input.match, goal),
+        player_name: goal.playerName,
+        goal_type: goal.goalType,
+        is_penalty: goal.isPenalty,
+        is_own_goal: goal.isOwnGoal,
+        raw_event: goal.rawEvent,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      insertedGoals += 1;
+      console.log(
+        `[espn] Novo gol detectado: ${input.match.home_team?.name ?? "Home"} x ${input.match.away_team?.name ?? "Away"} - ${goal.playerName ?? "Jogador"} ${goal.minute ?? "?"}'`,
+      );
+    } catch (error) {
+      console.warn(
+        `[espn] failed to save goal event: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+      break;
+    }
+  }
+
+  return {
+    foundGoals: goals.length,
+    insertedGoals,
+  };
+}
+
+async function runEspnSync(input: {
+  supabase: SyncSupabaseClient;
+  startedAt: Date;
+  activeMatches: MatchRow[];
+  nextRecommendedSyncInMinutes: number;
+  nextRecommendedSyncInSeconds: number;
+  now: Date;
+}) {
+  const eventsByDate = new Map<string, EspnEvent[]>();
+  let externalRequests = 0;
+  let updatedMatches = 0;
+  let liveFixtures = 0;
+  let insertedGoals = 0;
+
+  for (const match of input.activeMatches) {
+    console.log(
+      `[espn] active match: ${match.home_team?.name ?? "Home"} x ${match.away_team?.name ?? "Away"}`,
+    );
+
+    let event: EspnEvent | null = null;
+    let fixtureId: string | null = null;
+
+    try {
+      const result = await fetchEspnEventForMatch({
+        match,
+        eventsByDate,
+      });
+
+      event = result.event;
+      fixtureId = result.fixtureId;
+      externalRequests += result.externalRequests;
+    } catch (error) {
+      console.warn(
+        `[espn] failed to fetch event: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+      continue;
+    }
+
+    if (!event || !fixtureId) {
+      console.log("[espn] no matching event found");
+      continue;
+    }
+
+    const fixture = mapEspnEventToInternalMatch(event);
+
+    if (!fixture) {
+      console.log("[espn] skipped event with incomplete team data");
+      continue;
+    }
+
+    console.log(`[espn] event id: ${fixtureId}`);
+    console.log(
+      `[espn] API score: ${fixture.homeTeamName} ${fixture.homeScore} x ${fixture.awayScore} ${fixture.awayTeamName} - ${fixture.statusLong}`,
+    );
+    console.log(`[espn] local score before: ${localScoreLabel(match)}`);
+
+    if (!isCompleteScore(fixture)) {
+      console.log("[espn] skipped invalid/null score");
+      continue;
+    }
+
+    if (isFinalMatchStatus(match.status_short) && !isFinalMatchStatus(fixture.statusShort)) {
+      console.log("[espn] skipped downgrade from FT");
+      continue;
+    }
+
+    if (fixture.statusShort === "NS") {
+      console.log("[espn] skipped notstarted status");
+      continue;
+    }
+
+    const isFinal = isFinalMatchStatus(fixture.statusShort);
+    const update: MatchUpdate = {
+      status_short: fixture.statusShort,
+      status_long: fixture.statusLong,
+      elapsed: fixture.elapsed,
+      home_score_live: fixture.homeScore,
+      away_score_live: fixture.awayScore,
+      home_score: isFinal ? fixture.homeScore : match.home_score,
+      away_score: isFinal ? fixture.awayScore : match.away_score,
+      score_updated_at: input.now.toISOString(),
+      score_provider: "espn",
+      score_provider_fixture_id: fixtureId,
+    };
+
+    await updateMatch(input.supabase, match, update);
+    updatedMatches += 1;
+
+    const goalResult = await saveEspnGoals({
+      supabase: input.supabase,
+      match,
+      event,
+    });
+    insertedGoals += goalResult.insertedGoals;
+
+    if (isLiveMatchStatus(fixture.statusShort)) {
+      liveFixtures += 1;
+    }
+
+    console.log(
+      `[espn] updated local score: ${fixture.homeScore} x ${fixture.awayScore}; goals found: ${goalResult.foundGoals}; goals inserted: ${goalResult.insertedGoals}`,
+    );
+  }
+
+  return finishWithLog(input.supabase, input.startedAt, {
+    status: "synced",
+    reason: insertedGoals > 0 ? "active_match_window_goals" : "active_match_window",
+    provider: "espn",
+    externalRequests,
+    updatedMatches,
+    activeMatches: input.activeMatches.length,
+    activeMatchdays: [],
+    liveFixtures,
+    nextRecommendedSyncInMinutes: input.nextRecommendedSyncInMinutes,
+    nextRecommendedSyncInSeconds: input.nextRecommendedSyncInSeconds,
+  });
+}
+
 async function updateMatch(
   supabase: SyncSupabaseClient,
   match: MatchRow,
@@ -616,7 +1061,8 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     );
     const activeMatches = todayMatches.filter((match) =>
       isWithinActiveWindow(match, now) &&
-      (provider !== "worldcup26" || !isFinalMatchStatus(match.status_short)),
+      ((provider !== "worldcup26" && provider !== "espn") ||
+        !isFinalMatchStatus(match.status_short)),
     );
     const kickoffTimes = new Set(
       todayMatches
@@ -625,10 +1071,14 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
           timePartInTimezone(new Date(match.kickoff_at as string), TIMEZONE),
         ),
     );
+    const nextRecommendedSyncInSeconds =
+      provider === "espn" ? activeSyncIntervalInSeconds(30) : undefined;
     const nextRecommendedSyncInMinutes =
-      provider === "worldcup26"
-        ? worldcup26SyncIntervalInMinutes()
-        : syncIntervalForKickoffTimes(kickoffTimes.size);
+      provider === "espn"
+        ? syncIntervalInMinutesFromSeconds(nextRecommendedSyncInSeconds ?? 30)
+        : provider === "worldcup26"
+          ? worldcup26SyncIntervalInMinutes()
+          : syncIntervalForKickoffTimes(kickoffTimes.size);
 
     if (activeMatches.length === 0) {
       return finishWithLog(supabase, startedAt, {
@@ -649,6 +1099,17 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
         startedAt,
         activeMatches,
         nextRecommendedSyncInMinutes,
+        now,
+      });
+    }
+
+    if (provider === "espn") {
+      return runEspnSync({
+        supabase,
+        startedAt,
+        activeMatches,
+        nextRecommendedSyncInMinutes,
+        nextRecommendedSyncInSeconds: nextRecommendedSyncInSeconds ?? 30,
         now,
       });
     }

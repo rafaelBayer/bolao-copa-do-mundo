@@ -1,5 +1,5 @@
 export type LiveScoreFixture = {
-  provider: "api-football" | "football-data" | "worldcup26";
+  provider: "api-football" | "football-data" | "worldcup26" | "espn";
   providerFixtureId: string | number;
   utcDate?: string | null;
   matchday?: number | null;

@@ -95,6 +95,9 @@ function matchStatusLabel(match: MatchWithTeams) {
     displayScore.homeScore !== null && displayScore.awayScore !== null
       ? `${match.homeTeam.name} ${displayScore.homeScore} x ${displayScore.awayScore} ${match.awayTeam.name}`
       : null;
+  const hasStartedByKickoff = Boolean(
+    match.kickoffAt && new Date(match.kickoffAt) <= new Date(),
+  );
 
   if (isFinalMatchStatus(match.statusShort)) {
     return {
@@ -119,6 +122,14 @@ function matchStatusLabel(match: MatchWithTeams) {
       detail: `${scoreLabel ?? "Placar ao vivo indisponivel"}${
         match.elapsed !== null ? ` · ${match.elapsed}'` : ""
       }`,
+    };
+  }
+
+  if (hasStartedByKickoff) {
+    return {
+      tone: "live" as const,
+      title: "AO VIVO",
+      detail: scoreLabel ?? "Aguardando placar da API",
     };
   }
 

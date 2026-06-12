@@ -199,6 +199,7 @@ function currentLiveScoreProvider() {
     provider === "api-football" ||
     provider === "football-data" ||
     provider === "worldcup26" ||
+    provider === "espn" ||
     provider === "manual"
   ) {
     return provider;
