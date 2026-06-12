@@ -28,6 +28,7 @@ const ACTIVE_WINDOW_BEFORE_MINUTES = 5;
 const ACTIVE_WINDOW_AFTER_MINUTES = 240;
 const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
+const MAX_ESTIMATED_ELAPSED_MINUTES = 130;
 
 type LiveScoreProvider =
   | "api-football"
@@ -249,6 +250,44 @@ function minutesSince(value: string | null, now: Date) {
   }
 
   return (now.getTime() - new Date(value).getTime()) / 60000;
+}
+
+function estimatedElapsedFromLocalClock(match: MatchRow, now: Date) {
+  if (
+    !isLiveMatchStatus(match.status_short) ||
+    typeof match.elapsed !== "number" ||
+    !match.score_updated_at
+  ) {
+    return null;
+  }
+
+  const elapsedSinceLastUpdate = Math.floor(
+    minutesSince(match.score_updated_at, now),
+  );
+
+  if (elapsedSinceLastUpdate <= 0) {
+    return match.elapsed;
+  }
+
+  return Math.min(
+    match.elapsed + elapsedSinceLastUpdate,
+    MAX_ESTIMATED_ELAPSED_MINUTES,
+  );
+}
+
+function bestElapsedMinute(
+  values: Array<number | null | undefined>,
+) {
+  const validValues = values.filter(
+    (value): value is number =>
+      typeof value === "number" && Number.isFinite(value) && value >= 0,
+  );
+
+  if (validValues.length === 0) {
+    return null;
+  }
+
+  return Math.max(...validValues);
 }
 
 function syncIntervalForKickoffTimes(kickoffTimesCount: number) {
@@ -906,9 +945,36 @@ async function runEspnSync(input: {
       continue;
     }
 
-    if (
+    const scoreChanged =
+      match.home_score_live !== fixture.homeScore ||
+      match.away_score_live !== fixture.awayScore;
+    const staleHalftimeAfterLive =
       isLiveMatchStatus(match.status_short) &&
-      isHalftimeStatus(fixture.statusShort)
+      isHalftimeStatus(fixture.statusShort);
+    const latestGoalMinute = extractEspnGoals(event).reduce<number | null>(
+      (latest, goal) =>
+        typeof goal.minute === "number" && goal.minute > (latest ?? 0)
+          ? goal.minute
+          : latest,
+      null,
+    );
+
+    const hasNewerGoalMinute =
+      typeof latestGoalMinute === "number" &&
+      latestGoalMinute > (match.elapsed ?? 0);
+    const locallyEstimatedElapsed = estimatedElapsedFromLocalClock(
+      match,
+      input.now,
+    );
+    const hasEstimatedElapsedProgress =
+      typeof locallyEstimatedElapsed === "number" &&
+      locallyEstimatedElapsed > (match.elapsed ?? 0);
+
+    if (
+      staleHalftimeAfterLive &&
+      !scoreChanged &&
+      !hasNewerGoalMinute &&
+      !hasEstimatedElapsedProgress
     ) {
       console.log("[espn] skipped stale halftime status after LIVE");
       continue;
@@ -918,7 +984,10 @@ async function runEspnSync(input: {
       !isFinalMatchStatus(fixture.statusShort) &&
       typeof match.elapsed === "number" &&
       typeof fixture.elapsed === "number" &&
-      fixture.elapsed < match.elapsed
+      fixture.elapsed < match.elapsed &&
+      !scoreChanged &&
+      !hasNewerGoalMinute &&
+      !hasEstimatedElapsedProgress
     ) {
       console.log("[espn] skipped stale elapsed minute");
       continue;
@@ -930,10 +999,24 @@ async function runEspnSync(input: {
     }
 
     const isFinal = isFinalMatchStatus(fixture.statusShort);
+    const statusShort = staleHalftimeAfterLive
+      ? match.status_short
+      : fixture.statusShort;
+    const statusLong = staleHalftimeAfterLive
+      ? match.status_long
+      : fixture.statusLong;
+    const elapsed = isFinal
+      ? fixture.elapsed
+      : bestElapsedMinute([
+          match.elapsed,
+          fixture.elapsed,
+          latestGoalMinute,
+          locallyEstimatedElapsed,
+        ]);
     const update: MatchUpdate = {
-      status_short: fixture.statusShort,
-      status_long: fixture.statusLong,
-      elapsed: fixture.elapsed,
+      status_short: statusShort,
+      status_long: statusLong,
+      elapsed,
       home_score_live: fixture.homeScore,
       away_score_live: fixture.awayScore,
       home_score: isFinal ? fixture.homeScore : match.home_score,
@@ -953,7 +1036,7 @@ async function runEspnSync(input: {
     });
     insertedGoals += goalResult.insertedGoals;
 
-    if (isLiveMatchStatus(fixture.statusShort)) {
+    if (isLiveMatchStatus(statusShort)) {
       liveFixtures += 1;
     }
 
