@@ -89,6 +89,14 @@ function formatKickoff(kickoffAt: string | null) {
   }).format(new Date(kickoffAt));
 }
 
+function isPredictionLocked(kickoffAt: string | null) {
+  if (!kickoffAt) {
+    return false;
+  }
+
+  return Date.now() >= new Date(kickoffAt).getTime() - 60 * 60 * 1000;
+}
+
 function matchStatusLabel(match: MatchWithTeams) {
   const displayScore = getMatchDisplayScore(match);
   const scoreLabel =
@@ -148,9 +156,7 @@ export const MatchPredictionInput = forwardRef<
   ref,
 ) {
   const liveStatus = matchStatusLabel(match);
-  const isLocked = Boolean(
-    match.kickoffAt && new Date(match.kickoffAt) <= new Date(),
-  );
+  const isLocked = isPredictionLocked(match.kickoffAt);
   const [homeScore, setHomeScore] = useState(toInputValue(prediction?.homeScore));
   const [awayScore, setAwayScore] = useState(toInputValue(prediction?.awayScore));
   const [status, setStatus] = useState<SaveStatus>("idle");
@@ -221,7 +227,7 @@ export const MatchPredictionInput = forwardRef<
         const message =
           error instanceof Error ? error.message : "Erro ao salvar";
         const isLockedError = message.includes(
-          "Prediction locked because match already started",
+          "Prediction locked because match starts within one hour",
         );
 
         if (isLockedError) {
@@ -316,7 +322,7 @@ export const MatchPredictionInput = forwardRef<
   ]);
 
   const statusLabel = isLocked
-    ? "Palpite bloqueado"
+    ? "Palpite bloqueado 1h antes do jogo"
     : {
         idle: "",
         saving: "Salvando...",
