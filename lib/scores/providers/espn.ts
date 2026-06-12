@@ -129,6 +129,29 @@ function parseInteger(value: unknown) {
   return Number.isInteger(parsed) ? parsed : null;
 }
 
+function parseClockMinute(value: unknown) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return Math.max(0, Math.ceil(value / 60));
+  }
+
+  const displayValue = stringValue(value);
+
+  if (!displayValue) {
+    return null;
+  }
+
+  const stoppageMatch = displayValue.match(/(\d+)\D+\+(\d+)/);
+
+  if (stoppageMatch) {
+    return (
+      Number.parseInt(stoppageMatch[1] ?? "0", 10) +
+      Number.parseInt(stoppageMatch[2] ?? "0", 10)
+    );
+  }
+
+  return parseInteger(displayValue);
+}
+
 function eventsFromPayload(payload: EspnScoreboardPayload | null) {
   return Array.isArray(payload?.events) ? (payload.events as EspnEvent[]) : [];
 }
@@ -396,7 +419,7 @@ export function mapEspnEventToInternalMatch(
   const awayScore = parseInteger(away?.score);
   const status = mapEspnStatusToInternalStatus(event.status);
   const displayClock = stringValue(event.status?.displayClock);
-  const elapsed = displayClock ? parseInteger(displayClock) : null;
+  const elapsed = displayClock ? parseClockMinute(displayClock) : null;
 
   if (!eventId || !homeTeamName || !awayTeamName) {
     return null;

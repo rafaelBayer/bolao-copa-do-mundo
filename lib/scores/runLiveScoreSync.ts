@@ -29,6 +29,7 @@ const ACTIVE_WINDOW_AFTER_MINUTES = 240;
 const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
 const MAX_ESTIMATED_ELAPSED_MINUTES = 130;
+const MAX_HALFTIME_WALL_CLOCK_MINUTES = 75;
 
 type LiveScoreProvider =
   | "api-football"
@@ -288,6 +289,24 @@ function bestElapsedMinute(
   }
 
   return Math.max(...validValues);
+}
+
+function minutesSinceKickoff(match: MatchRow, now: Date) {
+  if (!match.kickoff_at) {
+    return null;
+  }
+
+  return (now.getTime() - new Date(match.kickoff_at).getTime()) / 60000;
+}
+
+function isPlausibleCurrentHalftime(match: MatchRow, now: Date) {
+  const minutes = minutesSinceKickoff(match, now);
+
+  return (
+    minutes !== null &&
+    minutes >= 40 &&
+    minutes <= MAX_HALFTIME_WALL_CLOCK_MINUTES
+  );
 }
 
 function syncIntervalForKickoffTimes(kickoffTimesCount: number) {
@@ -948,9 +967,13 @@ async function runEspnSync(input: {
     const scoreChanged =
       match.home_score_live !== fixture.homeScore ||
       match.away_score_live !== fixture.awayScore;
+    const isCurrentHalftime =
+      isHalftimeStatus(fixture.statusShort) &&
+      isPlausibleCurrentHalftime(match, input.now);
     const staleHalftimeAfterLive =
       isLiveMatchStatus(match.status_short) &&
-      isHalftimeStatus(fixture.statusShort);
+      isHalftimeStatus(fixture.statusShort) &&
+      !isCurrentHalftime;
     const latestGoalMinute = extractEspnGoals(event).reduce<number | null>(
       (latest, goal) =>
         typeof goal.minute === "number" && goal.minute > (latest ?? 0)
@@ -967,6 +990,7 @@ async function runEspnSync(input: {
       input.now,
     );
     const hasEstimatedElapsedProgress =
+      !isCurrentHalftime &&
       typeof locallyEstimatedElapsed === "number" &&
       locallyEstimatedElapsed > (match.elapsed ?? 0);
 
@@ -985,6 +1009,7 @@ async function runEspnSync(input: {
       typeof match.elapsed === "number" &&
       typeof fixture.elapsed === "number" &&
       fixture.elapsed < match.elapsed &&
+      !isCurrentHalftime &&
       !scoreChanged &&
       !hasNewerGoalMinute &&
       !hasEstimatedElapsedProgress
@@ -1007,6 +1032,8 @@ async function runEspnSync(input: {
       : fixture.statusLong;
     const elapsed = isFinal
       ? fixture.elapsed
+      : isCurrentHalftime
+        ? bestElapsedMinute([fixture.elapsed, latestGoalMinute])
       : bestElapsedMinute([
           match.elapsed,
           fixture.elapsed,
