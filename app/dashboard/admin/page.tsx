@@ -169,7 +169,7 @@ function isActiveScoreWindow(match: LiveScoreMonitorMatch, now: number) {
 
   const kickoff = new Date(match.kickoffAt).getTime();
   const startsAt = kickoff - 5 * 60 * 1000;
-  const endsAt = kickoff + 150 * 60 * 1000;
+  const endsAt = kickoff + 240 * 60 * 1000;
 
   return now >= startsAt && now <= endsAt;
 }

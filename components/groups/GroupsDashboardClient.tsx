@@ -29,7 +29,7 @@ function isInLiveRefreshWindow(match: MatchWithTeams, now: Date) {
 
   const kickoff = new Date(match.kickoffAt);
   const windowStart = new Date(kickoff.getTime() - 5 * 60 * 1000);
-  const windowEnd = new Date(kickoff.getTime() + 150 * 60 * 1000);
+  const windowEnd = new Date(kickoff.getTime() + 240 * 60 * 1000);
 
   return now >= windowStart && now <= windowEnd;
 }

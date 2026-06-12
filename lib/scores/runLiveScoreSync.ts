@@ -25,7 +25,7 @@ import {
 
 const TIMEZONE = "America/Sao_Paulo";
 const ACTIVE_WINDOW_BEFORE_MINUTES = 5;
-const ACTIVE_WINDOW_AFTER_MINUTES = 150;
+const ACTIVE_WINDOW_AFTER_MINUTES = 240;
 const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
 
@@ -906,6 +906,24 @@ async function runEspnSync(input: {
       continue;
     }
 
+    if (
+      isLiveMatchStatus(match.status_short) &&
+      isHalftimeStatus(fixture.statusShort)
+    ) {
+      console.log("[espn] skipped stale halftime status after LIVE");
+      continue;
+    }
+
+    if (
+      !isFinalMatchStatus(fixture.statusShort) &&
+      typeof match.elapsed === "number" &&
+      typeof fixture.elapsed === "number" &&
+      fixture.elapsed < match.elapsed
+    ) {
+      console.log("[espn] skipped stale elapsed minute");
+      continue;
+    }
+
     if (fixture.statusShort === "NS") {
       console.log("[espn] skipped notstarted status");
       continue;
@@ -1059,7 +1077,9 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
         match.kickoff_at &&
         datePartInTimezone(new Date(match.kickoff_at), TIMEZONE) === today,
     );
-    const activeMatches = todayMatches.filter((match) =>
+    const activeCandidateMatches =
+      provider === "espn" || provider === "worldcup26" ? matches : todayMatches;
+    const activeMatches = activeCandidateMatches.filter((match) =>
       isWithinActiveWindow(match, now) &&
       ((provider !== "worldcup26" && provider !== "espn") ||
         !isFinalMatchStatus(match.status_short)),
