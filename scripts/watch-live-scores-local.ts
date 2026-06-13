@@ -1,7 +1,54 @@
-import { existsSync, readFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { runLiveScoreSync } from "../lib/scores/runLiveScoreSync";
 
 const DEFAULT_POLL_INTERVAL_SECONDS = 30;
+const LOG_FILE_PATH = "logs/scores-watch-local-current.log";
+
+function formatConsoleArg(value: unknown) {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  if (value instanceof Error) {
+    return value.stack ?? value.message;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function appendLocalLogLine(args: unknown[]) {
+  mkdirSync("logs", { recursive: true });
+  appendFileSync(
+    LOG_FILE_PATH,
+    `${args.map(formatConsoleArg).join(" ")}\n`,
+    "utf8",
+  );
+}
+
+const originalConsole = {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
+console.log = (...args: unknown[]) => {
+  appendLocalLogLine(args);
+  originalConsole.log(...args);
+};
+
+console.warn = (...args: unknown[]) => {
+  appendLocalLogLine(args);
+  originalConsole.warn(...args);
+};
+
+console.error = (...args: unknown[]) => {
+  appendLocalLogLine(args);
+  originalConsole.error(...args);
+};
 
 function loadEnvFile(path: string) {
   if (!existsSync(path)) {

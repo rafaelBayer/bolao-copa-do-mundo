@@ -4,6 +4,7 @@ import { fetchFootballDataMatchesByMatchdays } from "@/lib/scores/providers/foot
 import type { LiveScoreFixture } from "@/lib/scores/providers/types";
 import {
   espnTeamsMatch,
+  espnStatusDebugLabel,
   extractEspnGoals,
   fetchEspnScoreboardByDate,
   fetchEspnSummaryByEventId,
@@ -25,6 +26,7 @@ import {
 
 const TIMEZONE = "America/Sao_Paulo";
 const ACTIVE_WINDOW_BEFORE_MINUTES = 5;
+const ESPN_ACTIVE_WINDOW_BEFORE_MINUTES = 60;
 const ACTIVE_WINDOW_AFTER_MINUTES = 240;
 const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
@@ -229,14 +231,22 @@ function timePartInTimezone(date: Date, timezone: string) {
   return `${valueByType.get("hour")}:${valueByType.get("minute")}`;
 }
 
-function isWithinActiveWindow(match: MatchRow, now: Date) {
+function isWithinActiveWindow(
+  match: MatchRow,
+  now: Date,
+  provider: LiveScoreProvider,
+) {
   if (!match.kickoff_at) {
     return false;
   }
 
+  const beforeMinutes =
+    provider === "espn"
+      ? ESPN_ACTIVE_WINDOW_BEFORE_MINUTES
+      : ACTIVE_WINDOW_BEFORE_MINUTES;
   const kickoff = new Date(match.kickoff_at);
   const windowStart = new Date(
-    kickoff.getTime() - ACTIVE_WINDOW_BEFORE_MINUTES * 60 * 1000,
+    kickoff.getTime() - beforeMinutes * 60 * 1000,
   );
   const windowEnd = new Date(
     kickoff.getTime() + ACTIVE_WINDOW_AFTER_MINUTES * 60 * 1000,
@@ -714,13 +724,15 @@ async function fetchEspnEventForMatch(input: {
 }) {
   const fixtureId = providerFixtureIdForMatch(input.match, "espn");
   let externalRequests = 0;
+  const scoreboardDates = espnCandidateDates(input.match.kickoff_at);
 
   if (fixtureId) {
     const summaryEvent = await fetchEspnSummaryByEventId(fixtureId);
     let scoreboardEvent: EspnEvent | null = null;
+    let matchedScoreboardDate: string | null = null;
     externalRequests += 1;
 
-    for (const date of espnCandidateDates(input.match.kickoff_at)) {
+    for (const date of scoreboardDates) {
       let events = input.eventsByDate.get(date);
 
       if (!events) {
@@ -733,6 +745,7 @@ async function fetchEspnEventForMatch(input: {
         events.find((candidate) => String(candidate.id) === fixtureId) ?? null;
 
       if (scoreboardEvent) {
+        matchedScoreboardDate = date;
         break;
       }
     }
@@ -742,10 +755,14 @@ async function fetchEspnEventForMatch(input: {
       fixtureId,
       usedScoreboardEndpoint: false,
       externalRequests,
+      scoreboardDates,
+      matchedScoreboardDate,
+      scoreboardStatusDebug: espnStatusDebugLabel(scoreboardEvent),
+      summaryStatusDebug: espnStatusDebugLabel(summaryEvent),
     };
   }
 
-  for (const date of espnCandidateDates(input.match.kickoff_at)) {
+  for (const date of scoreboardDates) {
     let events = input.eventsByDate.get(date);
 
     if (!events) {
@@ -765,6 +782,10 @@ async function fetchEspnEventForMatch(input: {
         fixtureId: String(fixture.providerFixtureId),
         usedScoreboardEndpoint: true,
         externalRequests,
+        scoreboardDates,
+        matchedScoreboardDate: date,
+        scoreboardStatusDebug: espnStatusDebugLabel(event),
+        summaryStatusDebug: null,
       };
     }
   }
@@ -774,6 +795,10 @@ async function fetchEspnEventForMatch(input: {
     fixtureId: null,
     usedScoreboardEndpoint: true,
     externalRequests,
+    scoreboardDates,
+    matchedScoreboardDate: null,
+    scoreboardStatusDebug: "event=null",
+    summaryStatusDebug: null,
   };
 }
 
@@ -917,6 +942,10 @@ async function runEspnSync(input: {
 
     let event: EspnEvent | null = null;
     let fixtureId: string | null = null;
+    let scoreboardDates: string[] = [];
+    let matchedScoreboardDate: string | null = null;
+    let scoreboardStatusDebug = "event=null";
+    let summaryStatusDebug: string | null = null;
 
     try {
       const result = await fetchEspnEventForMatch({
@@ -927,6 +956,10 @@ async function runEspnSync(input: {
       event = result.event;
       fixtureId = result.fixtureId;
       externalRequests += result.externalRequests;
+      scoreboardDates = result.scoreboardDates;
+      matchedScoreboardDate = result.matchedScoreboardDate;
+      scoreboardStatusDebug = result.scoreboardStatusDebug;
+      summaryStatusDebug = result.summaryStatusDebug;
     } catch (error) {
       console.warn(
         `[espn] failed to fetch event: ${
@@ -949,6 +982,13 @@ async function runEspnSync(input: {
     }
 
     console.log(`[espn] event id: ${fixtureId}`);
+    console.log(
+      `[espn] scoreboard dates checked: ${scoreboardDates.join(", ") || "none"}; matched date: ${matchedScoreboardDate ?? "none"}`,
+    );
+    console.log(`[espn] scoreboard raw status: ${scoreboardStatusDebug}`);
+    if (summaryStatusDebug) {
+      console.log(`[espn] summary raw status: ${summaryStatusDebug}`);
+    }
     console.log(
       `[espn] API score: ${fixture.homeTeamName} ${fixture.homeScore} x ${fixture.awayScore} ${fixture.awayTeamName} - ${fixture.statusLong}`,
     );
@@ -1190,7 +1230,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     const activeCandidateMatches =
       provider === "espn" || provider === "worldcup26" ? matches : todayMatches;
     const activeMatches = activeCandidateMatches.filter((match) =>
-      isWithinActiveWindow(match, now) &&
+      isWithinActiveWindow(match, now, provider) &&
       ((provider !== "worldcup26" && provider !== "espn") ||
         !isFinalMatchStatus(match.status_short)),
     );

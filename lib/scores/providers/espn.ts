@@ -365,10 +365,6 @@ export function mapEspnStatusToInternalStatus(status: EspnEvent["status"]) {
     return { short: "FT", long: "Match Finished" };
   }
 
-  if (/half/.test(rawValues)) {
-    return { short: "HT", long: "Halftime" };
-  }
-
   if (/postponed/.test(rawValues)) {
     return { short: "PST", long: "Postponed" };
   }
@@ -377,11 +373,47 @@ export function mapEspnStatusToInternalStatus(status: EspnEvent["status"]) {
     return { short: "CANC", long: "Cancelled" };
   }
 
-  if (/in progress|live|status_in_progress|status_first_half|status_second_half/.test(rawValues)) {
+  if (
+    /in progress|live|status_in_progress|status_first_half|status_second_half|first half|second half/.test(
+      rawValues,
+    )
+  ) {
     return { short: "LIVE", long: "Live" };
   }
 
+  if (/status_halftime|half time|halftime/.test(rawValues)) {
+    return { short: "HT", long: "Halftime" };
+  }
+
   return { short: "NS", long: "Not Started" };
+}
+
+export function espnStatusDebugLabel(event: EspnEvent | null | undefined) {
+  if (!event) {
+    return "event=null";
+  }
+
+  const type = event.status?.type;
+  const mapped = mapEspnStatusToInternalStatus(event.status);
+  const fields = {
+    eventId: stringValue(event.id),
+    name: stringValue(event.name),
+    shortName: stringValue(event.shortName),
+    date: stringValue(event.date),
+    statusName: stringValue(type?.name),
+    state: stringValue(type?.state),
+    description: stringValue(type?.description),
+    detail: stringValue(type?.detail),
+    shortDetail: stringValue(type?.shortDetail),
+    completed: booleanValue(type?.completed),
+    displayClock: stringValue(event.status?.displayClock),
+    mapped: mapped.short,
+  };
+
+  return Object.entries(fields)
+    .filter(([, value]) => value !== null && value !== "")
+    .map(([key, value]) => `${key}=${value}`)
+    .join("; ");
 }
 
 function teamName(competitor: EspnCompetitor | null | undefined) {
