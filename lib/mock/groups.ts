@@ -36,6 +36,7 @@ function match(
     homeScoreLive: null,
     awayScoreLive: null,
     scoreUpdatedAt: null,
+    goals: [],
     homeTeam,
     awayTeam,
   };

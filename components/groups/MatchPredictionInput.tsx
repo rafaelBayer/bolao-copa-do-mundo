@@ -14,6 +14,10 @@ import { createClient } from "@/lib/supabase/client";
 import { getMatchDisplayScore } from "@/lib/groups/getMatchDisplayScore";
 import { savePrediction } from "@/lib/predictions/savePrediction";
 import {
+  calculatePredictionScore,
+  getMatchOutcome,
+} from "@/lib/scoring/calculatePredictionScore";
+import {
   isFinalMatchStatus,
   isHalftimeStatus,
   isLiveMatchStatus,
@@ -47,6 +51,22 @@ type CrowdPrediction = {
   homeScore: number;
   awayScore: number;
   updatedAt: string;
+};
+type PredictionProjection = {
+  title: string;
+  description: string;
+  points: number;
+  isProvisional: boolean;
+} | null;
+type PredictionDistribution = {
+  resultRows: Array<{
+    label: string;
+    count: number;
+  }>;
+  scoreRows: Array<{
+    label: string;
+    count: number;
+  }>;
 };
 
 function toInputValue(value: number | null | undefined) {
@@ -190,12 +210,6 @@ function mapCrowdPrediction(row: Record<string, unknown>): CrowdPrediction {
   };
 }
 
-function scoreOutcome(homeScore: number, awayScore: number) {
-  if (homeScore > awayScore) return "home";
-  if (homeScore < awayScore) return "away";
-  return "draw";
-}
-
 function pointsForPrediction(
   prediction: CrowdPrediction,
   match: MatchWithTeams,
@@ -220,17 +234,12 @@ function pointsForPrediction(
     return null;
   }
 
-  if (
-    prediction.homeScore === matchScores.homeScore &&
-    prediction.awayScore === matchScores.awayScore
-  ) {
-    return 3;
-  }
-
-  return scoreOutcome(prediction.homeScore, prediction.awayScore) ===
-    scoreOutcome(matchScores.homeScore, matchScores.awayScore)
-    ? 1
-    : 0;
+  return calculatePredictionScore({
+    predictedHomeScore: prediction.homeScore,
+    predictedAwayScore: prediction.awayScore,
+    actualHomeScore: matchScores.homeScore,
+    actualAwayScore: matchScores.awayScore,
+  }).points;
 }
 
 function sortedCrowdPredictions(
@@ -282,6 +291,121 @@ function pointsBadgeClass(points: number | null) {
   return "bg-slate-800 text-slate-200 light:bg-slate-200 light:text-slate-700";
 }
 
+function projectionDescription(reason: string, points: number) {
+  if (reason === "exact_score") {
+    return `placar exato - ${points} pontos`;
+  }
+
+  if (reason === "correct_result") {
+    return `resultado correto - ${points} ponto`;
+  }
+
+  return `sem pontuar agora - ${points} pontos`;
+}
+
+function ownPredictionProjection(
+  prediction: Prediction | undefined,
+  match: MatchWithTeams,
+): PredictionProjection {
+  if (
+    prediction?.homeScore === null ||
+    prediction?.homeScore === undefined ||
+    prediction.awayScore === null ||
+    prediction.awayScore === undefined
+  ) {
+    return null;
+  }
+
+  const isFinal = isFinalMatchStatus(match.statusShort);
+  const isProvisional =
+    isLiveMatchStatus(match.statusShort) || isHalftimeStatus(match.statusShort);
+
+  if (!isFinal && !isProvisional) {
+    return null;
+  }
+
+  const matchScores = isFinal
+    ? {
+        homeScore: match.homeScore,
+        awayScore: match.awayScore,
+      }
+    : currentMatchScores(match);
+
+  const result = calculatePredictionScore({
+    predictedHomeScore: prediction.homeScore,
+    predictedAwayScore: prediction.awayScore,
+    actualHomeScore: matchScores.homeScore,
+    actualAwayScore: matchScores.awayScore,
+  });
+
+  if (result.reason === "missing_result") {
+    return null;
+  }
+
+  return {
+    title: isFinal ? "Pontuacao oficial" : "Projecao atual",
+    description: projectionDescription(result.reason, result.points),
+    points: result.points,
+    isProvisional,
+  };
+}
+
+function crowdPredictionDistribution(
+  predictions: CrowdPrediction[],
+  match: MatchWithTeams,
+): PredictionDistribution {
+  const resultCounts = new Map<string, number>([
+    [match.homeTeam.name, 0],
+    ["Empate", 0],
+    [match.awayTeam.name, 0],
+  ]);
+  const scoreCounts = new Map<string, number>();
+
+  predictions.forEach((prediction) => {
+    const outcome = getMatchOutcome(prediction.homeScore, prediction.awayScore);
+    const resultLabel =
+      outcome === "home"
+        ? match.homeTeam.name
+        : outcome === "away"
+          ? match.awayTeam.name
+          : "Empate";
+    const scoreLabel = `${prediction.homeScore} x ${prediction.awayScore}`;
+
+    resultCounts.set(resultLabel, (resultCounts.get(resultLabel) ?? 0) + 1);
+    scoreCounts.set(scoreLabel, (scoreCounts.get(scoreLabel) ?? 0) + 1);
+  });
+
+  return {
+    resultRows: Array.from(resultCounts.entries()).map(([label, count]) => ({
+      label,
+      count,
+    })),
+    scoreRows: Array.from(scoreCounts.entries())
+      .map(([label, count]) => ({ label, count }))
+      .sort((left, right) => {
+        if (right.count !== left.count) {
+          return right.count - left.count;
+        }
+
+        return left.label.localeCompare(right.label, "pt-BR");
+      })
+      .slice(0, 3),
+  };
+}
+
+function goalMinuteLabel(minute: number | null) {
+  return minute === null ? "--'" : `${minute}'`;
+}
+
+function goalDescription(goal: MatchWithTeams["goals"][number]) {
+  const suffixes = [
+    goal.isPenalty ? "Penalti" : null,
+    goal.isOwnGoal ? "Gol contra" : null,
+  ].filter(Boolean);
+
+  return suffixes.length > 0 ? ` (${suffixes.join(", ")})` : "";
+}
+
 export const MatchPredictionInput = forwardRef<
   MatchPredictionInputHandle,
   MatchPredictionInputProps
@@ -320,6 +444,27 @@ export const MatchPredictionInput = forwardRef<
   const orderedCrowdPredictions = useMemo(
     () => sortedCrowdPredictions(crowdPredictions, match),
     [crowdPredictions, match],
+  );
+  const crowdDistribution = useMemo(
+    () => crowdPredictionDistribution(crowdPredictions, match),
+    [crowdPredictions, match],
+  );
+  const ownProjection = useMemo(
+    () => ownPredictionProjection(prediction, match),
+    [match, prediction],
+  );
+  const sortedGoals = useMemo(
+    () =>
+      [...(match.goals ?? [])].sort((left, right) => {
+        const minuteDifference = (left.minute ?? 999) - (right.minute ?? 999);
+
+        if (minuteDifference !== 0) {
+          return minuteDifference;
+        }
+
+        return left.id.localeCompare(right.id);
+      }),
+    [match.goals],
   );
 
   const shouldSave = useCallback((scores: SavedScores) => {
@@ -627,6 +772,64 @@ export const MatchPredictionInput = forwardRef<
         {statusLabel}
       </div>
 
+      {ownProjection ? (
+        <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/40 p-3 light:border-slate-200 light:bg-slate-50">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-black uppercase tracking-wide text-slate-400 light:text-slate-500">
+                {ownProjection.title}
+              </p>
+              <p className="mt-1 text-sm font-bold text-slate-100 light:text-slate-800">
+                Seu palpite: {prediction?.homeScore} x {prediction?.awayScore}
+              </p>
+              <p className="mt-0.5 text-sm font-bold text-slate-300 light:text-slate-600">
+                Placar atual: {scoreLabelFromMatch(match)}
+              </p>
+              {ownProjection.isProvisional ? (
+                <p className="mt-2 text-xs font-bold text-amber-200 light:text-amber-700">
+                  Pontuacao provisoria, pode mudar ate o fim.
+                </p>
+              ) : null}
+            </div>
+            <span
+              className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${pointsBadgeClass(ownProjection.points)}`}
+            >
+              +{ownProjection.points}
+            </span>
+          </div>
+          <p className="mt-2 text-sm font-black text-emerald-200 light:text-emerald-700">
+            {ownProjection.title}: {ownProjection.description}
+          </p>
+        </div>
+      ) : null}
+
+      {sortedGoals.length > 0 ? (
+        <div className="mt-3 rounded-xl border border-slate-800 bg-slate-950/35 p-3 light:border-slate-200 light:bg-slate-50">
+          <p className="text-xs font-black uppercase tracking-wide text-slate-400 light:text-slate-500">
+            Gols
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {sortedGoals.map((goal) => (
+              <div
+                key={goal.id}
+                className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-2 text-sm"
+              >
+                <span className="font-black text-emerald-300 light:text-emerald-700">
+                  {goalMinuteLabel(goal.minute)}
+                </span>
+                <span className="min-w-0 truncate font-bold text-slate-200 light:text-slate-700">
+                  {goal.playerName ?? "Gol"}{" "}
+                  <span className="text-slate-400 light:text-slate-500">
+                    - {goal.teamName ?? "Time"}
+                    {goalDescription(goal)}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {isLocked ? (
         <div className="mt-3 border-t border-slate-800 pt-3 light:border-slate-200">
           <button
@@ -672,6 +875,45 @@ export const MatchPredictionInput = forwardRef<
                       Pontuacao parcial, pode mudar ate o fim do jogo.
                     </p>
                   ) : null}
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-900/55 p-3 light:border-slate-200 light:bg-slate-50">
+                    <p className="text-xs font-black uppercase tracking-wide text-slate-400 light:text-slate-500">
+                      Como a galera apostou
+                    </p>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {crowdDistribution.resultRows.map((row) => (
+                        <div
+                          key={row.label}
+                          className="rounded-lg bg-slate-950/45 px-2 py-2 text-center light:bg-white"
+                        >
+                          <p className="truncate text-[0.7rem] font-bold text-slate-400 light:text-slate-500">
+                            {row.label}
+                          </p>
+                          <p className="mt-1 text-lg font-black text-slate-100 light:text-slate-900">
+                            {row.count}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {crowdDistribution.scoreRows.length > 0 ? (
+                      <div className="mt-3">
+                        <p className="text-xs font-black uppercase tracking-wide text-slate-400 light:text-slate-500">
+                          Placares mais escolhidos
+                        </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {crowdDistribution.scoreRows.map((row) => (
+                            <span
+                              key={row.label}
+                              className="rounded-full bg-slate-950/45 px-3 py-1 text-xs font-black text-slate-200 light:bg-white light:text-slate-700"
+                            >
+                              {row.label} - {row.count}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
 
                   {orderedCrowdPredictions.map((item) => {
                     const points = pointsForPrediction(item, match);

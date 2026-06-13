@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { mockGroups } from "@/lib/mock/groups";
 import { createClient } from "@/lib/supabase/server";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
-import type { Team } from "@/types/match";
+import type { MatchGoal, Team } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +42,18 @@ function mapPrediction(row: Record<string, unknown>): Prediction {
       typeof row.away_score === "number" ? row.away_score : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+  };
+}
+
+function mapMatchGoal(row: Record<string, unknown>): MatchGoal {
+  return {
+    id: String(row.id),
+    minute: typeof row.minute === "number" ? row.minute : null,
+    teamName: typeof row.team_name === "string" ? row.team_name : null,
+    playerName: typeof row.player_name === "string" ? row.player_name : null,
+    goalType: typeof row.goal_type === "string" ? row.goal_type : null,
+    isPenalty: row.is_penalty === true,
+    isOwnGoal: row.is_own_goal === true,
   };
 }
 
@@ -138,6 +150,11 @@ function mapGroups(rows: Record<string, unknown>[]): GroupWithTeamsAndMatches[] 
               typeof match.score_updated_at === "string"
                 ? match.score_updated_at
                 : null,
+            goals: Array.isArray(match.match_goals)
+              ? (match.match_goals as Record<string, unknown>[])
+                  .map(mapMatchGoal)
+                  .sort((a, b) => (a.minute ?? 999) - (b.minute ?? 999))
+              : [],
             homeTeam,
             awayTeam,
           };
@@ -224,6 +241,15 @@ export default async function GroupsPage() {
             home_score_live,
             away_score_live,
             score_updated_at,
+            match_goals(
+              id,
+              minute,
+              team_name,
+              player_name,
+              goal_type,
+              is_penalty,
+              is_own_goal
+            ),
             home_team:teams!matches_home_team_id_fkey(id, name, code, flag_url),
             away_team:teams!matches_away_team_id_fkey(id, name, code, flag_url)
           )

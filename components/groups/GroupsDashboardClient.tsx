@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
-import type { MatchWithTeams } from "@/types/match";
+import type { MatchGoal, MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
 
 type GroupsDashboardClientProps = {
@@ -32,6 +32,18 @@ function isInLiveRefreshWindow(match: MatchWithTeams, now: Date) {
   const windowEnd = new Date(kickoff.getTime() + 240 * 60 * 1000);
 
   return now >= windowStart && now <= windowEnd;
+}
+
+function mapGoal(row: Record<string, unknown>): MatchGoal {
+  return {
+    id: String(row.id),
+    minute: typeof row.minute === "number" ? row.minute : null,
+    teamName: typeof row.team_name === "string" ? row.team_name : null,
+    playerName: typeof row.player_name === "string" ? row.player_name : null,
+    goalType: typeof row.goal_type === "string" ? row.goal_type : null,
+    isPenalty: row.is_penalty === true,
+    isOwnGoal: row.is_own_goal === true,
+  };
 }
 
 export function GroupsDashboardClient({
@@ -104,12 +116,22 @@ export function GroupsDashboardClient({
     const supabase = createClient();
 
     async function refreshLiveScores() {
-      const { data, error } = await supabase
-        .from("matches")
-        .select(
-          "id, status_short, status_long, elapsed, home_score_live, away_score_live, home_score, away_score, score_updated_at",
-        )
-        .in("id", matchIds);
+      const [matchesResult, goalsResult] = await Promise.all([
+        supabase
+          .from("matches")
+          .select(
+            "id, status_short, status_long, elapsed, home_score_live, away_score_live, home_score, away_score, score_updated_at",
+          )
+          .in("id", matchIds),
+        supabase
+          .from("match_goals")
+          .select(
+            "id, match_id, minute, team_name, player_name, goal_type, is_penalty, is_own_goal",
+          )
+          .in("match_id", matchIds)
+          .order("minute", { ascending: true }),
+      ]);
+      const { data, error } = matchesResult;
 
       if (error || !data) {
         return;
@@ -145,6 +167,17 @@ export function GroupsDashboardClient({
           },
         ]),
       );
+      const goalsByMatchId = new Map<string, MatchGoal[]>();
+
+      if (!goalsResult.error && goalsResult.data) {
+        goalsResult.data.forEach((goal) => {
+          const matchId = String(goal.match_id);
+          const currentGoals = goalsByMatchId.get(matchId) ?? [];
+
+          currentGoals.push(mapGoal(goal as Record<string, unknown>));
+          goalsByMatchId.set(matchId, currentGoals);
+        });
+      }
 
       setVisibleGroups((currentGroups) =>
         currentGroups.map((group) => ({
@@ -152,6 +185,7 @@ export function GroupsDashboardClient({
           matches: group.matches.map((match) => ({
             ...match,
             ...(updateByMatchId.get(match.id) ?? {}),
+            goals: goalsByMatchId.get(match.id) ?? match.goals,
           })),
         })),
       );

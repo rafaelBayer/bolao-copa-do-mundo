@@ -5,6 +5,16 @@ export type Team = {
   flagUrl: string | null;
 };
 
+export type MatchGoal = {
+  id: string;
+  minute: number | null;
+  teamName: string | null;
+  playerName: string | null;
+  goalType: string | null;
+  isPenalty: boolean;
+  isOwnGoal: boolean;
+};
+
 export type MatchWithTeams = {
   id: string;
   groupId: string;
@@ -24,6 +34,7 @@ export type MatchWithTeams = {
   homeScoreLive: number | null;
   awayScoreLive: number | null;
   scoreUpdatedAt: string | null;
+  goals: MatchGoal[];
   homeTeam: Team;
   awayTeam: Team;
 };
