@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { HelpCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { HelpCircle, Star, Target, TrendingUp } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import {
   buildLeaderboard,
@@ -18,6 +18,16 @@ type RoundLeaderboard = {
   entries: LeaderboardEntry[];
   hasResult: boolean;
 };
+type RoundHighlight = {
+  title: string;
+  name: string;
+  detail: string;
+};
+type RoundHighlights = {
+  star?: RoundHighlight;
+  exact?: RoundHighlight;
+  climber?: RoundHighlight;
+};
 
 type LeaderboardClientProps = {
   poolId: string;
@@ -25,6 +35,7 @@ type LeaderboardClientProps = {
   generalEntries: LeaderboardEntry[];
   hasGeneralResult: boolean;
   roundLeaderboards: Record<number, RoundLeaderboard>;
+  roundHighlights: Record<number, RoundHighlights>;
   liveEntries: LeaderboardEntry[];
   hasLiveResult: boolean;
   liveMatchesCount: number;
@@ -33,6 +44,10 @@ type LeaderboardClientProps = {
 type LiveLeaderboardDataRow = LeaderboardDataRow & {
   is_live_match?: boolean | null;
   live_matches_count?: number | null;
+};
+type LiveImpactMessage = {
+  title: string;
+  description: string;
 };
 
 const rounds = [1, 2, 3];
@@ -144,6 +159,37 @@ function PodiumCard({
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold text-slate-400 light:text-slate-500">
         <span>PE: {entry.exactScores}</span>
         <span>RC: {entry.correctResults}</span>
+      </div>
+    </div>
+  );
+}
+
+function HighlightCard({
+  highlight,
+  icon,
+}: {
+  highlight: RoundHighlight;
+  icon: "star" | "target" | "up";
+}) {
+  const Icon = icon === "star" ? Star : icon === "target" ? Target : TrendingUp;
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-3 light:border-slate-200 light:bg-slate-50">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-400/10 text-emerald-300 light:bg-emerald-50 light:text-emerald-700">
+          <Icon size={17} aria-hidden="true" />
+        </span>
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wide text-slate-400 light:text-slate-500">
+            {highlight.title}
+          </p>
+          <p className="mt-1 truncate text-sm font-black text-slate-100 light:text-slate-950">
+            {highlight.name}
+          </p>
+          <p className="mt-1 text-xs font-bold text-emerald-200 light:text-emerald-700">
+            {highlight.detail}
+          </p>
+        </div>
       </div>
     </div>
   );
@@ -271,12 +317,108 @@ function modeButtonClass(isActive: boolean) {
   }`;
 }
 
+function entriesChanged(
+  previousEntries: LeaderboardEntry[],
+  nextEntries: LeaderboardEntry[],
+) {
+  if (previousEntries.length !== nextEntries.length) {
+    return true;
+  }
+
+  return nextEntries.some((nextEntry) => {
+    const previousEntry = previousEntries.find(
+      (entry) => entry.userId === nextEntry.userId,
+    );
+
+    return (
+      !previousEntry ||
+      previousEntry.position !== nextEntry.position ||
+      previousEntry.totalPoints !== nextEntry.totalPoints ||
+      previousEntry.exactScores !== nextEntry.exactScores
+    );
+  });
+}
+
+function createLiveImpactMessage(
+  previousEntries: LeaderboardEntry[],
+  nextEntries: LeaderboardEntry[],
+): LiveImpactMessage | null {
+  if (
+    previousEntries.length === 0 ||
+    nextEntries.length === 0 ||
+    !entriesChanged(previousEntries, nextEntries)
+  ) {
+    return null;
+  }
+
+  const previousLeader = previousEntries.find((entry) => entry.position === 1);
+  const nextLeader = nextEntries.find((entry) => entry.position === 1);
+
+  if (
+    previousLeader &&
+    nextLeader &&
+    previousLeader.userId !== nextLeader.userId &&
+    nextLeader.totalPoints > 0
+  ) {
+    return {
+      title: "Novo lider provisorio",
+      description: `${nextLeader.name} assumiu a lideranca do ranking ao vivo.`,
+    };
+  }
+
+  const previousPositions = new Map(
+    previousEntries.map((entry) => [entry.userId, entry.position]),
+  );
+  const biggestClimb = nextEntries
+    .map((entry) => ({
+      entry,
+      climb: (previousPositions.get(entry.userId) ?? entry.position) - entry.position,
+    }))
+    .filter((item) => item.climb > 0)
+    .sort((left, right) => {
+      if (right.climb !== left.climb) return right.climb - left.climb;
+
+      return left.entry.position - right.entry.position;
+    })[0];
+
+  if (biggestClimb) {
+    return {
+      title: "Ranking ao vivo mudou",
+      description: `${biggestClimb.entry.name} subiu ${biggestClimb.climb} ${
+        biggestClimb.climb === 1 ? "posicao" : "posicoes"
+      } na classificacao provisoria.`,
+    };
+  }
+
+  const previousExactScores = previousEntries.reduce(
+    (total, entry) => total + entry.exactScores,
+    0,
+  );
+  const nextExactScores = nextEntries.reduce(
+    (total, entry) => total + entry.exactScores,
+    0,
+  );
+
+  if (nextExactScores > previousExactScores) {
+    return {
+      title: "Placares exatos ao vivo",
+      description: `${nextExactScores} placares exatos aparecem na projecao agora.`,
+    };
+  }
+
+  return {
+    title: "GOL!",
+    description: "O gol mudou a classificacao provisoria.",
+  };
+}
+
 export function LeaderboardClient({
   poolId,
   poolName,
   generalEntries,
   hasGeneralResult,
   roundLeaderboards,
+  roundHighlights,
   liveEntries,
   hasLiveResult,
   liveMatchesCount,
@@ -292,7 +434,38 @@ export function LeaderboardClient({
   const [liveRefreshStatus, setLiveRefreshStatus] = useState<
     "idle" | "refreshing" | "error"
   >("idle");
+  const [liveImpactMessage, setLiveImpactMessage] =
+    useState<LiveImpactMessage | null>(null);
+  const liveRankingEntriesRef = useRef(liveEntries);
+  const liveImpactTimeoutRef = useRef<number | null>(null);
   const selectedRoundLeaderboard = roundLeaderboards[selectedRound];
+  const selectedRoundHighlights = roundHighlights[selectedRound] ?? {};
+  const highlightItems = [
+    selectedRoundHighlights.star
+      ? {
+          key: "star",
+          highlight: selectedRoundHighlights.star,
+          icon: "star" as const,
+        }
+      : null,
+    selectedRoundHighlights.exact
+      ? {
+          key: "exact",
+          highlight: selectedRoundHighlights.exact,
+          icon: "target" as const,
+        }
+      : null,
+    selectedRoundHighlights.climber
+      ? {
+          key: "climber",
+          highlight: selectedRoundHighlights.climber,
+          icon: "up" as const,
+        }
+      : null,
+  ].filter(
+    (item): item is { key: string; highlight: RoundHighlight; icon: "star" | "target" | "up" } =>
+      Boolean(item),
+  );
   const activeEntries =
     mode === "general"
       ? generalEntries
@@ -351,12 +524,40 @@ export function LeaderboardClient({
     }
 
     const rows = (data ?? []) as LiveLeaderboardDataRow[];
+    const nextEntries = buildLeaderboard(rows);
+    const nextImpactMessage = createLiveImpactMessage(
+      liveRankingEntriesRef.current,
+      nextEntries,
+    );
 
-    setLiveRankingEntries(buildLeaderboard(rows));
+    liveRankingEntriesRef.current = nextEntries;
+    setLiveRankingEntries(nextEntries);
     setLiveRankingHasResult(hasRealResult(rows));
     setLiveRankingMatchesCount(rows[0]?.live_matches_count ?? 0);
     setLiveRefreshStatus("idle");
+
+    if (nextImpactMessage) {
+      setLiveImpactMessage(nextImpactMessage);
+
+      if (liveImpactTimeoutRef.current !== null) {
+        window.clearTimeout(liveImpactTimeoutRef.current);
+      }
+
+      liveImpactTimeoutRef.current = window.setTimeout(() => {
+        setLiveImpactMessage(null);
+        liveImpactTimeoutRef.current = null;
+      }, 7000);
+    }
   }, [poolId]);
+
+  useEffect(
+    () => () => {
+      if (liveImpactTimeoutRef.current !== null) {
+        window.clearTimeout(liveImpactTimeoutRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (mode !== "live" || liveRankingMatchesCount <= 0) {
@@ -508,6 +709,20 @@ export function LeaderboardClient({
         </Card>
       ) : null}
 
+      {mode === "live" && liveImpactMessage ? (
+        <div
+          role="status"
+          className="rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm shadow-lg shadow-emerald-950/10 motion-safe:animate-pulse light:border-emerald-200 light:bg-emerald-50"
+        >
+          <p className="text-xs font-black uppercase tracking-wide text-emerald-200 light:text-emerald-700">
+            {liveImpactMessage.title}
+          </p>
+          <p className="mt-1 font-bold text-slate-100 light:text-slate-800">
+            {liveImpactMessage.description}
+          </p>
+        </div>
+      ) : null}
+
       <Card className="p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -544,6 +759,28 @@ export function LeaderboardClient({
           </div>
         )}
       </Card>
+
+      {mode === "round" && highlightItems.length > 0 ? (
+        <Card className="p-4 sm:p-5">
+          <div className="mb-3">
+            <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
+              Destaques da rodada
+            </h2>
+            <p className="mt-1 text-xs text-slate-400 light:text-slate-500">
+              Recortes divertidos da Rodada {selectedRound}, sem pontos extras.
+            </p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-3">
+            {highlightItems.map((item) => (
+              <HighlightCard
+                key={item.key}
+                highlight={item.highlight}
+                icon={item.icon}
+              />
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       <Card className="p-4 sm:p-5">
         <div className="mb-3">

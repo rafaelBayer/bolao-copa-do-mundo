@@ -274,6 +274,7 @@ export default async function GroupsPage() {
   const predictions = (predictionsData ?? []).map((row) =>
     mapPrediction(row as Record<string, unknown>),
   );
+
   return (
     <GroupsDashboardClient
       groups={groups}

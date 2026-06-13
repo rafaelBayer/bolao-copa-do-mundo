@@ -6,6 +6,7 @@ import { GroupSection } from "@/components/groups/GroupSection";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
+import { TeamFlag } from "@/components/groups/TeamFlag";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
 import type { MatchGoal, MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
@@ -34,6 +35,16 @@ function isInLiveRefreshWindow(match: MatchWithTeams, now: Date) {
   return now >= windowStart && now <= windowEnd;
 }
 
+function isFinishedMatch(match: MatchWithTeams) {
+  return ["FT", "AET", "PEN"].includes(match.statusShort ?? "");
+}
+
+function isLiveOrHalftimeMatch(match: MatchWithTeams) {
+  return ["1H", "2H", "LIVE", "ET", "BT", "P", "HT"].includes(
+    match.statusShort ?? "",
+  );
+}
+
 function mapGoal(row: Record<string, unknown>): MatchGoal {
   return {
     id: String(row.id),
@@ -44,6 +55,162 @@ function mapGoal(row: Record<string, unknown>): MatchGoal {
     isPenalty: row.is_penalty === true,
     isOwnGoal: row.is_own_goal === true,
   };
+}
+
+function formatMatchTime(kickoffAt: string | null) {
+  if (!kickoffAt) {
+    return "--:--";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(kickoffAt));
+}
+
+function brazilDayKey(value: Date | string | null) {
+  if (!value) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(value));
+}
+
+function matchDisplayScore(match: MatchWithTeams) {
+  const isFinal = isFinishedMatch(match);
+  const homeScore =
+    isFinal ? match.homeScore ?? match.homeScoreLive : match.homeScoreLive;
+  const awayScore =
+    isFinal ? match.awayScore ?? match.awayScoreLive : match.awayScoreLive;
+
+  if (homeScore === null || homeScore === undefined || awayScore === null || awayScore === undefined) {
+    return "- x -";
+  }
+
+  return `${homeScore} x ${awayScore}`;
+}
+
+function TodayMatchRow({ match }: { match: MatchWithTeams }) {
+  const isLive = isLiveOrHalftimeMatch(match) && match.statusShort !== "HT";
+  const isHalftime = match.statusShort === "HT";
+  const statusLabel = isFinishedMatch(match)
+    ? "Encerrado"
+    : isHalftime
+      ? "Intervalo"
+      : match.elapsed !== null
+        ? `Ao vivo • ${match.elapsed}'`
+        : "Ao vivo";
+
+  return (
+    <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-3 light:border-slate-200 light:bg-slate-50">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="text-xs font-black tabular-nums text-slate-400 light:text-slate-500">
+          {formatMatchTime(match.kickoffAt)}
+        </span>
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[0.68rem] font-black uppercase tracking-wide ${
+            isLive
+              ? "bg-red-500 text-white"
+              : isHalftime
+                ? "bg-amber-400/15 text-amber-200 light:bg-amber-100 light:text-amber-800"
+                : "bg-slate-800 text-slate-300 light:bg-white light:text-slate-600"
+          }`}
+        >
+          {isLive ? (
+            <span className="h-1.5 w-1.5 rounded-full bg-white motion-safe:animate-pulse" />
+          ) : null}
+          {statusLabel}
+        </span>
+      </div>
+
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+        <span className="flex min-w-0 items-center gap-2 text-sm font-bold text-slate-100 light:text-slate-800">
+          <TeamFlag
+            code={match.homeTeam.code}
+            flagUrl={match.homeTeam.flagUrl}
+            name={match.homeTeam.name}
+          />
+          <span className="min-w-0 truncate">{match.homeTeam.name}</span>
+        </span>
+        <span className="rounded-lg bg-slate-950/45 px-3 py-1 text-center text-sm font-black tabular-nums text-slate-50 light:bg-white light:text-slate-950">
+          {matchDisplayScore(match)}
+        </span>
+        <span className="flex min-w-0 items-center justify-end gap-2 text-right text-sm font-bold text-slate-100 light:text-slate-800">
+          <span className="min-w-0 truncate">{match.awayTeam.name}</span>
+          <TeamFlag
+            code={match.awayTeam.code}
+            flagUrl={match.awayTeam.flagUrl}
+            name={match.awayTeam.name}
+          />
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TodayMatchesBlock({
+  liveMatches,
+  finishedMatches,
+}: {
+  liveMatches: MatchWithTeams[];
+  finishedMatches: MatchWithTeams[];
+}) {
+  const hasMatches = liveMatches.length > 0 || finishedMatches.length > 0;
+
+  return (
+    <Card className="mb-6 p-4 sm:p-5">
+      <div className="mb-3">
+        <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
+          Jogos de hoje
+        </h2>
+        <p className="mt-1 text-xs text-slate-400 light:text-slate-500">
+          Partidas ao vivo e encerradas no horario do Brasil.
+        </p>
+      </div>
+
+      {!hasMatches ? (
+        <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-3 light:border-slate-200 light:bg-slate-50">
+          <p className="text-sm font-bold text-slate-400 light:text-slate-600">
+            Nenhum jogo ao vivo ou finalizado hoje.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {liveMatches.length > 0 ? (
+            <section>
+              <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-red-200 light:text-red-700">
+                Ao vivo
+              </h3>
+              <div className="grid gap-2 lg:grid-cols-2">
+                {liveMatches.map((match) => (
+                  <TodayMatchRow key={match.id} match={match} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {finishedMatches.length > 0 ? (
+            <section>
+              <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-400 light:text-slate-500">
+                Finalizados
+              </h3>
+              <div className="grid gap-2 lg:grid-cols-2">
+                {finishedMatches.map((match) => (
+                  <TodayMatchRow key={match.id} match={match} />
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      )}
+    </Card>
+  );
 }
 
 export function GroupsDashboardClient({
@@ -76,6 +243,39 @@ export function GroupsDashboardClient({
       ),
     [visibleGroups],
   );
+  const todayMatches = useMemo(() => {
+    const todayKey = brazilDayKey(new Date());
+    const matches = visibleGroups
+      .flatMap((group) => group.matches)
+      .filter((match) => match.kickoffAt && brazilDayKey(match.kickoffAt) === todayKey);
+    const liveMatches = matches
+      .filter(isLiveOrHalftimeMatch)
+      .sort((left, right) => {
+        const kickoffDifference =
+          new Date(left.kickoffAt ?? 0).getTime() -
+          new Date(right.kickoffAt ?? 0).getTime();
+
+        if (kickoffDifference !== 0) {
+          return kickoffDifference;
+        }
+
+        return left.id.localeCompare(right.id);
+      });
+    const finishedMatches = matches
+      .filter(isFinishedMatch)
+      .sort((left, right) => {
+        const leftTime = new Date(left.scoreUpdatedAt ?? left.kickoffAt ?? 0).getTime();
+        const rightTime = new Date(right.scoreUpdatedAt ?? right.kickoffAt ?? 0).getTime();
+
+        if (rightTime !== leftTime) {
+          return rightTime - leftTime;
+        }
+
+        return left.id.localeCompare(right.id);
+      });
+
+    return { liveMatches, finishedMatches };
+  }, [visibleGroups]);
   const shouldRefreshLiveScores = useMemo(
     () => {
       const now = new Date();
@@ -291,6 +491,11 @@ export function GroupsDashboardClient({
           ) : null}
         </div>
       </Card>
+
+      <TodayMatchesBlock
+        liveMatches={todayMatches.liveMatches}
+        finishedMatches={todayMatches.finishedMatches}
+      />
 
       <div className="space-y-5">
         {visibleGroups.map((group) => (

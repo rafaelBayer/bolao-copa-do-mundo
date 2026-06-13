@@ -16,10 +16,100 @@ type LiveLeaderboardDataRow = LeaderboardDataRow & {
   is_live_match?: boolean | null;
   live_matches_count?: number | null;
 };
+type RoundHighlight = {
+  title: string;
+  name: string;
+  detail: string;
+};
+type RoundHighlights = {
+  star?: RoundHighlight;
+  exact?: RoundHighlight;
+  climber?: RoundHighlight;
+};
 
 function single<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
+}
+
+function rowsUntilRound(rows: LeaderboardDataRow[], round: number) {
+  return rows.filter(
+    (row) => row.round_number !== null && row.round_number <= round,
+  );
+}
+
+function namesLabel(entries: Array<{ name: string }>) {
+  if (entries.length === 0) return "";
+  if (entries.length === 1) return entries[0].name;
+  if (entries.length === 2) return `${entries[0].name} e ${entries[1].name}`;
+
+  return `${entries[0].name} +${entries.length - 1}`;
+}
+
+function buildRoundHighlights(
+  rows: LeaderboardDataRow[],
+  round: number,
+): RoundHighlights {
+  const roundEntries = buildLeaderboard(rows, round);
+  const star = roundEntries.find((entry) => entry.totalPoints > 0);
+  const maxExactScores = Math.max(
+    0,
+    ...roundEntries.map((entry) => entry.exactScores),
+  );
+  const exactWinners =
+    maxExactScores > 0
+      ? roundEntries.filter((entry) => entry.exactScores === maxExactScores)
+      : [];
+  const previousRows = rowsUntilRound(rows, round - 1);
+  const currentRows = rowsUntilRound(rows, round);
+  const previousEntries = buildLeaderboard(previousRows);
+  const currentEntries = buildLeaderboard(currentRows);
+  const previousPositions = new Map(
+    previousEntries.map((entry) => [entry.userId, entry.position]),
+  );
+  const climber =
+    round > 1 && hasRealResult(previousRows) && hasRealResult(currentRows)
+      ? currentEntries
+          .map((entry) => ({
+            entry,
+            climb: (previousPositions.get(entry.userId) ?? entry.position) - entry.position,
+          }))
+          .filter((item) => item.climb > 0)
+          .sort((left, right) => {
+            if (right.climb !== left.climb) return right.climb - left.climb;
+
+            return left.entry.position - right.entry.position;
+          })[0]
+      : null;
+
+  return {
+    star: star
+      ? {
+          title: `Craque da Rodada ${round}`,
+          name: star.name,
+          detail: `${star.totalPoints} pontos, ${star.exactScores} placares exatos`,
+        }
+      : undefined,
+    exact:
+      exactWinners.length > 0
+        ? {
+            title: "Rei dos placares",
+            name: namesLabel(exactWinners),
+            detail: `${maxExactScores} ${
+              maxExactScores === 1 ? "placar exato" : "placares exatos"
+            }`,
+          }
+        : undefined,
+    climber: climber
+      ? {
+          title: "Maior subida",
+          name: climber.entry.name,
+          detail: `Subiu ${climber.climb} ${
+            climber.climb === 1 ? "posicao" : "posicoes"
+          }`,
+        }
+      : undefined,
+  };
 }
 
 export default async function LeaderboardPage() {
@@ -85,6 +175,9 @@ export default async function LeaderboardPage() {
       },
     ]),
   );
+  const roundHighlights = Object.fromEntries(
+    rounds.map((round) => [round, buildRoundHighlights(rows, round)]),
+  );
 
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-5 sm:px-5 sm:py-7 lg:px-8">
@@ -112,6 +205,7 @@ export default async function LeaderboardPage() {
         generalEntries={buildLeaderboard(rows)}
         hasGeneralResult={hasRealResult(rows)}
         roundLeaderboards={roundLeaderboards}
+        roundHighlights={roundHighlights}
         liveEntries={buildLeaderboard(liveRows)}
         hasLiveResult={hasRealResult(liveRows)}
         liveMatchesCount={liveMatchesCount}
