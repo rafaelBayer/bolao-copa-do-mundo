@@ -1,12 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { HelpCircle } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import type { LeaderboardEntry } from "@/lib/scoring/buildLeaderboard";
+import {
+  buildLeaderboard,
+  hasRealResult,
+  type LeaderboardDataRow,
+  type LeaderboardEntry,
+} from "@/lib/scoring/buildLeaderboard";
+import { createClient } from "@/lib/supabase/client";
 
-type RankingMode = "general" | "round";
+type RankingMode = "general" | "round" | "live";
 
 type RoundLeaderboard = {
   entries: LeaderboardEntry[];
@@ -14,10 +20,19 @@ type RoundLeaderboard = {
 };
 
 type LeaderboardClientProps = {
+  poolId: string;
   poolName: string;
   generalEntries: LeaderboardEntry[];
   hasGeneralResult: boolean;
   roundLeaderboards: Record<number, RoundLeaderboard>;
+  liveEntries: LeaderboardEntry[];
+  hasLiveResult: boolean;
+  liveMatchesCount: number;
+};
+
+type LiveLeaderboardDataRow = LeaderboardDataRow & {
+  is_live_match?: boolean | null;
+  live_matches_count?: number | null;
 };
 
 const rounds = [1, 2, 3];
@@ -257,39 +272,117 @@ function modeButtonClass(isActive: boolean) {
 }
 
 export function LeaderboardClient({
+  poolId,
   poolName,
   generalEntries,
   hasGeneralResult,
   roundLeaderboards,
+  liveEntries,
+  hasLiveResult,
+  liveMatchesCount,
 }: LeaderboardClientProps) {
   const [mode, setMode] = useState<RankingMode>("general");
   const [selectedRound, setSelectedRound] = useState(1);
   const [showScoringInfo, setShowScoringInfo] = useState(false);
+  const [liveRankingEntries, setLiveRankingEntries] = useState(liveEntries);
+  const [liveRankingHasResult, setLiveRankingHasResult] =
+    useState(hasLiveResult);
+  const [liveRankingMatchesCount, setLiveRankingMatchesCount] =
+    useState(liveMatchesCount);
+  const [liveRefreshStatus, setLiveRefreshStatus] = useState<
+    "idle" | "refreshing" | "error"
+  >("idle");
   const selectedRoundLeaderboard = roundLeaderboards[selectedRound];
   const activeEntries =
     mode === "general"
       ? generalEntries
-      : selectedRoundLeaderboard?.entries ?? emptyLeaderboardEntries;
+      : mode === "live"
+        ? liveRankingEntries
+        : selectedRoundLeaderboard?.entries ?? emptyLeaderboardEntries;
   const activeHasResult =
     mode === "general"
       ? hasGeneralResult
-      : Boolean(selectedRoundLeaderboard?.hasResult);
+      : mode === "live"
+        ? liveRankingHasResult
+        : Boolean(selectedRoundLeaderboard?.hasResult);
   const podiumEntries = useMemo(
     () => activeEntries.filter((entry) => entry.totalPoints > 0).slice(0, 3),
     [activeEntries],
   );
   const podiumTitle =
-    mode === "general" ? "Top 3 geral" : `Top 3 da Rodada ${selectedRound}`;
+    mode === "general"
+      ? "Top 3 geral"
+      : mode === "live"
+        ? "Top 3 ao vivo"
+        : `Top 3 da Rodada ${selectedRound}`;
   const tableTitle =
-    mode === "general" ? "Ranking geral" : `Ranking da Rodada ${selectedRound}`;
+    mode === "general"
+      ? "Ranking geral"
+      : mode === "live"
+        ? "Ranking ao vivo"
+        : `Ranking da Rodada ${selectedRound}`;
   const emptyMessage =
     mode === "general"
       ? "A classificacao sera atualizada quando os primeiros resultados forem cadastrados."
-      : `A Rodada ${selectedRound} ainda nao possui jogos com resultado.`;
+      : mode === "live"
+        ? "Ainda nao ha placares finalizados ou ao vivo para calcular a classificacao."
+        : `A Rodada ${selectedRound} ainda nao possui jogos com resultado.`;
   const noScoreMessage =
     mode === "general"
       ? "Nenhum participante pontuou ainda."
-      : `Nenhum participante pontuou na Rodada ${selectedRound} ainda.`;
+      : mode === "live"
+        ? "Nenhum participante pontuou na classificacao ao vivo ainda."
+        : `Nenhum participante pontuou na Rodada ${selectedRound} ainda.`;
+
+  const refreshLiveLeaderboard = useCallback(async () => {
+    setLiveRefreshStatus("refreshing");
+
+    const supabase = createClient();
+    const { data, error } = await supabase.rpc(
+      "get_pool_live_leaderboard_data",
+      {
+        target_pool_id: poolId,
+      },
+    );
+
+    if (error) {
+      setLiveRefreshStatus("error");
+      return;
+    }
+
+    const rows = (data ?? []) as LiveLeaderboardDataRow[];
+
+    setLiveRankingEntries(buildLeaderboard(rows));
+    setLiveRankingHasResult(hasRealResult(rows));
+    setLiveRankingMatchesCount(rows[0]?.live_matches_count ?? 0);
+    setLiveRefreshStatus("idle");
+  }, [poolId]);
+
+  useEffect(() => {
+    if (mode !== "live" || liveRankingMatchesCount <= 0) {
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      void refreshLiveLeaderboard();
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, [liveRankingMatchesCount, mode, refreshLiveLeaderboard]);
+
+  useEffect(() => {
+    if (mode !== "live") {
+      return;
+    }
+
+    function handleFocus() {
+      void refreshLiveLeaderboard();
+    }
+
+    window.addEventListener("focus", handleFocus);
+
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [mode, refreshLiveLeaderboard]);
 
   return (
     <div className="space-y-5">
@@ -356,6 +449,16 @@ export function LeaderboardClient({
           >
             Por rodada
           </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode("live");
+              void refreshLiveLeaderboard();
+            }}
+            className={modeButtonClass(mode === "live")}
+          >
+            Ao vivo
+          </button>
         </div>
 
         {mode === "round" ? (
@@ -374,6 +477,37 @@ export function LeaderboardClient({
         ) : null}
       </section>
 
+      {mode === "live" ? (
+        <Card className="border-red-400/20 bg-red-500/5 p-4 light:border-red-200 light:bg-red-50">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-wide text-red-200 light:text-red-700">
+                <span className="h-2 w-2 rounded-full bg-red-400 animate-pulse" />
+                Ranking ao vivo
+              </p>
+              <p className="mt-2 text-sm font-bold text-slate-200 light:text-slate-800">
+                Classificacao provisoria considerando os placares atuais.
+              </p>
+              <p className="mt-1 text-sm text-slate-400 light:text-slate-600">
+                Os pontos so sao confirmados ao fim das partidas.
+              </p>
+              {liveRankingMatchesCount === 0 ? (
+                <p className="mt-2 text-sm font-bold text-amber-200 light:text-amber-800">
+                  Nenhum jogo ao vivo agora.
+                </p>
+              ) : null}
+            </div>
+            <span className="rounded-full bg-slate-950/50 px-3 py-1 text-xs font-black text-slate-300 light:bg-white light:text-slate-700">
+              {liveRefreshStatus === "refreshing"
+                ? "Atualizando..."
+                : liveRefreshStatus === "error"
+                  ? "Nao atualizou agora"
+                  : `${liveRankingMatchesCount} ao vivo`}
+            </span>
+          </div>
+        </Card>
+      ) : null}
+
       <Card className="p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -383,7 +517,9 @@ export function LeaderboardClient({
             <p className="mt-1 text-xs text-slate-400 light:text-slate-500">
               {mode === "general"
                 ? "Melhores participantes considerando todos os jogos com resultado."
-                : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}
+                : mode === "live"
+                  ? "Classificacao provisoria com jogos finalizados e placares atuais."
+                  : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}
             </p>
           </div>
         </div>

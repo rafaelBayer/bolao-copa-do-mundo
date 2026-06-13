@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 
 const rounds = [1, 2, 3];
 
+type LiveLeaderboardDataRow = LeaderboardDataRow & {
+  is_live_match?: boolean | null;
+  live_matches_count?: number | null;
+};
+
 function single<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -59,10 +64,18 @@ export default async function LeaderboardPage() {
       ? String(rawPool.name)
       : "Meu bolao";
 
-  const { data, error } = await supabase.rpc("get_pool_leaderboard_data", {
-    target_pool_id: membership.pool_id,
-  });
+  const [{ data, error }, { data: liveData, error: liveError }] =
+    await Promise.all([
+      supabase.rpc("get_pool_leaderboard_data", {
+        target_pool_id: membership.pool_id,
+      }),
+      supabase.rpc("get_pool_live_leaderboard_data", {
+        target_pool_id: membership.pool_id,
+      }),
+    ]);
   const rows = (data ?? []) as LeaderboardDataRow[];
+  const liveRows = (liveData ?? []) as LiveLeaderboardDataRow[];
+  const liveMatchesCount = liveRows[0]?.live_matches_count ?? 0;
   const roundLeaderboards = Object.fromEntries(
     rounds.map((round) => [
       round,
@@ -84,11 +97,24 @@ export default async function LeaderboardPage() {
         </Card>
       ) : null}
 
+      {liveError ? (
+        <Card className="mb-5 p-5">
+          <Badge tone="amber">Ao vivo</Badge>
+          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+            Nao foi possivel carregar a classificacao ao vivo agora.
+          </p>
+        </Card>
+      ) : null}
+
       <LeaderboardClient
+        poolId={membership.pool_id}
         poolName={poolName}
         generalEntries={buildLeaderboard(rows)}
         hasGeneralResult={hasRealResult(rows)}
         roundLeaderboards={roundLeaderboards}
+        liveEntries={buildLeaderboard(liveRows)}
+        hasLiveResult={hasRealResult(liveRows)}
+        liveMatchesCount={liveMatchesCount}
       />
     </main>
   );
