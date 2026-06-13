@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   MatchPredictionInput,
   type MatchPredictionInputHandle,
 } from "./MatchPredictionInput";
 import { RoundNavigator } from "./RoundNavigator";
+import { isFinalMatchStatus } from "@/lib/scores/liveScoreStatus";
 import type { MatchWithTeams } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
 
@@ -17,6 +18,31 @@ type GroupMatchesProps = {
   onPredictionSaved: (prediction: Prediction) => void;
 };
 
+function isRoundFinished(matches: MatchWithTeams[], round: number) {
+  const roundMatches = matches.filter((match) => match.roundNumber === round);
+
+  return (
+    roundMatches.length >= 2 &&
+    roundMatches.every((match) => isFinalMatchStatus(match.statusShort))
+  );
+}
+
+function defaultRoundIndex(matches: MatchWithTeams[], rounds: number[]) {
+  if (rounds.length === 0) {
+    return 0;
+  }
+
+  const firstOpenRound = rounds.find(
+    (round) => !isRoundFinished(matches, round),
+  );
+
+  if (firstOpenRound === undefined) {
+    return rounds.length - 1;
+  }
+
+  return Math.max(0, rounds.indexOf(firstOpenRound));
+}
+
 export function GroupMatches({
   poolId,
   userId,
@@ -25,6 +51,7 @@ export function GroupMatches({
   onPredictionSaved,
 }: GroupMatchesProps) {
   const inputRefs = useRef(new Map<string, MatchPredictionInputHandle>());
+  const userSelectedRoundRef = useRef(false);
   const rounds = useMemo(
     () =>
       Array.from(new Set(matches.map((match) => match.roundNumber))).sort(
@@ -32,7 +59,9 @@ export function GroupMatches({
       ),
     [matches],
   );
-  const [roundIndex, setRoundIndex] = useState(0);
+  const [roundIndex, setRoundIndex] = useState(() =>
+    defaultRoundIndex(matches, rounds),
+  );
   const [isFlushing, setIsFlushing] = useState(false);
   const currentRound = rounds[roundIndex] ?? 1;
   const currentMatches = matches.filter(
@@ -70,6 +99,7 @@ export function GroupMatches({
     }
 
     await flushPendingPredictionSaves();
+    userSelectedRoundRef.current = true;
     setRoundIndex((value) => Math.max(0, value - 1));
   }
 
@@ -82,8 +112,17 @@ export function GroupMatches({
     }
 
     await flushPendingPredictionSaves();
+    userSelectedRoundRef.current = true;
     setRoundIndex((value) => Math.min(rounds.length - 1, value + 1));
   }
+
+  useEffect(() => {
+    if (userSelectedRoundRef.current) {
+      return;
+    }
+
+    setRoundIndex(defaultRoundIndex(matches, rounds));
+  }, [matches, rounds]);
 
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-950/30 p-4 light:border-slate-200 light:bg-slate-50/70">
