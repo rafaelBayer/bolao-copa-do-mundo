@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ListChecks, Medal, Trophy } from "lucide-react";
+import { GitBranch, ListChecks, Medal, Trophy } from "lucide-react";
 import { UserMenu } from "./UserMenu";
 
 type DashboardHeaderProps = {
@@ -11,6 +11,7 @@ type DashboardHeaderProps = {
   userEmail?: string | null;
   avatarUrl?: string | null;
   isOwner?: boolean;
+  showPlayoffs?: boolean;
   brandTitle?: string | null;
   brandLogoUrl?: string | null;
 };
@@ -20,6 +21,7 @@ export function DashboardHeader({
   userEmail = null,
   avatarUrl = null,
   isOwner = false,
+  showPlayoffs = false,
   brandTitle = "Bolao da Copa",
   brandLogoUrl = null,
 }: DashboardHeaderProps) {
@@ -42,6 +44,16 @@ export function DashboardHeader({
       icon: Medal,
       isActive: pathname === "/dashboard/leaderboard",
     },
+    ...(showPlayoffs
+      ? [
+          {
+            href: "/dashboard/playoffs",
+            label: "Playoffs",
+            icon: GitBranch,
+            isActive: pathname === "/dashboard/playoffs",
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -81,7 +93,12 @@ export function DashboardHeader({
         />
       </div>
 
-      <nav className="mx-auto grid max-w-[1536px] grid-cols-2 gap-2 px-3 pb-3 sm:hidden">
+      <nav
+        className="mx-auto grid max-w-[1536px] gap-2 px-3 pb-3 sm:hidden"
+        style={{
+          gridTemplateColumns: `repeat(${navItems.length}, minmax(0, 1fr))`,
+        }}
+      >
         {navItems.map((item) => {
           const Icon = item.icon;
 

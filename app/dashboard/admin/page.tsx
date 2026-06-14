@@ -15,6 +15,7 @@ import {
   ParticipantsList,
   type AdminParticipant,
 } from "@/components/admin/ParticipantsList";
+import { PlayoffsAdminPanel } from "@/components/admin/PlayoffsAdminPanel";
 import { PoolBrandingForm } from "@/components/admin/PoolBrandingForm";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
@@ -62,6 +63,14 @@ type LiveScoreSyncLogRow = {
   error_message: string | null;
   started_at: string;
   finished_at: string | null;
+};
+
+type PlayoffBracketAdminRow = {
+  is_enabled: boolean;
+  is_locked: boolean;
+  lock_at: string | null;
+  started_users_count: number | null;
+  matches: unknown;
 };
 
 function single<T>(value: T | T[] | null | undefined): T | null {
@@ -265,6 +274,7 @@ export default async function AdminPage() {
     { data: inviteUsesData },
     { data: matchesData },
     { data: syncLogsData },
+    { data: playoffsData },
   ] = await Promise.all([
     supabase.rpc("get_pool_participants", {
       target_pool_id: pool.id,
@@ -314,6 +324,9 @@ export default async function AdminPage() {
       )
       .order("started_at", { ascending: false })
       .limit(10),
+    supabase.rpc("get_playoff_bracket", {
+      target_pool_id: pool.id,
+    }),
   ]);
 
   const participants = ((participantsData ?? []) as AdminParticipantRow[]).map((row) =>
@@ -350,6 +363,12 @@ export default async function AdminPage() {
   const syncLogs = ((syncLogsData ?? []) as unknown as LiveScoreSyncLogRow[]).map(
     mapSyncLog,
   );
+  const playoffRow = single(
+    playoffsData as PlayoffBracketAdminRow[] | null,
+  );
+  const playoffMatchesCount = Array.isArray(playoffRow?.matches)
+    ? playoffRow.matches.length
+    : 0;
   const now = new Date().getTime();
   const liveAdminMatches = mappedMatches.filter(isNearMatchWindow);
   const adminMatches =
@@ -406,6 +425,27 @@ export default async function AdminPage() {
             nextMatch={nextMonitorMatch}
           />
         </Card>
+
+        {playoffRow ? (
+          <Card className="p-5">
+            <div className="mb-4">
+              <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
+                Playoffs
+              </h2>
+              <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
+                Controle o acesso dos participantes ao simulador da chave eliminatoria.
+              </p>
+            </div>
+            <PlayoffsAdminPanel
+              poolId={pool.id}
+              isEnabled={playoffRow.is_enabled === true}
+              isLocked={playoffRow.is_locked === true}
+              lockAt={playoffRow.lock_at}
+              startedUsersCount={playoffRow.started_users_count ?? 0}
+              matchesCount={playoffMatchesCount}
+            />
+          </Card>
+        ) : null}
 
         <Card className="p-5">
           <div className="mb-4">
