@@ -124,13 +124,6 @@ export default async function DashboardLayout({
         .eq("id", membership.pool_id)
         .maybeSingle()
     : { data: null };
-  const { data: playoffSettingsData } = membership?.pool_id
-    ? await supabase
-        .from("playoff_settings")
-        .select("is_enabled")
-        .eq("pool_id", membership.pool_id)
-        .maybeSingle()
-    : { data: null };
   const branding = brandingData as {
     header_title?: string | null;
     logo_url?: string | null;
@@ -141,10 +134,6 @@ export default async function DashboardLayout({
   const profileName = profile?.name?.trim();
   const userLabel = profileName || email || "Usuario";
   const isOwner = ownerMembership?.role === "owner";
-  const showPlayoffs =
-    isOwner ||
-    ((playoffSettingsData as { is_enabled?: boolean } | null)?.is_enabled ===
-      true);
 
   return (
     <div className="min-h-screen">
@@ -153,7 +142,7 @@ export default async function DashboardLayout({
         userEmail={email}
         avatarUrl={profile?.avatar_url ?? null}
         isOwner={isOwner}
-        showPlayoffs={showPlayoffs}
+        showPlayoffs={isOwner}
         brandTitle={brandTitle}
         brandLogoUrl={brandLogoUrl}
       />

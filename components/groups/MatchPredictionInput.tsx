@@ -31,6 +31,7 @@ type MatchPredictionInputProps = {
   userId: string;
   match: MatchWithTeams;
   prediction?: Prediction;
+  isHighlighted?: boolean;
   onSaved?: (prediction: Prediction) => void;
 };
 
@@ -410,7 +411,7 @@ export const MatchPredictionInput = forwardRef<
   MatchPredictionInputHandle,
   MatchPredictionInputProps
 >(function MatchPredictionInput(
-  { poolId, userId, match, prediction, onSaved },
+  { poolId, userId, match, prediction, isHighlighted = false, onSaved },
   ref,
 ) {
   const liveStatus = matchStatusLabel(match);
@@ -684,9 +685,14 @@ export const MatchPredictionInput = forwardRef<
 
   return (
     <div
+      id={`match-card-${match.id}`}
       className={`relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/75 p-3.5 shadow-sm transition hover:border-slate-700 light:border-slate-200 light:bg-white light:hover:border-slate-300 ${
         goalFlash
           ? "border-emerald-300 bg-emerald-400/10 shadow-lg shadow-emerald-950/30 light:border-emerald-300 light:bg-emerald-50"
+          : ""
+      } ${
+        isHighlighted
+          ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 light:ring-amber-500 light:ring-offset-white"
           : ""
       }`}
     >

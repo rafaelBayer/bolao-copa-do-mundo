@@ -15,6 +15,10 @@ type GroupSectionProps = {
   predictions: Prediction[];
   poolId: string;
   userId: string;
+  focusRequest?: {
+    matchId: string;
+    requestId: number;
+  } | null;
   onPredictionSaved: (prediction: Prediction) => void;
 };
 
@@ -33,6 +37,7 @@ export function GroupSection({
   predictions,
   poolId,
   userId,
+  focusRequest = null,
   onPredictionSaved,
 }: GroupSectionProps) {
   const [tableMode, setTableMode] = useState<TableMode>("simulation");
@@ -172,6 +177,7 @@ export function GroupSection({
             userId={userId}
             matches={group.matches}
             predictions={predictions}
+            focusRequest={focusRequest}
             onPredictionSaved={onPredictionSaved}
           />
         </aside>

@@ -89,14 +89,25 @@ function matchDisplayScore(match: MatchWithTeams) {
   const awayScore =
     isFinal ? match.awayScore ?? match.awayScoreLive : match.awayScoreLive;
 
-  if (homeScore === null || homeScore === undefined || awayScore === null || awayScore === undefined) {
+  if (
+    homeScore === null ||
+    homeScore === undefined ||
+    awayScore === null ||
+    awayScore === undefined
+  ) {
     return "- x -";
   }
 
   return `${homeScore} x ${awayScore}`;
 }
 
-function TodayMatchRow({ match }: { match: MatchWithTeams }) {
+function TodayMatchRow({
+  match,
+  onSelect,
+}: {
+  match: MatchWithTeams;
+  onSelect: (match: MatchWithTeams) => void;
+}) {
   const isLive = isLiveOrHalftimeMatch(match) && match.statusShort !== "HT";
   const isHalftime = match.statusShort === "HT";
   const statusLabel = isFinishedMatch(match)
@@ -108,7 +119,12 @@ function TodayMatchRow({ match }: { match: MatchWithTeams }) {
         : "Ao vivo";
 
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950/35 p-3 light:border-slate-200 light:bg-slate-50">
+    <button
+      type="button"
+      onClick={() => onSelect(match)}
+      className="w-full rounded-xl border border-slate-800 bg-slate-950/35 p-3 text-left transition hover:border-emerald-400/45 hover:bg-slate-900/70 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2 focus:ring-offset-slate-950 light:border-slate-200 light:bg-slate-50 light:hover:border-emerald-300 light:hover:bg-white light:focus:ring-emerald-600 light:focus:ring-offset-white"
+      aria-label={`Ir para ${match.homeTeam.name} contra ${match.awayTeam.name}`}
+    >
       <div className="mb-2 flex items-center justify-between gap-3">
         <span className="text-xs font-black tabular-nums text-slate-400 light:text-slate-500">
           {formatMatchTime(match.kickoffAt)}
@@ -150,16 +166,18 @@ function TodayMatchRow({ match }: { match: MatchWithTeams }) {
           />
         </span>
       </div>
-    </div>
+    </button>
   );
 }
 
 function TodayMatchesBlock({
   liveMatches,
   finishedMatches,
+  onMatchSelect,
 }: {
   liveMatches: MatchWithTeams[];
   finishedMatches: MatchWithTeams[];
+  onMatchSelect: (match: MatchWithTeams) => void;
 }) {
   const hasMatches = liveMatches.length > 0 || finishedMatches.length > 0;
 
@@ -189,7 +207,11 @@ function TodayMatchesBlock({
               </h3>
               <div className="grid gap-2 lg:grid-cols-2">
                 {liveMatches.map((match) => (
-                  <TodayMatchRow key={match.id} match={match} />
+                  <TodayMatchRow
+                    key={match.id}
+                    match={match}
+                    onSelect={onMatchSelect}
+                  />
                 ))}
               </div>
             </section>
@@ -202,7 +224,11 @@ function TodayMatchesBlock({
               </h3>
               <div className="grid gap-2 lg:grid-cols-2">
                 {finishedMatches.map((match) => (
-                  <TodayMatchRow key={match.id} match={match} />
+                  <TodayMatchRow
+                    key={match.id}
+                    match={match}
+                    onSelect={onMatchSelect}
+                  />
                 ))}
               </div>
             </section>
@@ -222,6 +248,10 @@ export function GroupsDashboardClient({
 }: GroupsDashboardClientProps) {
   const [visibleGroups, setVisibleGroups] = useState(groups);
   const [predictions, setPredictions] = useState(initialPredictions);
+  const [focusRequest, setFocusRequest] = useState<{
+    matchId: string;
+    requestId: number;
+  } | null>(null);
   const totalMatches = useMemo(
     () =>
       visibleGroups.reduce((total, group) => total + group.matches.length, 0),
@@ -305,6 +335,13 @@ export function GroupsDashboardClient({
             }
           : prediction,
       );
+    });
+  }, []);
+
+  const handleTodayMatchSelect = useCallback((match: MatchWithTeams) => {
+    setFocusRequest({
+      matchId: match.id,
+      requestId: Date.now(),
     });
   }, []);
 
@@ -495,6 +532,7 @@ export function GroupsDashboardClient({
       <TodayMatchesBlock
         liveMatches={todayMatches.liveMatches}
         finishedMatches={todayMatches.finishedMatches}
+        onMatchSelect={handleTodayMatchSelect}
       />
 
       <div className="space-y-5">
@@ -505,6 +543,7 @@ export function GroupsDashboardClient({
             predictions={predictions}
             poolId={poolId}
             userId={userId}
+            focusRequest={focusRequest}
             onPredictionSaved={handlePredictionSaved}
           />
         ))}

@@ -15,6 +15,10 @@ type GroupMatchesProps = {
   userId: string;
   matches: MatchWithTeams[];
   predictions: Prediction[];
+  focusRequest?: {
+    matchId: string;
+    requestId: number;
+  } | null;
   onPredictionSaved: (prediction: Prediction) => void;
 };
 
@@ -48,10 +52,12 @@ export function GroupMatches({
   userId,
   matches,
   predictions,
+  focusRequest = null,
   onPredictionSaved,
 }: GroupMatchesProps) {
   const inputRefs = useRef(new Map<string, MatchPredictionInputHandle>());
   const userSelectedRoundRef = useRef(false);
+  const lastScrolledRequestIdRef = useRef<number | null>(null);
   const rounds = useMemo(
     () =>
       Array.from(new Set(matches.map((match) => match.roundNumber))).sort(
@@ -64,8 +70,9 @@ export function GroupMatches({
   );
   const [isFlushing, setIsFlushing] = useState(false);
   const currentRound = rounds[roundIndex] ?? 1;
-  const currentMatches = matches.filter(
-    (match) => match.roundNumber === currentRound,
+  const currentMatches = useMemo(
+    () => matches.filter((match) => match.roundNumber === currentRound),
+    [currentRound, matches],
   );
 
   function findPrediction(matchId: string) {
@@ -124,6 +131,61 @@ export function GroupMatches({
     setRoundIndex(defaultRoundIndex(matches, rounds));
   }, [matches, rounds]);
 
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    const targetMatch = matches.find(
+      (match) => match.id === focusRequest.matchId,
+    );
+
+    if (!targetMatch) {
+      return;
+    }
+
+    const targetRoundIndex = rounds.indexOf(targetMatch.roundNumber);
+
+    if (targetRoundIndex === -1 || targetRoundIndex === roundIndex) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      userSelectedRoundRef.current = true;
+      setRoundIndex(targetRoundIndex);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [focusRequest, matches, roundIndex, rounds]);
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    if (lastScrolledRequestIdRef.current === focusRequest.requestId) {
+      return;
+    }
+
+    const targetMatch = currentMatches.find(
+      (match) => match.id === focusRequest.matchId,
+    );
+
+    if (!targetMatch) {
+      return;
+    }
+
+    lastScrolledRequestIdRef.current = focusRequest.requestId;
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      document
+        .getElementById(`match-card-${targetMatch.id}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [currentMatches, focusRequest]);
+
   return (
     <div className="rounded-2xl border border-slate-800/80 bg-slate-950/30 p-4 light:border-slate-200 light:bg-slate-50/70">
       <div className="mb-4">
@@ -168,6 +230,7 @@ export function GroupMatches({
               userId={userId}
               match={match}
               prediction={prediction}
+              isHighlighted={focusRequest?.matchId === match.id}
               onSaved={onPredictionSaved}
             />
           );

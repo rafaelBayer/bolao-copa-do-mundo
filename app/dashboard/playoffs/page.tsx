@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { PlayoffsClient } from "@/components/playoffs/PlayoffsClient";
 import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import type {
   PlayoffBracketState,
   PlayoffMatch,
@@ -113,7 +114,7 @@ export default async function PlayoffsPage() {
 
   const { data: membership } = await supabase
     .from("pool_members")
-    .select("pool_id, pools(name)")
+    .select("pool_id, role, pools(name)")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle();
@@ -132,6 +133,10 @@ export default async function PlayoffsPage() {
         </Card>
       </main>
     );
+  }
+
+  if (membership.role !== "owner") {
+    redirect("/dashboard/groups");
   }
 
   const { data, error } = await supabase.rpc("get_playoff_bracket", {

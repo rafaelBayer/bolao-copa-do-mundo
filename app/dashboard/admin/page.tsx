@@ -433,12 +433,10 @@ export default async function AdminPage() {
                 Playoffs
               </h2>
               <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-                Controle o acesso dos participantes ao simulador da chave eliminatoria.
+                Acompanhe a chave eliminatoria restrita ao owner.
               </p>
             </div>
             <PlayoffsAdminPanel
-              poolId={pool.id}
-              isEnabled={playoffRow.is_enabled === true}
               isLocked={playoffRow.is_locked === true}
               lockAt={playoffRow.lock_at}
               startedUsersCount={playoffRow.started_users_count ?? 0}
