@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { BarChart3, CheckCircle2, Trophy, UsersRound } from "lucide-react";
+import { UserMenu } from "@/components/layout/UserMenu";
 import { Card } from "@/components/ui/Card";
+import { createClient } from "@/lib/supabase/server";
 
 const steps = [
   {
@@ -25,27 +27,85 @@ const steps = [
   },
 ];
 
-export default function HomePage() {
+function userName(user: {
+  email?: string | null;
+  user_metadata?: Record<string, unknown>;
+}, profileName?: string | null) {
+  const metadataName = user.user_metadata?.name ?? user.user_metadata?.full_name;
+
+  if (profileName?.trim()) {
+    return profileName.trim();
+  }
+
+  return typeof metadataName === "string" && metadataName.trim()
+    ? metadataName.trim()
+    : user.email ?? "Usuario";
+}
+
+export default async function HomePage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+  const user = data.user;
+  const [{ data: profileData }, { data: ownerMembership }] = user
+    ? await Promise.all([
+        supabase
+          .from("profiles")
+          .select("name, avatar_url")
+          .eq("id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("pool_members")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "owner")
+          .limit(1)
+          .maybeSingle(),
+      ])
+    : [{ data: null }, { data: null }];
+  const profile = profileData as {
+    name?: string | null;
+    avatar_url?: string | null;
+  } | null;
+  const userLabel = user ? userName(user, profile?.name) : null;
+  const isOwner = ownerMembership?.role === "owner";
+
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 light:bg-slate-50 light:text-slate-950">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
         <Link href="/" className="text-lg font-black">
           Bolao
         </Link>
-        <nav className="flex items-center gap-2">
-          <Link
-            href="/login"
-            className="rounded-xl px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-slate-900 hover:text-slate-50 light:text-slate-600 light:hover:bg-white light:hover:text-slate-950"
-          >
-            Entrar
-          </Link>
-          <Link
-            href="/cadastro"
-            className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
-          >
-            Criar conta
-          </Link>
-        </nav>
+        {user && userLabel ? (
+          <nav className="flex items-center gap-2">
+            <Link
+              href="/dashboard/groups"
+              className="hidden rounded-xl px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-slate-900 hover:text-slate-50 light:text-slate-600 light:hover:bg-white light:hover:text-slate-950 sm:inline-flex"
+            >
+              Ver palpites
+            </Link>
+            <UserMenu
+              userLabel={userLabel}
+              userEmail={user.email}
+              avatarUrl={profile?.avatar_url ?? null}
+              isOwner={isOwner}
+            />
+          </nav>
+        ) : (
+          <nav className="flex items-center gap-2">
+            <Link
+              href="/login"
+              className="rounded-xl px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-slate-900 hover:text-slate-50 light:text-slate-600 light:hover:bg-white light:hover:text-slate-950"
+            >
+              Entrar
+            </Link>
+            <Link
+              href="/cadastro"
+              className="rounded-xl bg-emerald-500 px-4 py-2 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+            >
+              Criar conta
+            </Link>
+          </nav>
+        )}
       </header>
 
       <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 pb-12 pt-12 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8">
@@ -61,18 +121,29 @@ export default function HomePage() {
             acompanhe a classificacao em tempo real.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/cadastro"
-              className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
-            >
-              Criar conta
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-bold text-slate-100 transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
-            >
-              Entrar
-            </Link>
+            {user ? (
+              <Link
+                href="/dashboard/groups"
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+              >
+                Ver palpites
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/cadastro"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+                >
+                  Criar conta
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-bold text-slate-100 transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
+                >
+                  Entrar
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -116,12 +187,21 @@ export default function HomePage() {
               entram nas proximas etapas.
             </p>
           </div>
-          <Link
-            href="/cadastro"
-            className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
-          >
-            Criar conta
-          </Link>
+          {user ? (
+            <Link
+              href="/dashboard/groups"
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+            >
+              Ver palpites
+            </Link>
+          ) : (
+            <Link
+              href="/cadastro"
+              className="inline-flex shrink-0 items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+            >
+              Criar conta
+            </Link>
+          )}
         </div>
       </section>
     </main>
