@@ -1,26 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { LogIn } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
-import {
-  inviteErrorMessage,
-  logUnexpectedAuthError,
-} from "@/lib/auth/authErrorMessages";
-import { acceptInviteForCurrentUser } from "@/lib/invites/acceptInviteForCurrentUser";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const invite = searchParams.get("invite");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,21 +32,8 @@ export function LoginForm() {
       return;
     }
 
-    if (invite) {
-      const { error: inviteError } = await acceptInviteForCurrentUser({
-        inviteToken: invite,
-      });
-
-      if (inviteError) {
-        setIsSubmitting(false);
-        setError(inviteErrorMessage(inviteError));
-        logUnexpectedAuthError(inviteError);
-        return;
-      }
-    }
-
     setIsSubmitting(false);
-    router.replace("/dashboard/groups");
+    router.replace("/dashboard");
     router.refresh();
   }
 
@@ -108,17 +88,25 @@ export function LoginForm() {
         {isSubmitting ? "Entrando..." : "Entrar"}
       </Button>
 
-      {invite ? (
-        <p className="text-center text-sm text-slate-400 light:text-slate-600">
-          Tem convite?{" "}
+      <div className="space-y-2 text-center text-sm text-slate-400 light:text-slate-600">
+        <p>
           <Link
-            href={`/register?invite=${encodeURIComponent(invite)}`}
+            href="/esqueci-senha"
+            className="font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
+          >
+            Esqueci minha senha
+          </Link>
+        </p>
+        <p>
+          Ainda nao tem conta?{" "}
+          <Link
+            href="/cadastro"
             className="font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
           >
             Criar conta
           </Link>
         </p>
-      ) : null}
+      </div>
     </form>
   );
 }

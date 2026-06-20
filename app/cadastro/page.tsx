@@ -1,8 +1,7 @@
 import Link from "next/link";
-import { Suspense } from "react";
-import { LoginForm } from "@/components/auth/LoginForm";
+import { RegisterForm } from "@/components/auth/RegisterForm";
 
-export default function LoginPage() {
+export default function CadastroPage() {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <section className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/85 p-6 shadow-2xl shadow-slate-950/30 backdrop-blur light:border-slate-200 light:bg-white light:shadow-slate-200/80 sm:p-8">
@@ -11,16 +10,14 @@ export default function LoginPage() {
             Bolao
           </p>
           <h1 className="mt-3 text-3xl font-black text-slate-50 light:text-slate-950">
-            Entrar
+            Criar conta
           </h1>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
-            Acesse sua area logada para comecar seu bolao.
+            Cadastre-se com e-mail e senha para acessar a plataforma.
           </p>
         </div>
 
-        <Suspense>
-          <LoginForm />
-        </Suspense>
+        <RegisterForm />
 
         <p className="mt-6 text-center text-xs text-slate-500 light:text-slate-500">
           <Link href="/" className="transition hover:text-emerald-300 light:hover:text-emerald-700">
