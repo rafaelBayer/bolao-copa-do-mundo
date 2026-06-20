@@ -3,6 +3,8 @@ import { SignOutButton } from "@/components/auth/SignOutButton";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
 
+const LEGACY_USER_CUTOFF = new Date("2026-06-20T00:00:00-03:00");
+
 function userName(user: {
   email?: string | null;
   user_metadata?: Record<string, unknown>;
@@ -14,12 +16,49 @@ function userName(user: {
     : user.email ?? "Usuario";
 }
 
+function isLegacyUser(createdAt?: string | null) {
+  if (!createdAt) {
+    return false;
+  }
+
+  const createdAtDate = new Date(createdAt);
+
+  return (
+    !Number.isNaN(createdAtDate.getTime()) &&
+    createdAtDate < LEGACY_USER_CUTOFF
+  );
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const { data, error } = await supabase.auth.getUser();
 
   if (error || !data.user) {
     redirect("/login");
+  }
+
+  const [{ data: membership }, { data: existingPrediction }] =
+    await Promise.all([
+      supabase
+        .from("pool_members")
+        .select("pool_id")
+        .eq("user_id", data.user.id)
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("predictions")
+        .select("id")
+        .eq("user_id", data.user.id)
+        .limit(1)
+        .maybeSingle(),
+    ]);
+  const shouldSkipInitialFlow =
+    isLegacyUser(data.user.created_at) ||
+    Boolean(membership?.pool_id) ||
+    Boolean(existingPrediction?.id);
+
+  if (shouldSkipInitialFlow) {
+    redirect("/dashboard/groups");
   }
 
   const name = userName(data.user);
