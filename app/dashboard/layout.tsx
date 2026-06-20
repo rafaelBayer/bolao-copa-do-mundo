@@ -75,6 +75,26 @@ export default async function DashboardLayout({
 
   const userId = data.claims.sub;
   const email = typeof data.claims.email === "string" ? data.claims.email : null;
+  const metadata = data.claims.user_metadata;
+  const preferredName =
+    metadata &&
+    typeof metadata === "object" &&
+    "name" in metadata &&
+    typeof metadata.name === "string"
+      ? metadata.name
+      : null;
+
+  const { error: defaultPoolError } = await supabase.rpc(
+    "ensure_default_pool_membership",
+    {
+      preferred_name: preferredName,
+    },
+  );
+
+  if (defaultPoolError && process.env.NODE_ENV === "development") {
+    console.error(defaultPoolError);
+  }
+
   const [
     { data: ownerMembership },
     { data: membershipData },

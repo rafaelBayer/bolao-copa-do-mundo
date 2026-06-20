@@ -30,10 +30,16 @@ function mapTeam(team: Record<string, unknown> | null): Team | null {
   };
 }
 
-function mapPrediction(row: Record<string, unknown>): Prediction {
+function mapPrediction(
+  row: Record<string, unknown>,
+  currentPoolId: string,
+): Prediction {
   return {
     id: String(row.id),
-    poolId: String(row.pool_id),
+    poolId:
+      typeof row.pool_id === "string"
+        ? row.pool_id
+        : currentPoolId,
     userId: String(row.user_id),
     matchId: String(row.match_id),
     homeScore:
@@ -43,6 +49,18 @@ function mapPrediction(row: Record<string, unknown>): Prediction {
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
+}
+
+function uniquePredictionsByMatch(predictions: Prediction[]) {
+  const predictionsByMatchId = new Map<string, Prediction>();
+
+  predictions.forEach((prediction) => {
+    if (!predictionsByMatchId.has(prediction.matchId)) {
+      predictionsByMatchId.set(prediction.matchId, prediction);
+    }
+  });
+
+  return Array.from(predictionsByMatchId.values());
 }
 
 function mapMatchGoal(row: Record<string, unknown>): MatchGoal {
@@ -259,10 +277,10 @@ export default async function GroupsPage() {
       supabase
         .from("predictions")
         .select(
-          "id, pool_id, user_id, match_id, home_score, away_score, created_at, updated_at",
+          "id, user_id, match_id, home_score, away_score, created_at, updated_at",
         )
-        .eq("pool_id", pool.id)
-        .eq("user_id", userId),
+        .eq("user_id", userId)
+        .order("updated_at", { ascending: false }),
     ]);
 
   // TODO: remover fallback mock antes de producao; dados reais devem vir do Supabase
@@ -271,8 +289,10 @@ export default async function GroupsPage() {
     groupsError || !groupsData?.length
       ? mockGroups
       : mapGroups(groupsData as Record<string, unknown>[]);
-  const predictions = (predictionsData ?? []).map((row) =>
-    mapPrediction(row as Record<string, unknown>),
+  const predictions = uniquePredictionsByMatch(
+    (predictionsData ?? []).map((row) =>
+      mapPrediction(row as Record<string, unknown>, pool.id),
+    ),
   );
 
   return (
