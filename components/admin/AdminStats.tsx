@@ -4,20 +4,18 @@ import { Card } from "@/components/ui/Card";
 type AdminStatsProps = {
   poolName: string;
   participantsCount: number;
-  availableInvitesCount: number;
-  inviteUsesCount: number;
+  matchesCount: number;
 };
 
 export function AdminStats({
   poolName,
   participantsCount,
-  availableInvitesCount,
-  inviteUsesCount,
+  matchesCount,
 }: AdminStatsProps) {
   const stats = [
     { label: "participantes", value: participantsCount },
-    { label: "links ativos", value: availableInvitesCount },
-    { label: "usos de convite", value: inviteUsesCount },
+    { label: "partidas", value: matchesCount },
+    { label: "bolao admin", value: 1 },
   ];
 
   return (
@@ -29,7 +27,7 @@ export function AdminStats({
             {poolName}
           </h1>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
-            Gere convites e acompanhe os participantes do bolao.
+            Gerencie partidas, placares e participantes do bolao.
           </p>
         </div>
 

@@ -1,7 +1,5 @@
 import { AdminSectionButton } from "@/components/admin/AdminSectionButton";
 import { AdminStats } from "@/components/admin/AdminStats";
-import { CreateInviteButton } from "@/components/admin/CreateInviteButton";
-import { InviteList, type AdminInvite } from "@/components/admin/InviteList";
 import {
   LiveScoreAdminPanel,
   type AdminLiveMatch,
@@ -104,16 +102,6 @@ function mapParticipant(row: Record<string, unknown>): AdminParticipant {
   };
 }
 
-function mapInvite(row: Record<string, unknown>): AdminInvite {
-  return {
-    id: String(row.id),
-    token: String(row.token),
-    expiresAt: typeof row.expires_at === "string" ? row.expires_at : null,
-    createdAt: String(row.created_at),
-    usesCount: typeof row.uses_count === "number" ? row.uses_count : 0,
-  };
-}
-
 function mapAdminMatch(row: AdminMatchRow): AdminLiveMatch {
   const homeTeam = single(row.home_team);
   const awayTeam = single(row.away_team);
@@ -201,14 +189,6 @@ function isNext24Hours(match: LiveScoreMonitorMatch, now: number) {
   return kickoff >= now && kickoff <= now + 24 * 60 * 60 * 1000;
 }
 
-function isInviteAvailable(invite: AdminInvite) {
-  if (!invite.expiresAt) {
-    return true;
-  }
-
-  return new Date(invite.expiresAt).getTime() >= Date.now();
-}
-
 function currentLiveScoreProvider() {
   const provider = process.env.LIVE_SCORE_PROVIDER?.trim();
 
@@ -246,13 +226,11 @@ export function normalizeAdminSection(
 function AdminHome({
   pool,
   participantsCount,
-  availableInvitesCount,
-  inviteUsesCount,
+  matchesCount,
 }: {
   pool: PoolInfo;
   participantsCount: number;
-  availableInvitesCount: number;
-  inviteUsesCount: number;
+  matchesCount: number;
 }) {
   const shortcuts = [
     {
@@ -267,7 +245,7 @@ function AdminHome({
     },
     {
       title: "Boloes",
-      description: "Gerencie convites e entrada de participantes.",
+      description: "Veja onde gerenciar links de convite.",
       section: "pools" as const,
     },
     {
@@ -290,7 +268,7 @@ function AdminHome({
           {pool.name}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-400 light:text-slate-500">
-          Gerencie partidas, placares, convites, participantes e configuracoes
+          Gerencie partidas, placares, participantes e configuracoes
           do bolao em um unico lugar.
         </p>
       </Card>
@@ -298,8 +276,7 @@ function AdminHome({
       <AdminStats
         poolName={pool.name}
         participantsCount={participantsCount}
-        availableInvitesCount={availableInvitesCount}
-        inviteUsesCount={inviteUsesCount}
+        matchesCount={matchesCount}
       />
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -365,8 +342,6 @@ export async function AdminPanelContent({
 
   const [
     { data: participantsData },
-    { data: invitesData },
-    { data: inviteUsesData },
     { data: matchesData },
     { data: syncLogsData },
     { data: playoffsData },
@@ -374,15 +349,6 @@ export async function AdminPanelContent({
     supabase.rpc("get_pool_participants", {
       target_pool_id: pool.id,
     }),
-    supabase
-      .from("pool_invites")
-      .select("id, token, expires_at, created_at")
-      .eq("pool_id", pool.id)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("pool_invite_uses")
-      .select("invite_id")
-      .eq("pool_id", pool.id),
     supabase
       .from("matches")
       .select(
@@ -426,26 +392,6 @@ export async function AdminPanelContent({
 
   const participants = ((participantsData ?? []) as AdminParticipantRow[]).map(
     (row) => mapParticipant(row as Record<string, unknown>),
-  );
-  const inviteUsesByInviteId = new Map<string, number>();
-  (inviteUsesData ?? []).forEach((row) => {
-    const inviteId = String((row as Record<string, unknown>).invite_id);
-    inviteUsesByInviteId.set(
-      inviteId,
-      (inviteUsesByInviteId.get(inviteId) ?? 0) + 1,
-    );
-  });
-  const invites = (invitesData ?? []).map((row) => {
-    const rawInvite = row as Record<string, unknown>;
-    return mapInvite({
-      ...rawInvite,
-      uses_count: inviteUsesByInviteId.get(String(rawInvite.id)) ?? 0,
-    });
-  });
-  const availableInvitesCount = invites.filter(isInviteAvailable).length;
-  const inviteUsesCount = invites.reduce(
-    (total, invite) => total + invite.usesCount,
-    0,
   );
   const mappedMatches = ((matchesData ?? []) as unknown as AdminMatchRow[]).map(
     mapAdminMatch,
@@ -518,19 +464,17 @@ export async function AdminPanelContent({
     return (
       <div className="space-y-5">
         <Card className="p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
-                Boloes e convites
-              </h2>
-              <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-                Gere convites para participantes entrarem no bolao administrado.
-              </p>
-            </div>
-            <CreateInviteButton poolId={pool.id} userId={userId} />
+          <div>
+            <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
+              Boloes
+            </h2>
+            <p className="mt-1 max-w-2xl text-sm text-slate-400 light:text-slate-500">
+              A criacao de boloes privados e os links de convite ficam
+              centralizados na secao Boloes do perfil. Assim o Painel Admin
+              permanece focado em partidas, placares e configuracoes do sistema.
+            </p>
           </div>
         </Card>
-        <InviteList invites={invites} />
       </div>
     );
   }
@@ -584,8 +528,7 @@ export async function AdminPanelContent({
     <AdminHome
       pool={pool}
       participantsCount={participants.length}
-      availableInvitesCount={availableInvitesCount}
-      inviteUsesCount={inviteUsesCount}
+      matchesCount={mappedMatches.length}
     />
   );
 }
