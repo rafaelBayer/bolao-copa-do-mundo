@@ -53,7 +53,7 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
             Criar bolao privado
           </h2>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Crie um grupo separado para disputar com amigos. O Bolao Geral continua ativo.
+            Voce ja participa do Bolao Geral. Crie um bolao privado apenas se quiser disputar com amigos.
           </p>
         </div>
 
@@ -113,6 +113,12 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
                   <Badge tone={pool.role === "owner" ? "amber" : "default"}>
                     {pool.role === "owner" ? "Owner" : "Membro"}
                   </Badge>
+                  {typeof pool.membersCount === "number" ? (
+                    <Badge>
+                      {pool.membersCount}{" "}
+                      {pool.membersCount === 1 ? "membro" : "membros"}
+                    </Badge>
+                  ) : null}
                 </div>
                 {pool.description ? (
                   <p className="mt-1 text-sm text-slate-400 light:text-slate-500">

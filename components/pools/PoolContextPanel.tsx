@@ -13,6 +13,7 @@ export type PoolSummary = {
   type: "general" | "private";
   isDefault: boolean;
   role: "owner" | "member";
+  membersCount?: number;
 };
 
 type PoolContextPanelProps = {

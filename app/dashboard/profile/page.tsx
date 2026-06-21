@@ -122,11 +122,30 @@ export default async function ProfilePage() {
     .select("pool_id, role, pools(id, name, description, type, is_default)")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
-  const pools = sortPools(
+  const basePools = sortPools(
     (membershipsData ?? [])
       .map((row) => mapPoolSummary(row as Record<string, unknown>))
       .filter((pool): pool is PoolSummary => Boolean(pool)),
   );
+  const poolIds = basePools.map((pool) => pool.id);
+  const { data: poolMembersData } =
+    poolIds.length > 0
+      ? await supabase
+          .from("pool_members")
+          .select("pool_id")
+          .in("pool_id", poolIds)
+      : { data: [] };
+  const memberCountByPoolId = new Map<string, number>();
+
+  (poolMembersData ?? []).forEach((row) => {
+    const poolId = String((row as Record<string, unknown>).pool_id);
+
+    memberCountByPoolId.set(poolId, (memberCountByPoolId.get(poolId) ?? 0) + 1);
+  });
+  const pools = basePools.map((pool) => ({
+    ...pool,
+    membersCount: memberCountByPoolId.get(pool.id) ?? 0,
+  }));
   const isOwner = pools.some((pool) => pool.role === "owner");
   const visibleTab = activeTab === "admin" && !isOwner ? "perfil" : activeTab;
   const showAdminMenu = visibleTab === "admin" && isOwner;
