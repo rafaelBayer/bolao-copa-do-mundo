@@ -4,12 +4,30 @@ import { Suspense } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    redirectTo?: string | string[];
+  }>;
+};
+
+function safeRedirect(value: string | string[] | null | undefined) {
+  const redirectTo = Array.isArray(value) ? value[0] : value;
+
+  if (!redirectTo || !redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+    return "/dashboard/groups";
+  }
+
+  return redirectTo;
+}
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
   const supabase = await createClient();
+  const resolvedSearchParams = await searchParams;
+  const redirectTo = safeRedirect(resolvedSearchParams?.redirectTo);
   const { data } = await supabase.auth.getUser();
 
   if (data.user) {
-    redirect("/dashboard/groups");
+    redirect(redirectTo);
   }
 
   return (
@@ -28,7 +46,7 @@ export default async function LoginPage() {
         </div>
 
         <Suspense>
-          <LoginForm />
+          <LoginForm redirectTo={redirectTo} />
         </Suspense>
 
         <p className="mt-6 text-center text-xs text-slate-500 light:text-slate-500">

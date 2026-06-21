@@ -3,12 +3,30 @@ import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function CadastroPage() {
+type CadastroPageProps = {
+  searchParams?: Promise<{
+    redirectTo?: string | string[];
+  }>;
+};
+
+function safeRedirect(value: string | string[] | null | undefined) {
+  const redirectTo = Array.isArray(value) ? value[0] : value;
+
+  if (!redirectTo || !redirectTo.startsWith("/") || redirectTo.startsWith("//")) {
+    return "/dashboard/groups";
+  }
+
+  return redirectTo;
+}
+
+export default async function CadastroPage({ searchParams }: CadastroPageProps) {
   const supabase = await createClient();
+  const resolvedSearchParams = await searchParams;
+  const redirectTo = safeRedirect(resolvedSearchParams?.redirectTo);
   const { data } = await supabase.auth.getUser();
 
   if (data.user) {
-    redirect("/dashboard/groups");
+    redirect(redirectTo);
   }
 
   return (
@@ -26,7 +44,7 @@ export default async function CadastroPage() {
           </p>
         </div>
 
-        <RegisterForm />
+        <RegisterForm redirectTo={redirectTo} />
 
         <p className="mt-6 text-center text-xs text-slate-500 light:text-slate-500">
           <Link href="/" className="transition hover:text-emerald-300 light:hover:text-emerald-700">

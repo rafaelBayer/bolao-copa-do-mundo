@@ -8,8 +8,21 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
 
-export function LoginForm() {
+type LoginFormProps = {
+  redirectTo?: string;
+};
+
+function safeRedirect(value?: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return value;
+}
+
+export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
   const router = useRouter();
+  const resolvedRedirectTo = safeRedirect(redirectTo);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,7 +46,7 @@ export function LoginForm() {
     }
 
     setIsSubmitting(false);
-    router.replace("/dashboard");
+    router.replace(resolvedRedirectTo);
     router.refresh();
   }
 
@@ -100,7 +113,11 @@ export function LoginForm() {
         <p>
           Ainda nao tem conta?{" "}
           <Link
-            href="/cadastro"
+            href={
+              resolvedRedirectTo === "/dashboard"
+                ? "/cadastro"
+                : `/cadastro?redirectTo=${encodeURIComponent(resolvedRedirectTo)}`
+            }
             className="font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
           >
             Criar conta

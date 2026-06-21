@@ -51,6 +51,8 @@ function mapPoolSummary(row: Record<string, unknown>): PoolSummary | null {
     type: pool.type === "general" ? "general" : "private",
     isDefault: pool.is_default === true,
     role: row.role === "owner" ? "owner" : "member",
+    inviteCode:
+      typeof pool.invite_code === "string" ? pool.invite_code : null,
   };
 }
 
@@ -119,7 +121,7 @@ export default async function ProfilePage() {
 
   const { data: membershipsData } = await supabase
     .from("pool_members")
-    .select("pool_id, role, pools(id, name, description, type, is_default)")
+    .select("pool_id, role, pools(id, name, description, type, is_default, invite_code)")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
   const basePools = sortPools(

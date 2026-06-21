@@ -22,8 +22,21 @@ function userHasNoIdentities(user: unknown) {
   return Array.isArray(identities) && identities.length === 0;
 }
 
-export function RegisterForm() {
+type RegisterFormProps = {
+  redirectTo?: string;
+};
+
+function safeRedirect(value?: string) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) {
+    return "/dashboard";
+  }
+
+  return value;
+}
+
+export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
   const router = useRouter();
+  const resolvedRedirectTo = safeRedirect(redirectTo);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +61,7 @@ export function RegisterForm() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.origin}${resolvedRedirectTo}`,
         data: {
           name,
           full_name: name,
@@ -73,7 +86,7 @@ export function RegisterForm() {
       return;
     }
 
-    router.replace("/dashboard");
+    router.replace(resolvedRedirectTo);
     router.refresh();
   }
 
@@ -169,7 +182,11 @@ export function RegisterForm() {
       <p className="text-center text-sm text-slate-400 light:text-slate-600">
         Ja tem conta?{" "}
         <Link
-          href="/login"
+          href={
+            resolvedRedirectTo === "/dashboard"
+              ? "/login"
+              : `/login?redirectTo=${encodeURIComponent(resolvedRedirectTo)}`
+          }
           className="font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
         >
           Entrar

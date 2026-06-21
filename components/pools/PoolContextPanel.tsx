@@ -14,6 +14,7 @@ export type PoolSummary = {
   isDefault: boolean;
   role: "owner" | "member";
   membersCount?: number;
+  inviteCode?: string | null;
 };
 
 type PoolContextPanelProps = {

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Plus } from "lucide-react";
+import { Clipboard, ExternalLink, Plus } from "lucide-react";
 import type { PoolSummary } from "@/components/pools/PoolContextPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -21,6 +21,7 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
+  const [copiedPoolId, setCopiedPoolId] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -43,6 +44,18 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
     setName("");
     setDescription("");
     router.refresh();
+  }
+
+  async function copyInviteLink(pool: PoolSummary) {
+    if (!pool.inviteCode) {
+      return;
+    }
+
+    const link = `${window.location.origin}/convite/${pool.inviteCode}`;
+
+    await navigator.clipboard.writeText(link);
+    setCopiedPoolId(pool.id);
+    window.setTimeout(() => setCopiedPoolId(null), 1800);
   }
 
   return (
@@ -127,13 +140,26 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
                 ) : null}
               </div>
 
-              <Link
-                href={`/dashboard/groups?pool=${pool.id}`}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm font-bold text-slate-100 transition hover:border-emerald-400/60 hover:text-emerald-200 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:text-emerald-700"
-              >
-                <ExternalLink size={15} aria-hidden="true" />
-                Ver palpites
-              </Link>
+              <div className="flex flex-wrap items-center gap-2">
+                {!pool.isDefault && pool.role === "owner" && pool.inviteCode ? (
+                  <button
+                    type="button"
+                    onClick={() => copyInviteLink(pool)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm font-bold text-slate-100 transition hover:border-emerald-400/60 hover:text-emerald-200 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:text-emerald-700"
+                  >
+                    <Clipboard size={15} aria-hidden="true" />
+                    {copiedPoolId === pool.id ? "Copiado" : "Copiar convite"}
+                  </button>
+                ) : null}
+
+                <Link
+                  href={`/dashboard/groups?pool=${pool.id}`}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2 text-sm font-bold text-slate-100 transition hover:border-emerald-400/60 hover:text-emerald-200 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:text-emerald-700"
+                >
+                  <ExternalLink size={15} aria-hidden="true" />
+                  Ver palpites
+                </Link>
+              </div>
             </div>
           ))}
         </div>
