@@ -163,6 +163,27 @@ Antes de rodar um comando real, use dry-run. O sync local aceita:
 npm run scores:watch:local:dry
 ```
 
+Para popular um banco novo com selecoes, grupos e jogos:
+
+```bash
+npm run seed:worldcup:dry
+npm run seed:worldcup
+```
+
+Para buscar resultados finais ja ocorridos pela ESPN:
+
+```bash
+npm run scores:sync-results:dry
+npm run scores:sync-results
+```
+
+No PowerShell, selecione o banco antes:
+
+```powershell
+$env:SUPABASE_TARGET="public"; $env:NEXT_PUBLIC_SUPABASE_TARGET="public"; npm run seed:worldcup
+$env:SUPABASE_TARGET="public"; $env:NEXT_PUBLIC_SUPABASE_TARGET="public"; npm run scores:sync-results:dry
+```
+
 O mapeamento de fixtures tambem aceita estes opcionais:
 
 ```env

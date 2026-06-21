@@ -54,7 +54,10 @@ function optionalEnv(name: string) {
 }
 
 function resolveTarget(): SupabaseTarget {
-  const target = optionalEnv("SUPABASE_TARGET")?.toLowerCase();
+  const target = (
+    optionalEnv("SUPABASE_TARGET") ??
+    optionalEnv("NEXT_PUBLIC_SUPABASE_TARGET")
+  )?.toLowerCase();
 
   if (!target) {
     return "default";

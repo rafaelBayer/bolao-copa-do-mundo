@@ -1,7 +1,11 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { existsSync, readFileSync } from "node:fs";
 import { worldCup2026Data } from "../data/world-cup-2026";
 import { validateWorldCupData } from "../lib/world-cup/validateWorldCupData";
+import {
+  getScriptSupabaseConfig,
+  loadScriptEnvFiles,
+  logScriptSupabaseTarget,
+} from "../lib/supabase/scriptEnv";
 import type {
   WorldCupGroupSeed,
   WorldCupMatchSeed,
@@ -81,44 +85,6 @@ type ImportDatabase = {
 type ImportSupabaseClient = SupabaseClient<ImportDatabase>;
 
 type IdByKey = Map<string, string>;
-
-function loadEnvFile(path: string) {
-  if (!existsSync(path)) {
-    return;
-  }
-
-  const content = readFileSync(path, "utf8");
-
-  content.split(/\r?\n/).forEach((line) => {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-
-    const separatorIndex = trimmedLine.indexOf("=");
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmedLine.slice(0, separatorIndex).trim();
-    const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    const value = rawValue.replace(/^["']|["']$/g, "");
-
-    process.env[key] ??= value;
-  });
-}
-
-function requiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-
-  return value;
-}
 
 function normalizeCode(code: string) {
   return code.trim().toUpperCase();
@@ -334,6 +300,8 @@ async function upsertMatches(
 }
 
 async function main() {
+  loadScriptEnvFiles();
+
   const dryRun = process.argv.includes("--dry-run");
 
   console.log("Validating data...");
@@ -351,6 +319,7 @@ async function main() {
   console.log("Validation passed.");
 
   if (dryRun) {
+    console.log("World Cup data import");
     console.log("Dry run enabled. No data will be written to Supabase.");
     console.log(`Teams to import/update: ${validation.summary.teams}`);
     console.log(`Groups to import/update: ${validation.summary.groups}`);
@@ -362,18 +331,19 @@ async function main() {
     return;
   }
 
-  loadEnvFile(".env.local");
-  loadEnvFile(".env");
+  const supabaseConfig = getScriptSupabaseConfig();
+  logScriptSupabaseTarget("World Cup data import", supabaseConfig, dryRun);
 
-  const supabaseUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-
-  const supabase = createClient<ImportDatabase>(supabaseUrl, serviceRoleKey, {
+  const supabase = createClient<ImportDatabase>(
+    supabaseConfig.url,
+    supabaseConfig.serviceRoleKey,
+    {
     auth: {
       persistSession: false,
       autoRefreshToken: false,
     },
-  });
+    },
+  );
 
   console.log("Importing teams...");
   const teams = allTeams(worldCup2026Data.groups);
