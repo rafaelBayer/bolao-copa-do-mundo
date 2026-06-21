@@ -97,6 +97,10 @@ function scoresAreEmpty(scores: SavedScores) {
   return scores.homeScore === null && scores.awayScore === null;
 }
 
+function scoresAreComplete(scores: SavedScores) {
+  return scores.homeScore !== null && scores.awayScore !== null;
+}
+
 function scoreLabelFromMatch(match: MatchWithTeams, fallback = "- x -") {
   const displayScore = getMatchDisplayScore(match);
 
@@ -492,6 +496,10 @@ export const MatchPredictionInput = forwardRef<
       return false;
     }
 
+    if (!scoresAreComplete(scores)) {
+      return false;
+    }
+
     return true;
   }, [isLocked]);
 
@@ -505,7 +513,6 @@ export const MatchPredictionInput = forwardRef<
 
       try {
         const savedPrediction = await savePrediction({
-          poolId,
           userId,
           matchId: match.id,
           homeScore: submittedScores.homeScore,
@@ -540,7 +547,7 @@ export const MatchPredictionInput = forwardRef<
         setStatus("error");
       }
     },
-    [match.id, onSaved, poolId, prediction, shouldSave, userId],
+    [match.id, onSaved, prediction, shouldSave, userId],
   );
 
   const loadCrowdPredictions = useCallback(async () => {

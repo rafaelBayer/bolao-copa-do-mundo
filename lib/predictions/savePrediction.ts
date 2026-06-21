@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 import type { Prediction } from "@/types/prediction";
 
 type SavePredictionInput = {
-  poolId: string;
+  poolId?: string;
   userId: string;
   matchId: string;
   homeScore: number | null;
@@ -19,7 +19,6 @@ export async function savePrediction({
   const supabase = createClient();
 
   const { data, error } = await supabase.rpc("save_prediction", {
-    target_pool_id: poolId,
     target_match_id: matchId,
     predicted_home_score: homeScore,
     predicted_away_score: awayScore,
@@ -37,7 +36,10 @@ export async function savePrediction({
 
   return {
     id: String(savedPrediction.id),
-    poolId: String(savedPrediction.pool_id),
+    poolId:
+      typeof savedPrediction.pool_id === "string"
+        ? savedPrediction.pool_id
+        : poolId ?? "",
     userId,
     matchId: String(savedPrediction.match_id),
     homeScore:
