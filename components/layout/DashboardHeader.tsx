@@ -10,7 +10,6 @@ type DashboardHeaderProps = {
   userLabel: string;
   userEmail?: string | null;
   avatarUrl?: string | null;
-  isOwner?: boolean;
   showPlayoffs?: boolean;
   brandTitle?: string | null;
   brandLogoUrl?: string | null;
@@ -20,7 +19,6 @@ export function DashboardHeader({
   userLabel,
   userEmail = null,
   avatarUrl = null,
-  isOwner = false,
   showPlayoffs = false,
   brandTitle = "Bolao da Copa",
   brandLogoUrl = null,
@@ -89,7 +87,6 @@ export function DashboardHeader({
           userLabel={userLabel}
           userEmail={userEmail}
           avatarUrl={avatarUrl}
-          isOwner={isOwner}
         />
       </div>
 
@@ -172,7 +169,6 @@ export function DashboardHeader({
             userLabel={userLabel}
             userEmail={userEmail}
             avatarUrl={avatarUrl}
-            isOwner={isOwner}
           />
         </div>
       </div>

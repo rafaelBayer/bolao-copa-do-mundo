@@ -161,7 +161,6 @@ export default async function DashboardLayout({
         userLabel={userLabel}
         userEmail={email}
         avatarUrl={profile?.avatar_url ?? null}
-        isOwner={isOwner}
         showPlayoffs={isOwner}
         brandTitle={brandTitle}
         brandLogoUrl={brandLogoUrl}

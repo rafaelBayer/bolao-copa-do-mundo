@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Moon, Shield, Sun, User } from "lucide-react";
+import { LogOut, Moon, Sun, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "@/components/theme/ThemeProvider";
 import { createClient } from "@/lib/supabase/client";
@@ -11,14 +11,12 @@ type UserMenuProps = {
   userLabel: string;
   userEmail?: string | null;
   avatarUrl?: string | null;
-  isOwner?: boolean;
 };
 
 export function UserMenu({
   userLabel,
   userEmail = null,
   avatarUrl = null,
-  isOwner = false,
 }: UserMenuProps) {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
@@ -126,17 +124,6 @@ export function UserMenu({
               <User size={16} aria-hidden="true" />
               Perfil
             </Link>
-            {isOwner ? (
-              <Link
-                href="/dashboard/admin"
-                role="menuitem"
-                onClick={() => setIsOpen(false)}
-                className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold text-slate-100 transition hover:bg-slate-800 light:text-slate-800 light:hover:bg-slate-100"
-              >
-                <Shield size={16} aria-hidden="true" />
-                Painel admin
-              </Link>
-            ) : null}
             <button
               type="button"
               role="menuitem"

@@ -1,14 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Settings } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Input } from "@/components/ui/Input";
-import { createClient } from "@/lib/supabase/client";
 
 export type PoolSummary = {
   id: string;
@@ -33,38 +29,13 @@ export function PoolContextPanel({
   selectedPoolId,
 }: PoolContextPanelProps) {
   const router = useRouter();
-  const [isCreating, setIsCreating] = useState(false);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const selectedPool = pools.find((pool) => pool.id === selectedPoolId);
   const showPoolSwitcher = pools.length > 1;
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setIsCreating(true);
-
-    const supabase = createClient();
-    const { data, error: createError } = await supabase.rpc(
-      "create_private_pool",
-      {
-        target_name: name,
-        target_description: description || null,
-      },
-    );
-
-    setIsCreating(false);
-
-    if (createError || !data) {
-      setError("Nao foi possivel criar o bolao agora.");
-      return;
-    }
-
-    setName("");
-    setDescription("");
-    router.push(poolHref(String(data)));
-    router.refresh();
+  function openPoolsSettings() {
+    document.cookie =
+      "bolao_profile_tab=boloes; path=/dashboard; max-age=31536000; samesite=lax";
+    router.push("/dashboard/profile");
   }
 
   return (
@@ -111,34 +82,14 @@ export function PoolContextPanel({
           ) : null}
         </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="grid gap-2 sm:min-w-[22rem] sm:grid-cols-[minmax(0,1fr)_auto]"
+        <button
+          type="button"
+          onClick={openPoolsSettings}
+          className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2.5 text-sm font-bold text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
         >
-          <div className="space-y-2">
-            <Input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Novo bolao privado"
-              required
-              minLength={2}
-            />
-            <Input
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Descricao opcional"
-            />
-            {error ? (
-              <p className="text-xs font-bold text-red-300 light:text-red-700">
-                {error}
-              </p>
-            ) : null}
-          </div>
-          <Button type="submit" disabled={isCreating} className="h-12">
-            <Plus size={16} aria-hidden="true" />
-            {isCreating ? "Criando..." : "Criar"}
-          </Button>
-        </form>
+          <Settings size={16} aria-hidden="true" />
+          Gerenciar boloes
+        </button>
       </div>
     </Card>
   );

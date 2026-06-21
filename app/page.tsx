@@ -46,28 +46,18 @@ export default async function HomePage() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   const user = data.user;
-  const [{ data: profileData }, { data: ownerMembership }] = user
-    ? await Promise.all([
-        supabase
-          .from("profiles")
-          .select("name, avatar_url")
-          .eq("id", user.id)
-          .maybeSingle(),
-        supabase
-          .from("pool_members")
-          .select("role")
-          .eq("user_id", user.id)
-          .eq("role", "owner")
-          .limit(1)
-          .maybeSingle(),
-      ])
-    : [{ data: null }, { data: null }];
+  const { data: profileData } = user
+    ? await supabase
+        .from("profiles")
+        .select("name, avatar_url")
+        .eq("id", user.id)
+        .maybeSingle()
+    : { data: null };
   const profile = profileData as {
     name?: string | null;
     avatar_url?: string | null;
   } | null;
   const userLabel = user ? userName(user, profile?.name) : null;
-  const isOwner = ownerMembership?.role === "owner";
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 light:bg-slate-50 light:text-slate-950">
@@ -87,7 +77,6 @@ export default async function HomePage() {
               userLabel={userLabel}
               userEmail={user.email}
               avatarUrl={profile?.avatar_url ?? null}
-              isOwner={isOwner}
             />
           </nav>
         ) : (
