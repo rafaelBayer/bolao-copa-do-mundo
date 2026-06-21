@@ -1,11 +1,15 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { existsSync, readFileSync } from "node:fs";
 import {
   espnTeamsMatch,
   fetchEspnScoreboardByDate,
   mapEspnEventToInternalMatch,
   type EspnEvent,
 } from "../lib/scores/providers/espn";
+import {
+  getScriptSupabaseConfig,
+  loadScriptEnvFiles,
+  logScriptSupabaseTarget,
+} from "../lib/supabase/scriptEnv";
 
 type MappingDatabase = {
   public: {
@@ -47,44 +51,6 @@ type MatchRow = {
 };
 
 type MappingSupabaseClient = SupabaseClient<MappingDatabase>;
-
-function loadEnvFile(path: string) {
-  if (!existsSync(path)) {
-    return;
-  }
-
-  const content = readFileSync(path, "utf8");
-
-  content.split(/\r?\n/).forEach((line) => {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-
-    const separatorIndex = trimmedLine.indexOf("=");
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmedLine.slice(0, separatorIndex).trim();
-    const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    const value = rawValue.replace(/^["']|["']$/g, "");
-
-    process.env[key] ??= value;
-  });
-}
-
-function requiredEnv(name: string) {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-
-  return value;
-}
 
 async function fetchMatches(supabase: MappingSupabaseClient) {
   const { data, error } = await supabase
@@ -171,13 +137,15 @@ function findCandidates(match: MatchRow, events: EspnEvent[]) {
 }
 
 async function main() {
-  loadEnvFile(".env.local");
-  loadEnvFile(".env");
+  loadScriptEnvFiles();
 
   const dryRun = process.argv.includes("--dry-run");
+  const supabaseConfig = getScriptSupabaseConfig();
+  logScriptSupabaseTarget("ESPN fixture mapping", supabaseConfig, dryRun);
+
   const supabase = createClient<MappingDatabase>(
-    requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    supabaseConfig.url,
+    supabaseConfig.serviceRoleKey,
     {
       auth: {
         persistSession: false,

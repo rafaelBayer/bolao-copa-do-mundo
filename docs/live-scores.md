@@ -120,6 +120,49 @@ SCORES_SYNC_SECRET=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
+Para scripts locais, voce pode escolher qual projeto Supabase sera usado sem
+trocar as variaveis padrao do app:
+
+```env
+SUPABASE_TARGET=syo
+
+SYO_SUPABASE_URL=
+SYO_SUPABASE_ANON_KEY=
+SYO_SUPABASE_SERVICE_ROLE_KEY=
+
+PUBLIC_SUPABASE_URL=
+PUBLIC_SUPABASE_ANON_KEY=
+PUBLIC_SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Valores aceitos:
+
+```txt
+syo
+public
+```
+
+Se `SUPABASE_TARGET` ficar vazio, os scripts usam:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+No PowerShell:
+
+```powershell
+$env:SUPABASE_TARGET="syo"; npm run scores:map-fixtures:dry
+$env:SUPABASE_TARGET="public"; npm run scores:watch:local:dry
+```
+
+Antes de rodar um comando real, use dry-run. O sync local aceita:
+
+```bash
+npm run scores:watch:local:dry
+```
+
 O mapeamento de fixtures tambem aceita estes opcionais:
 
 ```env

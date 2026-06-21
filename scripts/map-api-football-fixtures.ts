@@ -1,5 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { existsSync, readFileSync } from "node:fs";
+import {
+  getScriptSupabaseConfig,
+  loadScriptEnvFiles,
+  logScriptSupabaseTarget,
+} from "../lib/supabase/scriptEnv";
 
 const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
 const TIMEZONE = "America/Sao_Paulo";
@@ -66,44 +70,6 @@ type ApiFootballResponse = {
 };
 
 type MappingSupabaseClient = SupabaseClient<MappingDatabase>;
-
-function loadEnvFile(path: string) {
-  if (!existsSync(path)) {
-    return;
-  }
-
-  const content = readFileSync(path, "utf8");
-
-  content.split(/\r?\n/).forEach((line) => {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-
-    const separatorIndex = trimmedLine.indexOf("=");
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmedLine.slice(0, separatorIndex).trim();
-    const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    const value = rawValue.replace(/^["']|["']$/g, "");
-
-    process.env[key] ??= value;
-  });
-}
-
-function requiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-
-  return value;
-}
 
 function optionalEnv(name: string, fallback: string) {
   const value = process.env[name]?.trim();
@@ -375,21 +341,22 @@ function findFixtureCandidates(match: MatchRow, fixtures: ApiFootballFixture[]) 
 }
 
 async function main() {
-  loadEnvFile(".env.local");
-  loadEnvFile(".env");
+  loadScriptEnvFiles();
 
   const dryRun = process.argv.includes("--dry-run");
+  const supabaseConfig = getScriptSupabaseConfig();
   const debug =
     process.argv.includes("--debug") ||
     process.env.DEBUG_API_FOOTBALL === "true";
 
+  logScriptSupabaseTarget("API-Football fixture mapping", supabaseConfig, dryRun);
   console.log("Fetching API-Football fixtures...");
   const fixtures = await fetchApiFootballFixtures(debug);
   console.log(`Fixtures returned: ${fixtures.length}`);
 
   const supabase = createClient<MappingDatabase>(
-    requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    supabaseConfig.url,
+    supabaseConfig.serviceRoleKey,
     {
       auth: {
         persistSession: false,

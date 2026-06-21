@@ -23,6 +23,12 @@ import {
   isHalftimeStatus,
   isLiveMatchStatus,
 } from "@/lib/scores/liveScoreStatus";
+import {
+  getScriptSupabaseConfig,
+  isDryRunEnabled,
+  logScriptSupabaseTarget,
+  type ScriptSupabaseConfig,
+} from "@/lib/supabase/scriptEnv";
 
 const TIMEZONE = "America/Sao_Paulo";
 const ACTIVE_WINDOW_BEFORE_MINUTES = 5;
@@ -160,16 +166,6 @@ export type LiveScoreSyncResult = {
   message?: string;
 };
 
-function getRequiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`Missing ${name}.`);
-  }
-
-  return value;
-}
-
 function currentProvider(): LiveScoreProvider {
   const provider = process.env.LIVE_SCORE_PROVIDER?.trim();
 
@@ -194,10 +190,10 @@ function currentProvider(): LiveScoreProvider {
   return "manual";
 }
 
-function createServiceClient(): SyncSupabaseClient {
+function createServiceClient(config: ScriptSupabaseConfig): SyncSupabaseClient {
   return createClient<SyncDatabase>(
-    getRequiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    getRequiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    config.url,
+    config.serviceRoleKey,
     {
       auth: {
         persistSession: false,
@@ -883,6 +879,14 @@ async function saveEspnGoals(input: {
         continue;
       }
 
+      if (isDryRunEnabled()) {
+        insertedGoals += 1;
+        console.log(
+          `[dry-run][espn] Would insert goal: ${input.match.home_team?.name ?? "Home"} x ${input.match.away_team?.name ?? "Away"} - ${goal.playerName ?? "Jogador"} ${goal.minute ?? "?"}'`,
+        );
+        continue;
+      }
+
       const { error } = await input.supabase.from("match_goals").insert({
         match_id: input.match.id,
         provider: "espn",
@@ -1131,6 +1135,22 @@ async function updateMatch(
   match: MatchRow,
   update: MatchUpdate,
 ) {
+  if (isDryRunEnabled()) {
+    console.log(
+      `[dry-run] Would update match ${match.id}: ${JSON.stringify({
+        status_short: update.status_short,
+        elapsed: update.elapsed,
+        home_score_live: update.home_score_live,
+        away_score_live: update.away_score_live,
+        home_score: update.home_score,
+        away_score: update.away_score,
+        score_provider: update.score_provider,
+        score_provider_fixture_id: update.score_provider_fixture_id,
+      })}`,
+    );
+    return;
+  }
+
   const { error } = await supabase
     .from("matches")
     .update(update)
@@ -1145,6 +1165,20 @@ async function insertSyncLog(
   supabase: SyncSupabaseClient,
   log: LiveScoreSyncLogInsert,
 ) {
+  if (isDryRunEnabled()) {
+    console.log(
+      `[dry-run] Would insert live_score_sync_logs row: ${JSON.stringify({
+        provider: log.provider,
+        status: log.status,
+        reason: log.reason,
+        active_matches_count: log.active_matches_count,
+        updated_matches_count: log.updated_matches_count,
+        requested_matchdays: log.requested_matchdays,
+      })}`,
+    );
+    return;
+  }
+
   const { error } = await supabase.from("live_score_sync_logs").insert(log);
 
   if (error) {
@@ -1183,7 +1217,11 @@ async function finishWithLog(
 export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
   const startedAt = new Date();
   const provider = currentProvider();
-  const supabase = createServiceClient();
+  const dryRun = isDryRunEnabled();
+  const supabaseConfig = getScriptSupabaseConfig();
+  const supabase = createServiceClient(supabaseConfig);
+
+  logScriptSupabaseTarget("Live score sync", supabaseConfig, dryRun);
 
   try {
     if (provider === "manual") {

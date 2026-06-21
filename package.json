@@ -15,8 +15,11 @@
     "scores:map-fixtures:dry": "tsx scripts/map-live-score-fixtures.ts --dry-run",
     "scores:map-fixtures": "tsx scripts/map-live-score-fixtures.ts",
     "scores:map-api-football:dry": "tsx scripts/map-api-football-fixtures.ts --dry-run",
+    "scores:map-espn:dry": "tsx scripts/map-espn-fixtures.ts --dry-run",
     "scores:map-espn": "tsx scripts/map-espn-fixtures.ts",
+    "scores:map-worldcup26:dry": "tsx scripts/map-worldcup26-fixtures.ts --dry-run",
     "scores:map-worldcup26": "tsx scripts/map-worldcup26-fixtures.ts",
+    "scores:watch:local:dry": "tsx scripts/watch-live-scores-local.ts --once --dry-run",
     "scores:watch:local": "tsx scripts/watch-live-scores-local.ts",
     "playoffs:mock": "tsx scripts/seed-playoffs-mock.ts"
   },

@@ -1,8 +1,12 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { existsSync, readFileSync } from "node:fs";
 import { fetchApiFootballFixturesByCompetition } from "../lib/scores/providers/apiFootball";
 import { fetchFootballDataMatchesByMatchdays } from "../lib/scores/providers/footballData";
 import type { LiveScoreFixture } from "../lib/scores/providers/types";
+import {
+  getScriptSupabaseConfig,
+  loadScriptEnvFiles,
+  logScriptSupabaseTarget,
+} from "../lib/supabase/scriptEnv";
 
 const TIMEZONE = "America/Sao_Paulo";
 const FOOTBALL_DATA_GROUP_MATCHDAYS = [1, 2, 3];
@@ -49,44 +53,6 @@ type MatchRow = {
 };
 
 type MappingSupabaseClient = SupabaseClient<MappingDatabase>;
-
-function loadEnvFile(path: string) {
-  if (!existsSync(path)) {
-    return;
-  }
-
-  const content = readFileSync(path, "utf8");
-
-  content.split(/\r?\n/).forEach((line) => {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-
-    const separatorIndex = trimmedLine.indexOf("=");
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmedLine.slice(0, separatorIndex).trim();
-    const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    const value = rawValue.replace(/^["']|["']$/g, "");
-
-    process.env[key] ??= value;
-  });
-}
-
-function requiredEnv(name: string) {
-  const value = process.env[name];
-
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-
-  return value;
-}
 
 function currentProvider(): LiveScoreProvider {
   const provider = process.env.LIVE_SCORE_PROVIDER?.trim();
@@ -256,8 +222,7 @@ function logFootballDataFixtureSummary(fixtures: LiveScoreFixture[]) {
 }
 
 async function main() {
-  loadEnvFile(".env.local");
-  loadEnvFile(".env");
+  loadScriptEnvFiles();
 
   const dryRun = process.argv.includes("--dry-run");
   const provider = currentProvider();
@@ -269,6 +234,9 @@ async function main() {
     return;
   }
 
+  const supabaseConfig = getScriptSupabaseConfig();
+  logScriptSupabaseTarget("Live score fixture mapping", supabaseConfig, dryRun);
+
   console.log("Fetching provider fixtures...");
   const fixtures = await fetchProviderFixtures(provider);
 
@@ -279,8 +247,8 @@ async function main() {
   }
 
   const supabase = createClient<MappingDatabase>(
-    requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
+    supabaseConfig.url,
+    supabaseConfig.serviceRoleKey,
     {
       auth: {
         persistSession: false,

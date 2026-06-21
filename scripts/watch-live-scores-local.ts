@@ -1,5 +1,6 @@
-import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
+import { appendFileSync, mkdirSync } from "node:fs";
 import { runLiveScoreSync } from "../lib/scores/runLiveScoreSync";
+import { loadScriptEnvFiles } from "../lib/supabase/scriptEnv";
 
 const DEFAULT_POLL_INTERVAL_SECONDS = 30;
 const LOG_FILE_PATH = "logs/scores-watch-local-current.log";
@@ -49,34 +50,6 @@ console.error = (...args: unknown[]) => {
   appendLocalLogLine(args);
   originalConsole.error(...args);
 };
-
-function loadEnvFile(path: string) {
-  if (!existsSync(path)) {
-    return;
-  }
-
-  const content = readFileSync(path, "utf8");
-
-  content.split(/\r?\n/).forEach((line) => {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-
-    const separatorIndex = trimmedLine.indexOf("=");
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmedLine.slice(0, separatorIndex).trim();
-    const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    const value = rawValue.replace(/^["']|["']$/g, "");
-
-    process.env[key] ??= value;
-  });
-}
 
 function optionalEnv(name: string) {
   return process.env[name]?.trim() || null;
@@ -134,8 +107,7 @@ async function runOnce() {
 }
 
 async function main() {
-  loadEnvFile(".env.local");
-  loadEnvFile(".env");
+  loadScriptEnvFiles();
 
   const localSource = optionalEnv("LOCAL_SCORE_SOURCE");
 
