@@ -15,6 +15,7 @@ type GroupMatchesProps = {
   userId: string;
   matches: MatchWithTeams[];
   predictions: Prediction[];
+  canViewPoolPredictions: boolean;
   focusRequest?: {
     matchId: string;
     requestId: number;
@@ -52,6 +53,7 @@ export function GroupMatches({
   userId,
   matches,
   predictions,
+  canViewPoolPredictions,
   focusRequest = null,
   onPredictionSaved,
 }: GroupMatchesProps) {
@@ -231,6 +233,7 @@ export function GroupMatches({
               match={match}
               prediction={prediction}
               isHighlighted={focusRequest?.matchId === match.id}
+              canViewPoolPredictions={canViewPoolPredictions}
               onSaved={onPredictionSaved}
             />
           );

@@ -15,6 +15,7 @@ type GroupSectionProps = {
   predictions: Prediction[];
   poolId: string;
   userId: string;
+  canViewPoolPredictions: boolean;
   focusRequest?: {
     matchId: string;
     requestId: number;
@@ -37,6 +38,7 @@ export function GroupSection({
   predictions,
   poolId,
   userId,
+  canViewPoolPredictions,
   focusRequest = null,
   onPredictionSaved,
 }: GroupSectionProps) {
@@ -177,6 +179,7 @@ export function GroupSection({
             userId={userId}
             matches={group.matches}
             predictions={predictions}
+            canViewPoolPredictions={canViewPoolPredictions}
             focusRequest={focusRequest}
             onPredictionSaved={onPredictionSaved}
           />

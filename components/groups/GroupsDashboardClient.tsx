@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ListChecks } from "lucide-react";
 import { GroupSection } from "@/components/groups/GroupSection";
+import {
+  PoolContextPanel,
+  type PoolSummary,
+} from "@/components/pools/PoolContextPanel";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +20,8 @@ type GroupsDashboardClientProps = {
   initialPredictions: Prediction[];
   poolId: string;
   poolName: string;
+  pools: PoolSummary[];
+  canViewPoolPredictions: boolean;
   userId: string;
 };
 
@@ -244,6 +250,8 @@ export function GroupsDashboardClient({
   initialPredictions,
   poolId,
   poolName,
+  pools,
+  canViewPoolPredictions,
   userId,
 }: GroupsDashboardClientProps) {
   const [visibleGroups, setVisibleGroups] = useState(groups);
@@ -437,6 +445,8 @@ export function GroupsDashboardClient({
 
   return (
     <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 sm:py-10 lg:px-6">
+      <PoolContextPanel pools={pools} selectedPoolId={poolId} />
+
       <Card className="mb-6 overflow-hidden p-5 sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
           <div>
@@ -543,6 +553,7 @@ export function GroupsDashboardClient({
             predictions={predictions}
             poolId={poolId}
             userId={userId}
+            canViewPoolPredictions={canViewPoolPredictions}
             focusRequest={focusRequest}
             onPredictionSaved={handlePredictionSaved}
           />

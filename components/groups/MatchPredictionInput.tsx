@@ -32,6 +32,7 @@ type MatchPredictionInputProps = {
   match: MatchWithTeams;
   prediction?: Prediction;
   isHighlighted?: boolean;
+  canViewPoolPredictions?: boolean;
   onSaved?: (prediction: Prediction) => void;
 };
 
@@ -411,7 +412,15 @@ export const MatchPredictionInput = forwardRef<
   MatchPredictionInputHandle,
   MatchPredictionInputProps
 >(function MatchPredictionInput(
-  { poolId, userId, match, prediction, isHighlighted = false, onSaved },
+  {
+    poolId,
+    userId,
+    match,
+    prediction,
+    isHighlighted = false,
+    canViewPoolPredictions = false,
+    onSaved,
+  },
   ref,
 ) {
   const liveStatus = matchStatusLabel(match);
@@ -836,7 +845,7 @@ export const MatchPredictionInput = forwardRef<
         </div>
       ) : null}
 
-      {isLocked ? (
+      {isLocked && canViewPoolPredictions ? (
         <div className="mt-3 border-t border-slate-800 pt-3 light:border-slate-200">
           <button
             type="button"

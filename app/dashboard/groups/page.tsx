@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { mockGroups } from "@/lib/mock/groups";
 import { createClient } from "@/lib/supabase/server";
+import type { PoolSummary } from "@/components/pools/PoolContextPanel";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
 import type { MatchGoal, Team } from "@/types/match";
 import type { Prediction } from "@/types/prediction";
@@ -12,6 +13,11 @@ export const dynamic = "force-dynamic";
 type PoolInfo = {
   id: string;
   name: string;
+};
+type GroupsPageProps = {
+  searchParams?: Promise<{
+    pool?: string | string[];
+  }>;
 };
 
 function single<T>(value: T | T[] | null | undefined): T | null {
@@ -49,6 +55,39 @@ function mapPrediction(
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
+}
+
+function mapPoolSummary(row: Record<string, unknown>): PoolSummary | null {
+  const pool = single(
+    row.pools as Record<string, unknown> | Record<string, unknown>[] | null,
+  );
+
+  if (!pool?.id) {
+    return null;
+  }
+
+  const rawType = pool.type;
+  const role = row.role === "owner" ? "owner" : "member";
+
+  return {
+    id: String(pool.id),
+    name: typeof pool.name === "string" ? pool.name : "Meu bolao",
+    description:
+      typeof pool.description === "string" ? pool.description : null,
+    type: rawType === "general" ? "general" : "private",
+    isDefault: pool.is_default === true,
+    role,
+  };
+}
+
+function sortPools(pools: PoolSummary[]) {
+  return [...pools].sort((left, right) => {
+    if (left.isDefault !== right.isDefault) {
+      return left.isDefault ? -1 : 1;
+    }
+
+    return left.name.localeCompare(right.name, "pt-BR");
+  });
 }
 
 function uniquePredictionsByMatch(predictions: Prediction[]) {
@@ -183,8 +222,12 @@ function mapGroups(rows: Record<string, unknown>[]): GroupWithTeamsAndMatches[] 
   });
 }
 
-export default async function GroupsPage() {
+export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   const supabase = await createClient();
+  const resolvedSearchParams = await searchParams;
+  const requestedPoolId = Array.isArray(resolvedSearchParams?.pool)
+    ? resolvedSearchParams?.pool[0]
+    : resolvedSearchParams?.pool;
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
 
@@ -192,14 +235,20 @@ export default async function GroupsPage() {
     return null;
   }
 
-  const { data: membership } = await supabase
+  const { data: membershipsData } = await supabase
     .from("pool_members")
-    .select("pool_id, pools(id, name)")
+    .select("pool_id, role, pools(id, name, description, type, is_default)")
     .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const pools = sortPools(
+    (membershipsData ?? [])
+      .map((row) => mapPoolSummary(row as Record<string, unknown>))
+      .filter((pool): pool is PoolSummary => Boolean(pool)),
+  );
+  const selectedPool =
+    pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null;
 
-  if (!membership?.pool_id) {
+  if (!selectedPool) {
     return (
       <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 lg:px-6">
         <Card className="p-6">
@@ -215,21 +264,16 @@ export default async function GroupsPage() {
     );
   }
 
-  const rawPool = single(
-    (membership as {
-      pools?: Record<string, unknown> | Record<string, unknown>[] | null;
-    }).pools,
-  );
   const pool: PoolInfo = {
-    id: String(membership.pool_id),
-    name:
-      rawPool && typeof rawPool === "object" && "name" in rawPool
-        ? String(rawPool.name)
-        : "Meu bolao",
+    id: selectedPool.id,
+    name: selectedPool.name,
   };
 
-  const [{ data: groupsData, error: groupsError }, { data: predictionsData }] =
-    await Promise.all([
+  const [
+    { data: groupsData, error: groupsError },
+    { data: predictionsData },
+    { data: selectedPoolMembers },
+  ] = await Promise.all([
       supabase
         .from("groups")
         .select(
@@ -281,6 +325,10 @@ export default async function GroupsPage() {
         )
         .eq("user_id", userId)
         .order("updated_at", { ascending: false }),
+      supabase
+        .from("pool_members")
+        .select("id")
+        .eq("pool_id", pool.id),
     ]);
 
   // TODO: remover fallback mock antes de producao; dados reais devem vir do Supabase
@@ -301,6 +349,10 @@ export default async function GroupsPage() {
       initialPredictions={predictions}
       poolId={pool.id}
       poolName={pool.name}
+      pools={pools}
+      canViewPoolPredictions={
+        pools.length > 1 || (selectedPoolMembers?.length ?? 0) > 1
+      }
       userId={userId}
     />
   );
