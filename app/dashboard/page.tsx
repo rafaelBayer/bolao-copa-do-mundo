@@ -83,17 +83,17 @@ export default async function DashboardPage() {
             Sua conta esta pronta
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 light:text-slate-600">
-            Esta e a area inicial autenticada do Bolao. Nas proximas etapas,
-            voce podera criar boloes, convidar amigos, registrar palpites e
+            Esta e sua area inicial autenticada. Voce ja pode acessar o Bolao
+            Geral, criar boloes privados, convidar amigos, registrar palpites e
             acompanhar rankings.
           </p>
           <div className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 light:border-emerald-200 light:bg-emerald-50">
             <p className="text-sm font-bold text-emerald-200 light:text-emerald-900">
-              Proxima etapa
+              Comece agora
             </p>
             <p className="mt-1 text-sm text-emerald-100/80 light:text-emerald-800">
-              Implementar criacao de boloes, convites e o primeiro fluxo de
-              palpites.
+              Acesse a aba Palpites para participar do Bolao Geral ou gerencie
+              seus boloes privados pelo perfil.
             </p>
           </div>
         </Card>

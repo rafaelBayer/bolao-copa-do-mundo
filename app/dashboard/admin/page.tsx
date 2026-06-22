@@ -13,15 +13,9 @@ export default async function AdminPage() {
     return null;
   }
 
-  const { data: membership } = await supabase
-    .from("pool_members")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "owner")
-    .limit(1)
-    .maybeSingle();
+  const { data: isSystemAdmin } = await supabase.rpc("is_system_admin");
 
-  if (membership?.role !== "owner") {
+  if (isSystemAdmin !== true) {
     redirect("/dashboard/groups");
   }
 

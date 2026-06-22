@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { AdminPanelSection } from "@/components/admin/AdminPanelContent";
 import { Card } from "@/components/ui/Card";
 
@@ -19,16 +19,17 @@ export function AdminSectionButton({
   description,
   section,
 }: AdminSectionButtonProps) {
-  const router = useRouter();
-
-  function handleClick() {
+  function rememberSection() {
     savePreference("bolao_profile_tab", "admin");
     savePreference("bolao_admin_section", section);
-    router.refresh();
   }
 
   return (
-    <button type="button" onClick={handleClick} className="text-left">
+    <Link
+      href={`/dashboard/profile?tab=admin&section=${section}`}
+      onClick={rememberSection}
+      className="text-left"
+    >
       <Card className="h-full p-4 transition hover:border-emerald-400/50">
         <h2 className="font-black text-slate-50 light:text-slate-950">
           {title}
@@ -37,6 +38,6 @@ export function AdminSectionButton({
           {description}
         </p>
       </Card>
-    </button>
+    </Link>
   );
 }

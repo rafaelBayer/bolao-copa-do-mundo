@@ -31,11 +31,19 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
+
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail || !password) {
+      setError("Informe e-mail e senha para entrar.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const supabase = createClient();
     const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
+      email: trimmedEmail,
       password,
     });
 
@@ -51,7 +59,7 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form method="post" onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <label
           htmlFor="email"
@@ -61,6 +69,7 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
         </label>
         <Input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -78,6 +87,7 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
         </label>
         <Input
           id="password"
+          name="password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}

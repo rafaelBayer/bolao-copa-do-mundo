@@ -179,6 +179,22 @@ export default async function LeaderboardPage({
   const selectedPool =
     pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null;
 
+  if (requestedPoolId && !pools.some((pool) => pool.id === requestedPoolId)) {
+    return (
+      <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
+        <Card className="p-6">
+          <Badge tone="amber">Acesso negado</Badge>
+          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+            Bolao nao encontrado
+          </h1>
+          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+            Esse bolao nao existe ou voce nao tem permissao para ver a classificacao.
+          </p>
+        </Card>
+      </main>
+    );
+  }
+
   if (!selectedPool) {
     return (
       <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">

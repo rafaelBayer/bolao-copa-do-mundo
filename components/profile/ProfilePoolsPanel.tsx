@@ -22,22 +22,45 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
   const [description, setDescription] = useState("");
   const [error, setError] = useState("");
   const [copiedPoolId, setCopiedPoolId] = useState<string | null>(null);
+  const [manualInviteLink, setManualInviteLink] = useState("");
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    const trimmedName = name.trim();
+    const trimmedDescription = description.trim();
+
+    if (!trimmedName) {
+      setError("Informe o nome do bolao.");
+      return;
+    }
+
+    if (trimmedName.length < 2) {
+      setError("O nome do bolao precisa ter pelo menos 2 caracteres.");
+      return;
+    }
+
+    if (trimmedName.length > 80) {
+      setError("Use um nome com ate 80 caracteres.");
+      return;
+    }
+
     setIsCreating(true);
 
     const supabase = createClient();
     const { error: createError } = await supabase.rpc("create_private_pool", {
-      target_name: name,
-      target_description: description || null,
+      target_name: trimmedName,
+      target_description: trimmedDescription || null,
     });
 
     setIsCreating(false);
 
     if (createError) {
-      setError("Nao foi possivel criar o bolao agora.");
+      setError(
+        createError.message.includes("Pool name is required")
+          ? "Informe o nome do bolao."
+          : "Nao foi possivel criar o bolao agora. Tente novamente.",
+      );
       return;
     }
 
@@ -53,9 +76,15 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
 
     const link = `${window.location.origin}/convite/${pool.inviteCode}`;
 
-    await navigator.clipboard.writeText(link);
-    setCopiedPoolId(pool.id);
-    window.setTimeout(() => setCopiedPoolId(null), 1800);
+    try {
+      await navigator.clipboard.writeText(link);
+      setManualInviteLink("");
+      setCopiedPoolId(pool.id);
+      window.setTimeout(() => setCopiedPoolId(null), 1800);
+    } catch {
+      setCopiedPoolId(null);
+      setManualInviteLink(link);
+    }
   }
 
   return (
@@ -96,6 +125,15 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
           <p className="mt-3 text-sm font-bold text-red-300 light:text-red-600">
             {error}
           </p>
+        ) : null}
+
+        {manualInviteLink ? (
+          <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
+            <p className="font-bold">
+              Nao foi possivel copiar automaticamente. Copie o link abaixo:
+            </p>
+            <p className="mt-2 break-all font-mono text-xs">{manualInviteLink}</p>
+          </div>
         ) : null}
       </Card>
 

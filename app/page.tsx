@@ -171,9 +171,8 @@ export default async function HomePage() {
               Comece seu bolao em poucos minutos
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 light:text-slate-600">
-              Nesta primeira etapa, voce ja pode criar sua conta e acessar a
-              area logada. As funcionalidades de grupos, convites e palpites
-              entram nas proximas etapas.
+              Crie sua conta, entre no Bolao Geral, registre seus palpites e
+              convide amigos para disputar em boloes privados.
             </p>
           </div>
           {user ? (

@@ -28,7 +28,6 @@ export type AdminPanelSection =
   | "settings";
 
 type AdminPanelContentProps = {
-  userId: string;
   section: AdminPanelSection;
 };
 
@@ -293,43 +292,57 @@ function AdminHome({
   );
 }
 
-export async function AdminPanelContent({
-  userId,
-  section,
-}: AdminPanelContentProps) {
+export async function AdminPanelContent({ section }: AdminPanelContentProps) {
   const supabase = await createClient();
-  const { data: membership } = await supabase
-    .from("pool_members")
-    .select("pool_id, role, pools(id, name)")
-    .eq("user_id", userId)
-    .eq("role", "owner")
-    .limit(1)
-    .maybeSingle();
+  const { data: isSystemAdmin } = await supabase.rpc("is_system_admin");
 
-  if (!membership?.pool_id || membership.role !== "owner") {
+  if (isSystemAdmin !== true) {
     return null;
   }
 
-  const rawPool = single(
-    (membership as {
-      pools?: Record<string, unknown> | Record<string, unknown>[] | null;
-    }).pools,
-  );
-  const { data: brandingData } = await supabase
+  const { data: defaultPoolData } = await supabase
     .from("pools")
-    .select("header_title, logo_url")
-    .eq("id", String(membership.pool_id))
+    .select("id, name, header_title, logo_url")
+    .eq("is_default", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
-  const branding = brandingData as {
+  const { data: fallbackPoolData } = defaultPoolData
+    ? { data: null }
+    : await supabase
+        .from("pools")
+        .select("id, name, header_title, logo_url")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+  const adminPool = (defaultPoolData ?? fallbackPoolData) as {
+    id?: string | null;
+    name?: string | null;
     header_title?: string | null;
     logo_url?: string | null;
   } | null;
+
+  if (!adminPool?.id) {
+    return (
+      <Card className="p-5">
+        <Badge tone="amber">Configuracao</Badge>
+        <h2 className="mt-3 text-xl font-black text-slate-50 light:text-slate-950">
+          Nenhum bolao encontrado
+        </h2>
+        <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
+          Aplique as migrations e garanta o Bolao Geral antes de usar o Painel Admin.
+        </p>
+      </Card>
+    );
+  }
+
+  const branding = adminPool as {
+    header_title?: string | null;
+    logo_url?: string | null;
+  };
   const pool: PoolInfo = {
-    id: String(membership.pool_id),
-    name:
-      rawPool && typeof rawPool === "object" && "name" in rawPool
-        ? String(rawPool.name)
-        : "Meu bolao",
+    id: adminPool.id,
+    name: adminPool.name?.trim() || "Bolao Geral",
     headerTitle:
       typeof branding?.header_title === "string"
         ? branding.header_title
@@ -447,7 +460,7 @@ export async function AdminPanelContent({
             Placares
           </h2>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Monitore o provider automatico, ultimas execucoes e jogos em janela ativa.
+            Consulte historico e janela ativa. No MVP publico, a sincronizacao automatica fica desativada e o placar e manual.
           </p>
         </div>
         <LiveScoreMonitorPanel

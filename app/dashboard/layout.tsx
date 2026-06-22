@@ -1,6 +1,8 @@
 ﻿import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
+import { Badge } from "@/components/ui/Badge";
+import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -91,22 +93,16 @@ export default async function DashboardLayout({
     },
   );
 
-  if (defaultPoolError && process.env.NODE_ENV === "development") {
-    console.error(defaultPoolError);
+  if (defaultPoolError) {
+    console.error("Failed to ensure default pool membership", defaultPoolError);
   }
 
   const [
-    { data: ownerMembership },
+    { data: isSystemAdminData },
     { data: membershipData },
     { data: profileData },
   ] = await Promise.all([
-    supabase
-      .from("pool_members")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "owner")
-      .limit(1)
-      .maybeSingle(),
+    supabase.rpc("is_system_admin"),
     supabase
       .from("pool_members")
       .select("pool_id, pools(name)")
@@ -153,7 +149,34 @@ export default async function DashboardLayout({
   const brandLogoUrl = branding?.logo_url?.trim() || null;
   const profileName = profile?.name?.trim();
   const userLabel = profileName || email || "Usuario";
-  const isOwner = ownerMembership?.role === "owner";
+  const isSystemAdmin = isSystemAdminData === true;
+
+  if (defaultPoolError && !membershipData) {
+    return (
+      <div className="min-h-screen">
+        <DashboardHeader
+          userLabel={userLabel}
+          userEmail={email}
+          avatarUrl={profile?.avatar_url ?? null}
+          showPlayoffs={isSystemAdmin}
+          brandTitle={brandTitle}
+          brandLogoUrl={brandLogoUrl}
+        />
+        <main className="mx-auto w-full max-w-[960px] px-3 py-8 sm:px-5 lg:px-8">
+          <Card className="p-6">
+            <Badge tone="amber">Configuracao</Badge>
+            <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+              Nao foi possivel preparar seu Bolao Geral
+            </h1>
+            <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+              O sistema nao conseguiu vincular sua conta ao bolao padrao.
+              Tente novamente em alguns instantes ou avise o administrador.
+            </p>
+          </Card>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -161,7 +184,7 @@ export default async function DashboardLayout({
         userLabel={userLabel}
         userEmail={email}
         avatarUrl={profile?.avatar_url ?? null}
-        showPlayoffs={isOwner}
+        showPlayoffs={isSystemAdmin}
         brandTitle={brandTitle}
         brandLogoUrl={brandLogoUrl}
       />

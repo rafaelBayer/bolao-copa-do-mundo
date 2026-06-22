@@ -11,6 +11,9 @@ type UserProfilePageProps = {
   params: Promise<{
     username: string;
   }>;
+  searchParams?: Promise<{
+    pool?: string | string[];
+  }>;
 };
 
 type VisiblePredictionRow = {
@@ -78,8 +81,15 @@ function EmptyState({
   );
 }
 
-export default async function UserProfilePage({ params }: UserProfilePageProps) {
+export default async function UserProfilePage({
+  params,
+  searchParams,
+}: UserProfilePageProps) {
   const { username } = await params;
+  const resolvedSearchParams = await searchParams;
+  const requestedPoolId = Array.isArray(resolvedSearchParams?.pool)
+    ? resolvedSearchParams?.pool[0]
+    : resolvedSearchParams?.pool;
   const supabase = await createClient();
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
@@ -88,14 +98,44 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     return null;
   }
 
-  const { data: membership } = await supabase
+  const { data: membershipsData } = await supabase
     .from("pool_members")
     .select("pool_id")
     .eq("user_id", userId)
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const poolIds = (membershipsData ?? []).map((row) =>
+    String((row as Record<string, unknown>).pool_id),
+  );
+  const selectedPoolId =
+    (requestedPoolId && poolIds.includes(requestedPoolId)
+      ? requestedPoolId
+      : null) ??
+    poolIds[0] ??
+    null;
 
-  if (!membership?.pool_id) {
+  if (requestedPoolId && !poolIds.includes(requestedPoolId)) {
+    return (
+      <main className="mx-auto w-full max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
+        <Card className="p-6">
+          <Link
+            href="/dashboard/leaderboard"
+            className="inline-flex items-center gap-2 text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
+          >
+            <ArrowLeft size={16} aria-hidden="true" />
+            Voltar para classificacao
+          </Link>
+          <h1 className="mt-5 text-2xl font-black text-slate-50 light:text-slate-950">
+            Bolao nao encontrado
+          </h1>
+          <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
+            Esse bolao nao existe ou voce nao tem permissao para ver este contexto.
+          </p>
+        </Card>
+      </main>
+    );
+  }
+
+  if (!selectedPoolId) {
     return (
       <main className="mx-auto w-full max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
         <Card className="p-6">
@@ -111,7 +151,7 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
   const { data, error } = await supabase.rpc(
     "get_visible_user_predictions_by_username",
     {
-      p_target_pool_id: membership.pool_id,
+      p_target_pool_id: selectedPoolId,
       p_target_username: username,
     },
   );
@@ -174,7 +214,7 @@ export default async function UserProfilePage({ params }: UserProfilePageProps) 
     <main className="mx-auto w-full max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
       <div className="space-y-5">
         <Link
-          href="/dashboard/leaderboard"
+          href={`/dashboard/leaderboard?pool=${selectedPoolId}`}
           className="inline-flex items-center gap-2 text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
         >
           <ArrowLeft size={16} aria-hidden="true" />

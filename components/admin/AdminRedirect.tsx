@@ -13,7 +13,7 @@ export function AdminRedirect() {
   useEffect(() => {
     savePreference("bolao_profile_tab", "admin");
     savePreference("bolao_admin_section", "home");
-    router.replace("/dashboard/profile");
+    router.replace("/dashboard/profile?tab=admin&section=home");
   }, [router]);
 
   return null;

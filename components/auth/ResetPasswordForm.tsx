@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -14,6 +15,7 @@ export function ResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [missingCode, setMissingCode] = useState(false);
   const [isPreparingSession, setIsPreparingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -23,6 +25,15 @@ export function ResetPasswordForm() {
     async function prepareSession() {
       const supabase = createClient();
       const code = searchParams.get("code");
+
+      if (!code) {
+        if (isMounted) {
+          setMissingCode(true);
+          setError("Solicite um novo link de recuperacao para redefinir sua senha.");
+          setIsPreparingSession(false);
+        }
+        return;
+      }
 
       if (code) {
         const { error: exchangeError } =
@@ -80,7 +91,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form method="post" onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <label
           htmlFor="password"
@@ -90,13 +101,14 @@ export function ResetPasswordForm() {
         </label>
         <Input
           id="password"
+          name="password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           required
           minLength={6}
           autoComplete="new-password"
-          disabled={isPreparingSession}
+          disabled={isPreparingSession || missingCode}
         />
       </div>
 
@@ -109,13 +121,14 @@ export function ResetPasswordForm() {
         </label>
         <Input
           id="confirm-password"
+          name="confirm-password"
           type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}
           required
           minLength={6}
           autoComplete="new-password"
-          disabled={isPreparingSession}
+          disabled={isPreparingSession || missingCode}
         />
       </div>
 
@@ -133,12 +146,21 @@ export function ResetPasswordForm() {
 
       <Button
         type="submit"
-        disabled={isPreparingSession || isSubmitting}
+        disabled={isPreparingSession || isSubmitting || missingCode}
         className="w-full py-3"
       >
         <KeyRound size={18} aria-hidden="true" />
         {isSubmitting ? "Atualizando..." : "Redefinir senha"}
       </Button>
+
+      {missingCode ? (
+        <Link
+          href="/esqueci-senha"
+          className="block text-center text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
+        >
+          Solicitar novo link
+        </Link>
+      ) : null}
     </form>
   );
 }

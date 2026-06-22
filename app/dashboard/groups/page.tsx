@@ -1,7 +1,6 @@
 ﻿import { GroupsDashboardClient } from "@/components/groups/GroupsDashboardClient";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
-import { mockGroups } from "@/lib/mock/groups";
 import { createClient } from "@/lib/supabase/server";
 import type { PoolSummary } from "@/components/pools/PoolContextPanel";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
@@ -248,6 +247,22 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
   const selectedPool =
     pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null;
 
+  if (requestedPoolId && !pools.some((pool) => pool.id === requestedPoolId)) {
+    return (
+      <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 lg:px-6">
+        <Card className="p-6">
+          <Badge tone="amber">Acesso negado</Badge>
+          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+            Bolao nao encontrado
+          </h1>
+          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+            Esse bolao nao existe ou voce nao tem permissao para acessa-lo.
+          </p>
+        </Card>
+      </main>
+    );
+  }
+
   if (!selectedPool) {
     return (
       <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 lg:px-6">
@@ -331,12 +346,24 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
         .eq("pool_id", pool.id),
     ]);
 
-  // TODO: remover fallback mock antes de producao; dados reais devem vir do Supabase
-  // importados por scripts/import-world-cup-2026.ts.
-  const groups =
-    groupsError || !groupsData?.length
-      ? mockGroups
-      : mapGroups(groupsData as Record<string, unknown>[]);
+  if (groupsError || !groupsData?.length) {
+    return (
+      <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 lg:px-6">
+        <Card className="p-6">
+          <Badge tone="amber">Dados indisponiveis</Badge>
+          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+            Nao foi possivel carregar as partidas reais
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm text-slate-400 light:text-slate-600">
+            Verifique a configuracao do banco, aplique as migrations e importe
+            os jogos oficiais antes de liberar palpites.
+          </p>
+        </Card>
+      </main>
+    );
+  }
+
+  const groups = mapGroups(groupsData as Record<string, unknown>[]);
   const predictions = uniquePredictionsByMatch(
     (predictionsData ?? []).map((row) =>
       mapPrediction(row as Record<string, unknown>, pool.id),

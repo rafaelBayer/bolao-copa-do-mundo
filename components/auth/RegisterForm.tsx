@@ -50,6 +50,19 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
     setError(null);
     setMessage(null);
 
+    const trimmedName = name.trim();
+    const trimmedEmail = email.trim();
+
+    if (!trimmedName) {
+      setError("Informe seu nome.");
+      return;
+    }
+
+    if (!trimmedEmail) {
+      setError("Informe seu e-mail.");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setError("As senhas nao conferem.");
       return;
@@ -58,13 +71,13 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
     setIsSubmitting(true);
     const supabase = createClient();
     const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
+      email: trimmedEmail,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}${resolvedRedirectTo}`,
         data: {
-          name,
-          full_name: name,
+          name: trimmedName,
+          full_name: trimmedName,
         },
       },
     });
@@ -72,7 +85,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
     setIsSubmitting(false);
 
     if (signUpError) {
-      setError(authErrorMessage(signUpError, email));
+      setError(authErrorMessage(signUpError, trimmedEmail));
       logUnexpectedAuthError(signUpError);
       return;
     }
@@ -91,7 +104,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form method="post" onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <label
           htmlFor="name"
@@ -101,6 +114,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
         </label>
         <Input
           id="name"
+          name="name"
           type="text"
           value={name}
           onChange={(event) => setName(event.target.value)}
@@ -118,6 +132,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
         </label>
         <Input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -135,6 +150,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
         </label>
         <Input
           id="password"
+          name="password"
           type="password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -153,6 +169,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
         </label>
         <Input
           id="confirm-password"
+          name="confirm-password"
           type="password"
           value={confirmPassword}
           onChange={(event) => setConfirmPassword(event.target.value)}

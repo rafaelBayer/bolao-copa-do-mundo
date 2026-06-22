@@ -1,10 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { AlertTriangle, RefreshCw } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
 
 export type LiveScoreMonitorLog = {
   id: string;
@@ -38,11 +35,6 @@ type LiveScoreMonitorPanelProps = {
   logs: LiveScoreMonitorLog[];
   activeMatches: LiveScoreMonitorMatch[];
   nextMatch: LiveScoreMonitorMatch | null;
-};
-
-type SyncRunState = {
-  status: "idle" | "running" | "done" | "error";
-  message: string;
 };
 
 function formatDateTime(value: string | null) {
@@ -142,53 +134,21 @@ export function LiveScoreMonitorPanel({
   activeMatches,
   nextMatch,
 }: LiveScoreMonitorPanelProps) {
-  const router = useRouter();
-  const [runState, setRunState] = useState<SyncRunState>({
-    status: "idle",
-    message: "",
-  });
   const latestLog = logs[0] ?? null;
   const latestError = logs.find((log) => log.status === "error") ?? null;
   const latestSuccess = logs.find((log) => log.status === "success") ?? null;
   const status = generalStatus(logs);
 
-  async function runSyncNow() {
-    setRunState({ status: "running", message: "Sincronizando..." });
-
-    try {
-      const response = await fetch("/api/scores/sync/admin", {
-        method: "POST",
-      });
-      const payload = (await response.json().catch(() => null)) as
-        | { status?: string; reason?: string; message?: string }
-        | null;
-
-      if (!response.ok || payload?.status === "error") {
-        setRunState({
-          status: "error",
-          message:
-            payload?.message ??
-            "Erro ao executar sincronizacao. Use o painel manual se necessario.",
-        });
-        router.refresh();
-        return;
-      }
-
-      setRunState({
-        status: "done",
-        message: `Sync executado: ${reasonLabel(payload?.reason ?? null)}.`,
-      });
-      router.refresh();
-    } catch {
-      setRunState({
-        status: "error",
-        message: "Nao foi possivel executar a sincronizacao agora.",
-      });
-    }
-  }
-
   return (
     <div className="space-y-4">
+      <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
+        <p className="font-black">Sincronizacao automatica desativada no MVP</p>
+        <p className="mt-1">
+          As rotas de sync retornam 410 nesta publicacao. Use a aba Partidas
+          para atualizar placares manualmente quando necessario.
+        </p>
+      </div>
+
       {latestError && (!latestSuccess || latestError.startedAt > latestSuccess.startedAt) ? (
         <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm text-red-100 light:border-red-200 light:bg-red-50 light:text-red-700">
           <div className="flex items-start gap-3">
@@ -232,27 +192,6 @@ export function LiveScoreMonitorPanel({
             <p className="text-slate-400 light:text-slate-500">
               {status.description}
             </p>
-          </div>
-          <div className="mt-4">
-            <Button
-              type="button"
-              onClick={() => void runSyncNow()}
-              disabled={runState.status === "running"}
-            >
-              <RefreshCw size={16} aria-hidden="true" />
-              Rodar sincronizacao agora
-            </Button>
-            {runState.message ? (
-              <p
-                className={`mt-2 text-xs font-bold ${
-                  runState.status === "error"
-                    ? "text-red-300 light:text-red-600"
-                    : "text-emerald-300 light:text-emerald-700"
-                }`}
-              >
-                {runState.message}
-              </p>
-            ) : null}
           </div>
         </div>
 

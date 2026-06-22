@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { AdminPanelSection } from "@/components/admin/AdminPanelContent";
 
 type ProfileTab = "perfil" | "boloes" | "admin";
@@ -34,22 +34,29 @@ export function ProfileSettingsNav({
   activeAdminSection,
   showAdminMenu,
 }: ProfileSettingsNavProps) {
-  const router = useRouter();
-
-  function selectTab(tab: ProfileTab) {
+  function rememberTab(tab: ProfileTab) {
     savePreference("bolao_profile_tab", tab);
 
     if (tab === "admin") {
       savePreference("bolao_admin_section", "home");
     }
-
-    router.refresh();
   }
 
-  function selectAdminSection(section: AdminPanelSection) {
+  function rememberAdminSection(section: AdminPanelSection) {
     savePreference("bolao_profile_tab", "admin");
     savePreference("bolao_admin_section", section);
-    router.refresh();
+  }
+
+  function tabHref(tab: ProfileTab) {
+    if (tab === "perfil") {
+      return "/dashboard/profile?tab=perfil";
+    }
+
+    if (tab === "boloes") {
+      return "/dashboard/profile?tab=boloes";
+    }
+
+    return "/dashboard/profile?tab=admin&section=home";
   }
 
   return (
@@ -58,11 +65,11 @@ export function ProfileSettingsNav({
         const isActive = tab.id === activeTab;
 
         return (
-          <button
+          <Link
             key={tab.id}
-            type="button"
+            href={tabHref(tab.id)}
             aria-current={isActive ? "page" : undefined}
-            onClick={() => selectTab(tab.id)}
+            onClick={() => rememberTab(tab.id)}
             className={`shrink-0 rounded-xl px-3 py-2.5 text-left text-sm font-black transition ${
               isActive
                 ? "bg-emerald-400/15 text-emerald-200 light:bg-emerald-50 light:text-emerald-700"
@@ -70,7 +77,7 @@ export function ProfileSettingsNav({
             }`}
           >
             {tab.label}
-          </button>
+          </Link>
         );
       })}
 
@@ -80,11 +87,11 @@ export function ProfileSettingsNav({
             const isActive = section.id === activeAdminSection;
 
             return (
-              <button
+              <Link
                 key={section.id}
-                type="button"
+                href={`/dashboard/profile?tab=admin&section=${section.id}`}
                 aria-current={isActive ? "page" : undefined}
-                onClick={() => selectAdminSection(section.id)}
+                onClick={() => rememberAdminSection(section.id)}
                 className={`shrink-0 rounded-lg px-3 py-2 text-left text-xs font-bold transition lg:ml-3 ${
                   isActive
                     ? "bg-slate-800 text-emerald-200 light:bg-slate-100 light:text-emerald-700"
@@ -92,7 +99,7 @@ export function ProfileSettingsNav({
                 }`}
               >
                 {section.label}
-              </button>
+              </Link>
             );
           })}
         </div>

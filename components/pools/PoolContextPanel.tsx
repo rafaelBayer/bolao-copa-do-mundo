@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Settings } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -30,15 +29,8 @@ export function PoolContextPanel({
   pools,
   selectedPoolId,
 }: PoolContextPanelProps) {
-  const router = useRouter();
   const selectedPool = pools.find((pool) => pool.id === selectedPoolId);
   const showPoolSwitcher = pools.length > 1;
-
-  function openPoolsSettings() {
-    document.cookie =
-      "bolao_profile_tab=boloes; path=/dashboard; max-age=31536000; samesite=lax";
-    router.push("/dashboard/profile");
-  }
 
   return (
     <Card className="mb-5 p-4 sm:p-5">
@@ -84,14 +76,17 @@ export function PoolContextPanel({
           ) : null}
         </div>
 
-        <button
-          type="button"
-          onClick={openPoolsSettings}
+        <Link
+          href="/dashboard/profile?tab=boloes"
+          onClick={() => {
+            document.cookie =
+              "bolao_profile_tab=boloes; path=/dashboard; max-age=31536000; samesite=lax";
+          }}
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2.5 text-sm font-bold text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
         >
           <Settings size={16} aria-hidden="true" />
           Gerenciar boloes
-        </button>
+        </Link>
       </div>
     </Card>
   );

@@ -17,12 +17,20 @@ export function ForgotPasswordForm() {
     event.preventDefault();
     setError(null);
     setMessage(null);
+
+    const trimmedEmail = email.trim();
+
+    if (!trimmedEmail) {
+      setError("Informe seu e-mail.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     const supabase = createClient();
     const redirectTo = `${window.location.origin}/redefinir-senha`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
-      email,
+      trimmedEmail,
       { redirectTo },
     );
 
@@ -37,7 +45,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form method="post" onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-2">
         <label
           htmlFor="email"
@@ -47,6 +55,7 @@ export function ForgotPasswordForm() {
         </label>
         <Input
           id="email"
+          name="email"
           type="email"
           value={email}
           onChange={(event) => setEmail(event.target.value)}

@@ -14,6 +14,12 @@ import { createClient } from "@/lib/supabase/server";
 export const dynamic = "force-dynamic";
 
 type ProfileTab = "perfil" | "boloes" | "admin";
+type ProfilePageProps = {
+  searchParams?: Promise<{
+    tab?: string | string[];
+    section?: string | string[];
+  }>;
+};
 
 function single<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -66,12 +72,16 @@ function sortPools(pools: PoolSummary[]) {
   });
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const supabase = await createClient();
+  const resolvedSearchParams = await searchParams;
   const cookieStore = await cookies();
-  const activeTab = selectedTab(cookieStore.get("bolao_profile_tab")?.value);
+  const activeTab = selectedTab(
+    resolvedSearchParams?.tab ?? cookieStore.get("bolao_profile_tab")?.value,
+  );
   const activeAdminSection = normalizeAdminSection(
-    cookieStore.get("bolao_admin_section")?.value,
+    resolvedSearchParams?.section ??
+      cookieStore.get("bolao_admin_section")?.value,
   );
   const { data: claimsData } = await supabase.auth.getClaims();
   const userId = claimsData?.claims?.sub;
@@ -148,13 +158,17 @@ export default async function ProfilePage() {
     ...pool,
     membersCount: memberCountByPoolId.get(pool.id) ?? 0,
   }));
-  const isOwner = pools.some((pool) => pool.role === "owner");
-  const visibleTab = activeTab === "admin" && !isOwner ? "perfil" : activeTab;
-  const showAdminMenu = visibleTab === "admin" && isOwner;
+  const { data: isSystemAdminData } = await supabase.rpc("is_system_admin");
+  const isSystemAdmin = isSystemAdminData === true;
+  const visibleTab =
+    activeTab === "admin" && !isSystemAdmin ? "perfil" : activeTab;
+  const showAdminMenu = visibleTab === "admin" && isSystemAdmin;
   const tabs = [
     { id: "perfil" as const, label: "Perfil" },
     { id: "boloes" as const, label: "Boloes" },
-    ...(isOwner ? [{ id: "admin" as const, label: "Painel Admin" }] : []),
+    ...(isSystemAdmin
+      ? [{ id: "admin" as const, label: "Painel Admin" }]
+      : []),
   ];
   const adminSections = [
     { id: "home" as const, label: "Painel" },
@@ -200,11 +214,8 @@ export default async function ProfilePage() {
 
           {visibleTab === "boloes" ? <ProfilePoolsPanel pools={pools} /> : null}
 
-          {visibleTab === "admin" && isOwner ? (
-            <AdminPanelContent
-              userId={userId}
-              section={activeAdminSection}
-            />
+          {visibleTab === "admin" && isSystemAdmin ? (
+            <AdminPanelContent section={activeAdminSection} />
           ) : null}
         </div>
       </div>

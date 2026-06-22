@@ -90,10 +90,12 @@ function ParticipantAvatar({
 
 function ParticipantIdentity({
   entry,
+  poolId,
   avatarSize = "sm",
   strong = false,
 }: {
   entry: Pick<LeaderboardEntry, "avatarUrl" | "name" | "username">;
+  poolId: string;
   avatarSize?: "sm" | "md" | "lg";
   strong?: boolean;
 }) {
@@ -118,7 +120,7 @@ function ParticipantIdentity({
 
   return (
     <Link
-      href={`/dashboard/users/${entry.username}`}
+      href={`/dashboard/users/${entry.username}?pool=${poolId}`}
       className="flex min-w-0 items-center gap-3 rounded-xl transition hover:text-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-400/40 light:hover:text-emerald-700"
     >
       {content}
@@ -128,9 +130,11 @@ function ParticipantIdentity({
 
 function PodiumCard({
   entry,
+  poolId,
   highlight = false,
 }: {
   entry: LeaderboardEntry;
+  poolId: string;
   highlight?: boolean;
 }) {
   return (
@@ -148,6 +152,7 @@ function PodiumCard({
         <div className="min-w-0">
           <ParticipantIdentity
             entry={entry}
+            poolId={poolId}
             avatarSize={highlight ? "lg" : "md"}
             strong
           />
@@ -195,7 +200,13 @@ function HighlightCard({
   );
 }
 
-function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
+function LeaderboardTable({
+  entries,
+  poolId,
+}: {
+  entries: LeaderboardEntry[];
+  poolId: string;
+}) {
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-800 light:border-slate-200">
       <div className="hidden overflow-x-auto md:block">
@@ -251,7 +262,11 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
                   {entry.position}
                 </td>
                 <td className="px-4 py-3">
-                  <ParticipantIdentity entry={entry} avatarSize="sm" />
+                  <ParticipantIdentity
+                    entry={entry}
+                    poolId={poolId}
+                    avatarSize="sm"
+                  />
                 </td>
                 <td className="px-4 py-3 text-right font-black text-emerald-300 light:text-emerald-700">
                   {entry.totalPoints}
@@ -282,7 +297,11 @@ function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
                 <span className="text-lg font-black text-slate-50 light:text-slate-950">
                   {entry.position}
                 </span>
-                <ParticipantIdentity entry={entry} avatarSize="sm" />
+                <ParticipantIdentity
+                  entry={entry}
+                  poolId={poolId}
+                  avatarSize="sm"
+                />
               </div>
               <p className="text-lg font-black text-emerald-300 light:text-emerald-700">
                 {entry.totalPoints} pts
@@ -753,6 +772,7 @@ export function LeaderboardClient({
               <PodiumCard
                 key={entry.userId}
                 entry={entry}
+                poolId={poolId}
                 highlight={index === 0}
               />
             ))}
@@ -795,7 +815,7 @@ export function LeaderboardClient({
           </div>
         ) : null}
 
-        <LeaderboardTable entries={activeEntries} />
+        <LeaderboardTable entries={activeEntries} poolId={poolId} />
       </Card>
     </div>
   );
