@@ -107,8 +107,6 @@ where p.id = rp.id
 create unique index if not exists predictions_user_match_unique_idx
 on public.predictions(user_id, match_id);
 
-revoke all on function public.save_prediction(uuid, uuid, integer, integer) from public;
-revoke all on function public.save_prediction(uuid, uuid, integer, integer) from authenticated;
 drop function if exists public.save_prediction(uuid, uuid, integer, integer);
 
 create or replace function public.get_pool_participants(target_pool_id uuid)
