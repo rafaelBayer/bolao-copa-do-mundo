@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 
-export type SupabaseTarget = "default" | "syo" | "public";
+export type SupabaseTarget = "default" | "legacy" | "public";
 
 export type ScriptSupabaseConfig = {
   target: SupabaseTarget;
@@ -60,24 +60,24 @@ function resolveTarget(): SupabaseTarget {
     return "default";
   }
 
-  if (target === "syo" || target === "public") {
+  if (target === "legacy" || target === "public") {
     return target;
   }
 
   throw new Error(
-    `Invalid SUPABASE_TARGET "${target}". Use "syo", "public" or leave it empty.`,
+    `Invalid SUPABASE_TARGET "${target}". Use "legacy", "public" or leave it empty.`,
   );
 }
 
 export function resolveSupabaseEnv(): ResolvedSupabaseEnv {
   const target = resolveTarget();
 
-  if (target === "syo") {
+  if (target === "legacy") {
     return {
       target,
-      url: optionalEnv("SYO_SUPABASE_URL"),
-      anonKey: optionalEnv("SYO_SUPABASE_ANON_KEY"),
-      serviceRoleKey: optionalEnv("SYO_SUPABASE_SERVICE_ROLE_KEY"),
+      url: optionalEnv("LEGACY_SUPABASE_URL"),
+      anonKey: optionalEnv("LEGACY_SUPABASE_ANON_KEY"),
+      serviceRoleKey: optionalEnv("LEGACY_SUPABASE_SERVICE_ROLE_KEY"),
     };
   }
 

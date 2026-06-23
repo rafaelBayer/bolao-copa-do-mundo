@@ -12,6 +12,7 @@
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
@@ -34,7 +35,8 @@ logs/
 backups/
 *.dump
 *.backup
-*syo-bolao*.sql
+*.sql.backup
+*backup*.sql
 
 # env
 .env
@@ -46,6 +48,8 @@ backups/
 
 # supabase
 supabase/.temp/
+supabase/manual-production-update.sql
+supabase/manual-production-update-INSTRUCTIONS.md
 
 # typescript
 *.tsbuildinfo

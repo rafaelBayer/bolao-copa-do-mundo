@@ -358,6 +358,8 @@ export function GroupsDashboardClient({
       return;
     }
 
+    const focusMatchId = focusRequest.matchId;
+
     function clearHighlightOnOutsideClick(event: PointerEvent) {
       const target = event.target;
 
@@ -366,7 +368,7 @@ export function GroupsDashboardClient({
       }
 
       const highlightedCard = document.getElementById(
-        `match-card-${focusRequest.matchId}`,
+        `match-card-${focusMatchId}`,
       );
 
       if (!highlightedCard || !highlightedCard.contains(target)) {

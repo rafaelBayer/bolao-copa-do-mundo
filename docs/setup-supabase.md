@@ -1,6 +1,6 @@
-# Setup do Supabase real
+# Setup do Supabase
 
-Este guia prepara o primeiro bolao owner no Supabase real sem mudar o fluxo OpenFootball, RLS ou telas da aplicacao.
+Este guia prepara um projeto Supabase para rodar o MVP do bolao com autenticacao, Bolao Geral, boloes privados, convites e permissao de admin global separada.
 
 ## 1. Criar o projeto Supabase
 
@@ -31,7 +31,7 @@ Opcoes:
 
 ## 4. Criar o primeiro usuario no Auth
 
-Crie o usuario owner em **Authentication > Users > Add user**.
+Crie um usuario em **Authentication > Users > Add user** para validar o app.
 
 Para o fluxo de convite entrar direto no bolao apos o cadastro, o Supabase Auth precisa criar uma sessao logo depois do `signUp`. No ambiente de desenvolvimento, verifique em **Authentication > Providers > Email** se a confirmacao obrigatoria de e-mail esta desativada. Se o projeto exigir confirmacao, o usuario precisara confirmar o e-mail antes de concluir a entrada no bolao.
 
@@ -55,25 +55,19 @@ Tambem recomendamos:
 - evitar muitos cadastros seguidos para nao bater rate limit;
 - testar `/login?invite=TOKEN` para usuarios que ja tem conta.
 
-## 5. Criar o primeiro bolao e vincular o owner
+## 5. Cadastrar um system admin
 
-Use o script local com a `SUPABASE_SERVICE_ROLE_KEY` configurada:
+Depois das migrations, escolha o usuario que tera permissao administrativa global e insira o UUID real dele em `system_admins`:
 
-```bash
-npm run setup:owner-pool -- --email dono@example.com --pool-name "Bolao da Copa 2026"
+```sql
+insert into public.system_admins (user_id)
+values ('UUID_REAL_DO_USUARIO')
+on conflict (user_id) do nothing;
 ```
 
-Tambem da para usar o id do usuario:
-
-```bash
-npm run setup:owner-pool -- --user-id <auth-user-id> --pool-name "Bolao da Copa 2026"
-```
-
-Se rodar sem argumentos, o script pergunta o email/id e o nome do bolao. Ele reaproveita um pool ja existente com o mesmo `owner_id` e `name`, e garante que o registro em `pool_members` esteja com `role = owner`.
+Owner de bolao privado nao e admin global. O owner gerencia apenas o proprio bolao.
 
 ## 6. Importar dados da Copa
-
-Depois das migrations e do owner:
 
 ```bash
 npm run seed:worldcup
@@ -90,24 +84,23 @@ npm run seed:worldcup:dry
 
 1. Rode o app com `npm run dev`.
 2. Acesse `/login`.
-3. Entre com o usuario owner criado no Auth.
+3. Entre com o usuario criado no Auth.
 4. Abra `/dashboard/groups` e confira grupos, jogos e inputs de palpites.
 
-## 8. Gerar convite
+## 8. Criar bolao privado e gerar convite
 
-1. Com o owner logado, acesse `/dashboard/admin`.
-2. Clique em **Gerar convite**.
-3. Na lista de convites, copie o link gerado. O formato e `/register?invite=<token>`.
+1. Com o usuario logado, acesse Perfil > Boloes.
+2. Crie um bolao privado.
+3. Copie o link de convite exibido para o owner daquele bolao.
+4. O link usa o formato `/convite/<codigo>`.
 
 ## 9. Testar cadastro por convite
 
 1. Abra o link copiado em uma sessao anonima ou outro navegador.
 2. Cadastre um novo usuario.
-3. Ao concluir, o app chama `accept_pool_invite`, registra o uso do link e redireciona para `/dashboard/groups`.
-4. Volte em `/dashboard/admin` com o owner e confirme que o novo participante aparece na lista.
-5. Abra o mesmo link em outro navegador/perfil e confirme que outro usuario tambem consegue entrar.
-
-O mesmo navegador e bloqueado para reutilizar o mesmo link por outro cadastro enquanto mantiver o identificador local salvo. IP hash fica para uma etapa futura server-side.
+3. Ao concluir, o app chama `join_pool_by_invite_code`, adiciona o usuario em `pool_members` e redireciona para o dashboard.
+4. Confirme que o bolao aparece em Perfil > Boloes.
+5. Abra o mesmo link novamente e confirme que o membership nao duplica.
 
 Depois da migration `0009_ensure_user_profile.sql`, o cadastro tambem chama `ensure_user_profile_for_pool` para garantir um registro em `profiles`. Se o usuario nao informar nome, a RPC gera `Visitante N` sem repetir dentro do bolao.
 
@@ -118,4 +111,3 @@ Depois da migration `0009_ensure_user_profile.sql`, o cadastro tambem chama `ens
 - Evite dominios invalidos como `example.com` se o Supabase recusar a validacao.
 - Em QA local, tambem e possivel criar usuarios pelo Supabase Auth e depois abrir o link de convite logado.
 - Para o fluxo direto do convite, a confirmacao obrigatoria de e-mail precisa estar desativada no ambiente de desenvolvimento.
-- TODO futuro: trocar exclusao fisica de convites por `revoked_at`, mantendo historico de usos do link.

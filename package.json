@@ -1,6 +1,7 @@
 {
   "name": "bolao-copa-do-mundo",
   "version": "0.1.0",
+  "description": "Aplicacao de bolao da Copa do Mundo feita com Next.js e Supabase.",
   "private": true,
   "scripts": {
     "dev": "next dev",

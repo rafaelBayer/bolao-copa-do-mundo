@@ -25,12 +25,12 @@ Na Vercel, use apenas essas variaveis padrao do Supabase publico/MVP. Nao config
 
 ## Scripts locais com dois Supabase
 
-`SUPABASE_TARGET` e as variaveis `SYO_SUPABASE_*` / `PUBLIC_SUPABASE_*` sao apenas para scripts locais/server-side. Elas nao sao usadas pelo frontend.
+`SUPABASE_TARGET` e as variaveis `LEGACY_SUPABASE_*` / `PUBLIC_SUPABASE_*` sao apenas para scripts locais/server-side. Elas nao sao usadas pelo frontend.
 
 Exemplos:
 
 ```bash
-SUPABASE_TARGET=syo npm run scores:map-fixtures:dry
+SUPABASE_TARGET=legacy npm run scores:map-fixtures:dry
 SUPABASE_TARGET=public npm run scores:map-fixtures:dry
 ```
 

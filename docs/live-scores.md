@@ -1,4 +1,4 @@
-# Placar ao vivo
+﻿# Placar ao vivo
 
 O placar ao vivo usa um fluxo server-side para economizar requests e proteger a
 API key:
@@ -56,7 +56,7 @@ Para fallback garantido, use:
 LIVE_SCORE_PROVIDER=manual
 ```
 
-Nesse modo, `/api/scores/sync` nao chama API externa e o owner atualiza o placar
+Nesse modo, `/api/scores/sync` nao chama API externa e o system admin atualiza o placar
 pelo admin.
 
 Se `LIVE_SCORE_PROVIDER` nao estiver definido, o app usa `manual` como fallback
@@ -95,7 +95,7 @@ SCORES_SYNC_SECRET=um_secret_forte
 
 Checklist de operacao:
 
-1. Entrar como owner.
+1. Entrar como system admin.
 2. Abrir `/dashboard/admin`.
 3. Conferir `Provider de placar: manual`.
 4. Atualizar placar live na secao `Placar dos jogos`.
@@ -124,11 +124,11 @@ Para scripts locais, voce pode escolher qual projeto Supabase sera usado sem
 trocar as variaveis padrao do app:
 
 ```env
-SUPABASE_TARGET=syo
+SUPABASE_TARGET=legacy
 
-SYO_SUPABASE_URL=
-SYO_SUPABASE_ANON_KEY=
-SYO_SUPABASE_SERVICE_ROLE_KEY=
+LEGACY_SUPABASE_URL=
+LEGACY_SUPABASE_ANON_KEY=
+LEGACY_SUPABASE_SERVICE_ROLE_KEY=
 
 PUBLIC_SUPABASE_URL=
 PUBLIC_SUPABASE_ANON_KEY=
@@ -138,7 +138,7 @@ PUBLIC_SUPABASE_SERVICE_ROLE_KEY=
 Valores aceitos:
 
 ```txt
-syo
+legacy
 public
 ```
 
@@ -153,7 +153,7 @@ SUPABASE_SERVICE_ROLE_KEY=
 No PowerShell:
 
 ```powershell
-$env:SUPABASE_TARGET="syo"; npm run scores:map-fixtures:dry
+$env:SUPABASE_TARGET="legacy"; npm run scores:map-fixtures:dry
 $env:SUPABASE_TARGET="public"; npm run scores:watch:local:dry
 ```
 
@@ -180,8 +180,8 @@ npm run scores:sync-results
 No PowerShell, selecione o banco antes:
 
 ```powershell
-$env:SUPABASE_TARGET="public"; $env:NEXT_PUBLIC_SUPABASE_TARGET="public"; npm run seed:worldcup
-$env:SUPABASE_TARGET="public"; $env:NEXT_PUBLIC_SUPABASE_TARGET="public"; npm run scores:sync-results:dry
+$env:SUPABASE_TARGET="public"; npm run seed:worldcup
+$env:SUPABASE_TARGET="public"; npm run scores:sync-results:dry
 ```
 
 O mapeamento de fixtures tambem aceita estes opcionais:
@@ -227,7 +227,7 @@ o fallback manual no admin.
 
 A migration `0017` cria `live_score_sync_logs`, usada pelo admin para monitorar
 ultimas execucoes do sync, erros, jogos ativos e quantidade de jogos atualizados.
-Somente owners conseguem ler esses logs pelo app. O endpoint server-side grava
+Somente system admins conseguem ler esses logs pelo app. O endpoint server-side grava
 apenas resumo operacional e nunca salva keys ou secrets.
 
 ## Mapear fixtures
@@ -382,7 +382,7 @@ com jogos dentro da janela ativa. Ele nao busca matchday 1, 2 e 3 em toda sync.
 
 ## Monitoramento no admin
 
-Owners veem a secao `Status do placar ao vivo` em `/dashboard/admin`.
+System admins veem a secao `Status do placar ao vivo` em `/dashboard/admin`.
 
 Ela mostra:
 
@@ -426,7 +426,7 @@ matches.away_score
 
 ### Pelo admin
 
-1. Entrar como owner.
+1. Entrar como system admin.
 2. Abrir `/dashboard/admin`.
 3. Usar a secao `Placar dos jogos`.
 4. Preencher placar live, status e minuto.
@@ -479,3 +479,4 @@ where id = 'MATCH_ID';
 Se API ou cron falhar durante um jogo, atualize os campos live manualmente no
 Supabase. Quando terminar, preencha `home_score` e `away_score`; so esses campos
 entram no ranking dos usuarios.
+
