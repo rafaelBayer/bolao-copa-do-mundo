@@ -718,6 +718,12 @@ export const MatchPredictionInput = forwardRef<
         </div>
       ) : null}
 
+      {isHighlighted && !goalFlash ? (
+        <div className="absolute right-3 top-3 z-10 rounded-full bg-amber-300 px-3 py-1 text-xs font-black uppercase tracking-wide text-slate-950 shadow-lg shadow-amber-950/20">
+          Jogo selecionado
+        </div>
+      ) : null}
+
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.68rem] font-black uppercase tracking-wide ${

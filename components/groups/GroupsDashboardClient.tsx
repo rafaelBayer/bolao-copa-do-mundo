@@ -354,6 +354,34 @@ export function GroupsDashboardClient({
   }, []);
 
   useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    function clearHighlightOnOutsideClick(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) {
+        return;
+      }
+
+      const highlightedCard = document.getElementById(
+        `match-card-${focusRequest.matchId}`,
+      );
+
+      if (!highlightedCard || !highlightedCard.contains(target)) {
+        setFocusRequest(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", clearHighlightOnOutsideClick);
+
+    return () => {
+      document.removeEventListener("pointerdown", clearHighlightOnOutsideClick);
+    };
+  }, [focusRequest]);
+
+  useEffect(() => {
     if (!shouldRefreshLiveScores || matchIds.length === 0) {
       return;
     }

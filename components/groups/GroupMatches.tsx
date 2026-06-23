@@ -59,6 +59,7 @@ export function GroupMatches({
 }: GroupMatchesProps) {
   const inputRefs = useRef(new Map<string, MatchPredictionInputHandle>());
   const userSelectedRoundRef = useRef(false);
+  const lastFocusedRoundRequestIdRef = useRef<number | null>(null);
   const lastScrolledRequestIdRef = useRef<number | null>(null);
   const rounds = useMemo(
     () =>
@@ -138,6 +139,10 @@ export function GroupMatches({
       return;
     }
 
+    if (lastFocusedRoundRequestIdRef.current === focusRequest.requestId) {
+      return;
+    }
+
     const targetMatch = matches.find(
       (match) => match.id === focusRequest.matchId,
     );
@@ -145,6 +150,8 @@ export function GroupMatches({
     if (!targetMatch) {
       return;
     }
+
+    lastFocusedRoundRequestIdRef.current = focusRequest.requestId;
 
     const targetRoundIndex = rounds.indexOf(targetMatch.roundNumber);
 
