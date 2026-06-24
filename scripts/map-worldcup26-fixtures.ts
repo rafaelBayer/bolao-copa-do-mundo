@@ -6,10 +6,11 @@ import {
   type Worldcup26Game,
 } from "../lib/scores/providers/worldcup26";
 import {
-  getScriptSupabaseConfig,
-  loadScriptEnvFiles,
-  logScriptSupabaseTarget,
-} from "../lib/supabase/scriptEnv";
+  loadScoreScriptEnvFiles,
+  logScoreSupabaseTarget,
+  logScoreSupabaseTargets,
+  resolveScoreSupabaseEnvs,
+} from "../lib/scores/resolveScoreSupabaseEnv";
 
 type MappingDatabase = {
   public: {
@@ -140,142 +141,151 @@ function findCandidates(match: MatchRow, games: Worldcup26Game[]) {
 }
 
 async function main() {
-  loadScriptEnvFiles();
+  loadScoreScriptEnvFiles();
 
   const dryRun = process.argv.includes("--dry-run");
-  const supabaseConfig = getScriptSupabaseConfig();
-  logScriptSupabaseTarget("worldcup26 fixture mapping", supabaseConfig, dryRun);
 
-  const supabase = createClient<MappingDatabase>(
-    supabaseConfig.url,
-    supabaseConfig.serviceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    },
-  );
-
+  console.log(`Dry run: ${dryRun ? "true" : "false"}`);
   console.log("Fetching worldcup26 games...");
   const games = await fetchWorldcup26Games();
   console.log(`Total API: ${games.length}`);
+  console.log("worldcup26 games fetched once before processing targets.");
 
-  console.log("Fetching local matches...");
-  const matches = await fetchMatches(supabase);
-  console.log(`Total local: ${matches.length}`);
+  const supabaseConfigs = resolveScoreSupabaseEnvs();
+  logScoreSupabaseTargets("worldcup26 fixture mapping multi-target run", supabaseConfigs, dryRun);
 
-  let mapped = 0;
-  let alreadyMapped = 0;
-  let updatedMatches = 0;
-  let pending = 0;
-  let ambiguous = 0;
-  let conflicts = 0;
-  let mappedBefore = 0;
-  const pendingLabels: string[] = [];
-  const conflictLabels: string[] = [];
+  for (const supabaseConfig of supabaseConfigs) {
+    const startedAt = Date.now();
+    logScoreSupabaseTarget("worldcup26 fixture mapping", supabaseConfig, dryRun);
 
-  for (const match of matches) {
-    if (
-      match.score_provider === "worldcup26" &&
-      match.score_provider_fixture_id
-    ) {
-      mappedBefore += 1;
-    }
-
-    const candidates = findCandidates(match, games);
-    const game = candidates.length === 1 ? candidates[0] : null;
-    const fixture = game ? mapWorldcup26GameToInternalScore(game) : null;
-
-    if (!fixture) {
-      if (candidates.length > 1) {
-        ambiguous += 1;
-        console.log(
-          `Ambiguous: ${match.home_team?.name} x ${match.away_team?.name} - ${candidates.length} candidates`,
-        );
-      } else {
-        pending += 1;
-        pendingLabels.push(
-          `${match.home_team?.name} x ${match.away_team?.name} (${match.group?.name ?? "sem grupo"}, rodada ${match.round_number ?? "-"})`,
-        );
-        console.log(
-          `Pending: ${match.home_team?.name} x ${match.away_team?.name}`,
-        );
-      }
-
-      continue;
-    }
-
-    mapped += 1;
-
-    if (
-      match.score_provider === "worldcup26" &&
-      match.score_provider_fixture_id &&
-      match.score_provider_fixture_id !== String(fixture.providerFixtureId)
-    ) {
-      conflicts += 1;
-      conflictLabels.push(
-        `${match.home_team?.name} x ${match.away_team?.name}: local=${match.score_provider_fixture_id}, candidate=${fixture.providerFixtureId}`,
-      );
-      console.log(
-        `Conflict: ${match.home_team?.name} x ${match.away_team?.name} is mapped to ${match.score_provider_fixture_id}, candidate is ${fixture.providerFixtureId}`,
-      );
-      continue;
-    }
-
-    if (
-      match.score_provider === "worldcup26" &&
-      match.score_provider_fixture_id === String(fixture.providerFixtureId)
-    ) {
-      alreadyMapped += 1;
-    }
-
-    console.log(
-      `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> worldcup26:${fixture.providerFixtureId}`,
+    const supabase = createClient<MappingDatabase>(
+      supabaseConfig.supabaseUrl,
+      supabaseConfig.supabaseServiceRoleKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      },
     );
 
-    if (
-      !dryRun &&
-      (match.score_provider !== "worldcup26" ||
-        match.score_provider_fixture_id !== String(fixture.providerFixtureId))
-    ) {
-      const { error } = await supabase
-        .from("matches")
-        .update({
-          score_provider: "worldcup26",
-          score_provider_fixture_id: String(fixture.providerFixtureId),
-        })
-        .eq("id", match.id);
+    console.log("Fetching local matches...");
+    const matches = await fetchMatches(supabase);
+    console.log(`Total local: ${matches.length}`);
 
-      if (error) {
-        throw error;
+    let mapped = 0;
+    let alreadyMapped = 0;
+    let updatedMatches = 0;
+    let pending = 0;
+    let ambiguous = 0;
+    let conflicts = 0;
+    let mappedBefore = 0;
+    const pendingLabels: string[] = [];
+    const conflictLabels: string[] = [];
+
+    for (const match of matches) {
+      if (
+        match.score_provider === "worldcup26" &&
+        match.score_provider_fixture_id
+      ) {
+        mappedBefore += 1;
       }
 
-      updatedMatches += 1;
+      const candidates = findCandidates(match, games);
+      const game = candidates.length === 1 ? candidates[0] : null;
+      const fixture = game ? mapWorldcup26GameToInternalScore(game) : null;
+
+      if (!fixture) {
+        if (candidates.length > 1) {
+          ambiguous += 1;
+          console.log(
+            `Ambiguous: ${match.home_team?.name} x ${match.away_team?.name} - ${candidates.length} candidates`,
+          );
+        } else {
+          pending += 1;
+          pendingLabels.push(
+            `${match.home_team?.name} x ${match.away_team?.name} (${match.group?.name ?? "sem grupo"}, rodada ${match.round_number ?? "-"})`,
+          );
+          console.log(
+            `Pending: ${match.home_team?.name} x ${match.away_team?.name}`,
+          );
+        }
+
+        continue;
+      }
+
+      mapped += 1;
+
+      if (
+        match.score_provider === "worldcup26" &&
+        match.score_provider_fixture_id &&
+        match.score_provider_fixture_id !== String(fixture.providerFixtureId)
+      ) {
+        conflicts += 1;
+        conflictLabels.push(
+          `${match.home_team?.name} x ${match.away_team?.name}: local=${match.score_provider_fixture_id}, candidate=${fixture.providerFixtureId}`,
+        );
+        console.log(
+          `Conflict: ${match.home_team?.name} x ${match.away_team?.name} is mapped to ${match.score_provider_fixture_id}, candidate is ${fixture.providerFixtureId}`,
+        );
+        continue;
+      }
+
+      if (
+        match.score_provider === "worldcup26" &&
+        match.score_provider_fixture_id === String(fixture.providerFixtureId)
+      ) {
+        alreadyMapped += 1;
+      }
+
+      console.log(
+        `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> worldcup26:${fixture.providerFixtureId}`,
+      );
+
+      if (
+        !dryRun &&
+        (match.score_provider !== "worldcup26" ||
+          match.score_provider_fixture_id !== String(fixture.providerFixtureId))
+      ) {
+        const { error } = await supabase
+          .from("matches")
+          .update({
+            score_provider: "worldcup26",
+            score_provider_fixture_id: String(fixture.providerFixtureId),
+          })
+          .eq("id", match.id);
+
+        if (error) {
+          throw error;
+        }
+
+        updatedMatches += 1;
+      }
     }
-  }
 
-  console.log("Done.");
-  console.log(`Mapped before: ${mappedBefore}`);
-  console.log(`Mapped: ${mapped}`);
-  console.log(`Already mapped: ${alreadyMapped}`);
-  console.log(`Updated matches: ${updatedMatches}`);
-  console.log(`Pending: ${pending}`);
-  console.log(`Ambiguous: ${ambiguous}`);
-  console.log(`Conflicts: ${conflicts}`);
+    console.log("Done.");
+    console.log(`Duration: ${Date.now() - startedAt}ms`);
+    console.log(`Mapped before: ${mappedBefore}`);
+    console.log(`Mapped: ${mapped}`);
+    console.log(`Already mapped: ${alreadyMapped}`);
+    console.log(`Updated matches: ${updatedMatches}`);
+    console.log(`Pending: ${pending}`);
+    console.log(`Ambiguous: ${ambiguous}`);
+    console.log(`Conflicts: ${conflicts}`);
 
-  if (pendingLabels.length > 0) {
-    console.log("Pending matches:");
-    pendingLabels.forEach((label) => console.log(`- ${label}`));
-  }
+    if (pendingLabels.length > 0) {
+      console.log("Pending matches:");
+      pendingLabels.forEach((label) => console.log(`- ${label}`));
+    }
 
-  if (conflictLabels.length > 0) {
-    console.log("Conflicts:");
-    conflictLabels.forEach((label) => console.log(`- ${label}`));
-  }
+    if (conflictLabels.length > 0) {
+      console.log("Conflicts:");
+      conflictLabels.forEach((label) => console.log(`- ${label}`));
+    }
 
-  if (dryRun) {
-    console.log("Dry-run: no database changes applied.");
+    if (dryRun) {
+      console.log("Dry-run: no database changes applied.");
+    }
   }
 }
 

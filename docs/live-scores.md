@@ -117,44 +117,42 @@ LIVE_SCORE_PROVIDER=football-data
 FOOTBALL_DATA_API_KEY=
 FOOTBALL_DATA_COMPETITION_CODE=WC
 SCORES_SYNC_SECRET=
-SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-Para scripts locais, voce pode escolher qual projeto Supabase sera usado sem
-trocar as variaveis padrao do app:
+O app usa o Supabase principal definido em `.env.local`. Para scripts locais de
+placar, voce pode escolher outro projeto Supabase sem expor nenhuma variavel no
+frontend. Crie `.env.scores.local` a partir de `.env.scores.example`:
 
 ```env
-SUPABASE_TARGET=legacy
+SCORE_SUPABASE_TARGET=production,staging
 
-LEGACY_SUPABASE_URL=
-LEGACY_SUPABASE_ANON_KEY=
-LEGACY_SUPABASE_SERVICE_ROLE_KEY=
+SCORE_SUPABASE_PRODUCTION_URL=https://your-production-project.supabase.co
+SCORE_SUPABASE_PRODUCTION_SERVICE_ROLE_KEY=your_production_service_role_key
 
-PUBLIC_SUPABASE_URL=
-PUBLIC_SUPABASE_ANON_KEY=
-PUBLIC_SUPABASE_SERVICE_ROLE_KEY=
+SCORE_SUPABASE_STAGING_URL=https://your-staging-project.supabase.co
+SCORE_SUPABASE_STAGING_SERVICE_ROLE_KEY=your_staging_service_role_key
 ```
 
 Valores aceitos:
 
 ```txt
+production
+staging
 legacy
-public
+local
+all
 ```
 
-Se `SUPABASE_TARGET` ficar vazio, os scripts usam:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=
-```
+Use lista separada por virgula quando quiser aplicar a mesma execucao em mais de
+um banco. Os scripts de placar nunca usam variaveis `NEXT_PUBLIC_*` para
+selecionar projetos alternativos.
 
 No PowerShell:
 
 ```powershell
-$env:SUPABASE_TARGET="legacy"; npm run scores:map-fixtures:dry
-$env:SUPABASE_TARGET="public"; npm run scores:watch:local:dry
+$env:SCORE_SUPABASE_TARGET="production,staging"; npm run scores:map-fixtures:dry
+$env:SCORE_SUPABASE_TARGET="production,staging"; npm run scores:watch:local:dry
+Remove-Item Env:\SCORE_SUPABASE_TARGET
 ```
 
 Antes de rodar um comando real, use dry-run. O sync local aceita:
@@ -180,8 +178,8 @@ npm run scores:sync-results
 No PowerShell, selecione o banco antes:
 
 ```powershell
-$env:SUPABASE_TARGET="public"; npm run seed:worldcup
-$env:SUPABASE_TARGET="public"; npm run scores:sync-results:dry
+$env:SCORE_SUPABASE_TARGET="production,staging"; npm run scores:sync-results:dry
+Remove-Item Env:\SCORE_SUPABASE_TARGET
 ```
 
 O mapeamento de fixtures tambem aceita estes opcionais:

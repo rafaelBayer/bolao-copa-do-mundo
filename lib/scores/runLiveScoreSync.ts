@@ -24,11 +24,12 @@ import {
   isLiveMatchStatus,
 } from "@/lib/scores/liveScoreStatus";
 import {
-  getScriptSupabaseConfig,
-  isDryRunEnabled,
-  logScriptSupabaseTarget,
-  type ScriptSupabaseConfig,
-} from "@/lib/supabase/scriptEnv";
+  isScoreDryRunEnabled,
+  logScoreSupabaseTarget,
+  logScoreSupabaseTargets,
+  resolveScoreSupabaseEnvs,
+  type ScoreSupabaseConfig,
+} from "@/lib/scores/resolveScoreSupabaseEnv";
 
 const TIMEZONE = "America/Sao_Paulo";
 const ACTIVE_WINDOW_BEFORE_MINUTES = 5;
@@ -38,6 +39,23 @@ const HALFTIME_PAUSE_MINUTES = 15;
 const MAX_ERROR_MESSAGE_LENGTH = 500;
 const MAX_ESTIMATED_ELAPSED_MINUTES = 130;
 const MAX_HALFTIME_WALL_CLOCK_MINUTES = 75;
+
+type Worldcup26Games = Awaited<ReturnType<typeof fetchWorldcup26Games>>;
+type Worldcup26Game = Awaited<ReturnType<typeof fetchWorldcup26GameByMongoId>>;
+
+const providerFixturesCache = new Map<string, Promise<LiveScoreFixture[]>>();
+const worldcup26GamesCache = new Map<string, Promise<Worldcup26Games>>();
+const worldcup26GameCache = new Map<string, Promise<Worldcup26Game>>();
+const espnScoreboardCache = new Map<string, Promise<EspnEvent[]>>();
+const espnSummaryCache = new Map<string, Promise<EspnEvent>>();
+
+function logProviderCacheHit(label: string, cacheKey: string) {
+  console.log(`[cache] ${label}: hit (${cacheKey})`);
+}
+
+function logProviderCacheMiss(label: string, cacheKey: string) {
+  console.log(`[cache] ${label}: miss (${cacheKey})`);
+}
 
 type LiveScoreProvider =
   | "api-football"
@@ -190,10 +208,10 @@ function currentProvider(): LiveScoreProvider {
   return "manual";
 }
 
-function createServiceClient(config: ScriptSupabaseConfig): SyncSupabaseClient {
+function createServiceClient(config: ScoreSupabaseConfig): SyncSupabaseClient {
   return createClient<SyncDatabase>(
-    config.url,
-    config.serviceRoleKey,
+    config.supabaseUrl,
+    config.supabaseServiceRoleKey,
     {
       auth: {
         persistSession: false,
@@ -462,14 +480,137 @@ async function fetchProviderFixtures(
   today: string,
   matchdays: number[],
 ) {
-  if (provider === "football-data") {
-    return fetchFootballDataMatchesByMatchdays(matchdays);
+  const cacheKey =
+    provider === "football-data"
+      ? `${provider}:${matchdays.join(",")}`
+      : `${provider}:${today}`;
+  const cachedFixtures = providerFixturesCache.get(cacheKey);
+
+  if (cachedFixtures) {
+    logProviderCacheHit(provider, cacheKey);
+    return {
+      fixtures: await cachedFixtures,
+      externalRequests: 0,
+    };
   }
 
-  return fetchApiFootballFixturesByDate({
+  logProviderCacheMiss(provider, cacheKey);
+
+  if (provider === "football-data") {
+    const fixturesPromise = fetchFootballDataMatchesByMatchdays(matchdays);
+
+    providerFixturesCache.set(cacheKey, fixturesPromise);
+
+    return {
+      fixtures: await fixturesPromise,
+      externalRequests: matchdays.length,
+    };
+  }
+
+  const fixturesPromise = fetchApiFootballFixturesByDate({
     date: today,
     timezone: TIMEZONE,
   });
+
+  providerFixturesCache.set(cacheKey, fixturesPromise);
+
+  return {
+    fixtures: await fixturesPromise,
+    externalRequests: 1,
+  };
+}
+
+async function fetchCachedWorldcup26Games() {
+  const cacheKey = "games";
+  const cachedGames = worldcup26GamesCache.get(cacheKey);
+
+  if (cachedGames) {
+    logProviderCacheHit("worldcup26 games", cacheKey);
+    return {
+      games: await cachedGames,
+      externalRequests: 0,
+    };
+  }
+
+  logProviderCacheMiss("worldcup26 games", cacheKey);
+
+  const gamesPromise = fetchWorldcup26Games();
+
+  worldcup26GamesCache.set(cacheKey, gamesPromise);
+
+  return {
+    games: await gamesPromise,
+    externalRequests: 1,
+  };
+}
+
+async function fetchCachedWorldcup26GameByMongoId(fixtureId: string) {
+  const cachedGame = worldcup26GameCache.get(fixtureId);
+
+  if (cachedGame) {
+    logProviderCacheHit("worldcup26 game", fixtureId);
+    return {
+      game: await cachedGame,
+      externalRequests: 0,
+    };
+  }
+
+  logProviderCacheMiss("worldcup26 game", fixtureId);
+
+  const gamePromise = fetchWorldcup26GameByMongoId(fixtureId);
+
+  worldcup26GameCache.set(fixtureId, gamePromise);
+
+  return {
+    game: await gamePromise,
+    externalRequests: 1,
+  };
+}
+
+async function fetchCachedEspnScoreboardByDate(date: string) {
+  const cachedEvents = espnScoreboardCache.get(date);
+
+  if (cachedEvents) {
+    logProviderCacheHit("espn scoreboard", date);
+    return {
+      events: await cachedEvents,
+      externalRequests: 0,
+    };
+  }
+
+  logProviderCacheMiss("espn scoreboard", date);
+
+  const eventsPromise = fetchEspnScoreboardByDate(date);
+
+  espnScoreboardCache.set(date, eventsPromise);
+
+  return {
+    events: await eventsPromise,
+    externalRequests: 1,
+  };
+}
+
+async function fetchCachedEspnSummaryByEventId(fixtureId: string) {
+  const cachedEvent = espnSummaryCache.get(fixtureId);
+
+  if (cachedEvent) {
+    logProviderCacheHit("espn summary", fixtureId);
+    return {
+      event: await cachedEvent,
+      externalRequests: 0,
+    };
+  }
+
+  logProviderCacheMiss("espn summary", fixtureId);
+
+  const eventPromise = fetchEspnSummaryByEventId(fixtureId);
+
+  espnSummaryCache.set(fixtureId, eventPromise);
+
+  return {
+    event: await eventPromise,
+    externalRequests: 1,
+  };
 }
 
 function isWorldcup26NotStarted(fixture: LiveScoreFixture) {
@@ -561,7 +702,8 @@ async function fetchWorldcup26FixtureForMatch(input: {
   const fixtureId = providerFixtureIdForMatch(input.match, "worldcup26");
 
   if (fixtureId) {
-    const game = await fetchWorldcup26GameByMongoId(fixtureId);
+    const { game, externalRequests } =
+      await fetchCachedWorldcup26GameByMongoId(fixtureId);
     const fixture = mapWorldcup26GameToInternalScore(game, {
       homeTeamName: input.match.home_team?.name,
       awayTeamName: input.match.away_team?.name,
@@ -571,6 +713,7 @@ async function fetchWorldcup26FixtureForMatch(input: {
       fixture,
       fixtureId,
       usedGamesEndpoint: false,
+      externalRequests,
     };
   }
 
@@ -583,6 +726,7 @@ async function fetchWorldcup26FixtureForMatch(input: {
     fixture,
     fixtureId: fixture ? String(fixture.providerFixtureId) : null,
     usedGamesEndpoint: true,
+    externalRequests: 0,
   };
 }
 
@@ -603,8 +747,9 @@ async function runWorldcup26Sync(input: {
   );
 
   if (needsFallbackMapping) {
-    const games = await fetchWorldcup26Games();
-    externalRequests += 1;
+    const { games, externalRequests: gamesExternalRequests } =
+      await fetchCachedWorldcup26Games();
+    externalRequests += gamesExternalRequests;
     allFixtures = games
       .map((game) => mapWorldcup26GameToInternalScore(game))
       .filter((fixture): fixture is LiveScoreFixture => Boolean(fixture));
@@ -626,10 +771,7 @@ async function runWorldcup26Sync(input: {
 
       fixture = result.fixture;
       fixtureId = result.fixtureId;
-
-      if (!result.usedGamesEndpoint) {
-        externalRequests += 1;
-      }
+      externalRequests += result.externalRequests;
     } catch (error) {
       console.warn(
         `[worldcup26] failed to fetch mapped game: ${
@@ -723,18 +865,22 @@ async function fetchEspnEventForMatch(input: {
   const scoreboardDates = espnCandidateDates(input.match.kickoff_at);
 
   if (fixtureId) {
-    const summaryEvent = await fetchEspnSummaryByEventId(fixtureId);
+    const {
+      event: summaryEvent,
+      externalRequests: summaryExternalRequests,
+    } = await fetchCachedEspnSummaryByEventId(fixtureId);
     let scoreboardEvent: EspnEvent | null = null;
     let matchedScoreboardDate: string | null = null;
-    externalRequests += 1;
+    externalRequests += summaryExternalRequests;
 
     for (const date of scoreboardDates) {
       let events = input.eventsByDate.get(date);
 
       if (!events) {
-        events = await fetchEspnScoreboardByDate(date);
+        const result = await fetchCachedEspnScoreboardByDate(date);
+        events = result.events;
         input.eventsByDate.set(date, events);
-        externalRequests += 1;
+        externalRequests += result.externalRequests;
       }
 
       scoreboardEvent =
@@ -762,9 +908,10 @@ async function fetchEspnEventForMatch(input: {
     let events = input.eventsByDate.get(date);
 
     if (!events) {
-      events = await fetchEspnScoreboardByDate(date);
+      const result = await fetchCachedEspnScoreboardByDate(date);
+      events = result.events;
       input.eventsByDate.set(date, events);
-      externalRequests += 1;
+      externalRequests += result.externalRequests;
     }
 
     const event = events.find((candidate) =>
@@ -879,7 +1026,7 @@ async function saveEspnGoals(input: {
         continue;
       }
 
-      if (isDryRunEnabled()) {
+      if (isScoreDryRunEnabled()) {
         insertedGoals += 1;
         console.log(
           `[dry-run][espn] Would insert goal: ${input.match.home_team?.name ?? "Home"} x ${input.match.away_team?.name ?? "Away"} - ${goal.playerName ?? "Jogador"} ${goal.minute ?? "?"}'`,
@@ -1135,7 +1282,7 @@ async function updateMatch(
   match: MatchRow,
   update: MatchUpdate,
 ) {
-  if (isDryRunEnabled()) {
+  if (isScoreDryRunEnabled()) {
     console.log(
       `[dry-run] Would update match ${match.id}: ${JSON.stringify({
         status_short: update.status_short,
@@ -1165,7 +1312,7 @@ async function insertSyncLog(
   supabase: SyncSupabaseClient,
   log: LiveScoreSyncLogInsert,
 ) {
-  if (isDryRunEnabled()) {
+  if (isScoreDryRunEnabled()) {
     console.log(
       `[dry-run] Would insert live_score_sync_logs row: ${JSON.stringify({
         provider: log.provider,
@@ -1194,11 +1341,44 @@ function logStatusForResult(result: LiveScoreSyncResult): SyncStatus {
   return result.status;
 }
 
+function logSyncResultSummary(
+  result: LiveScoreSyncResult,
+  startedAt: Date,
+) {
+  const durationMs = Date.now() - startedAt.getTime();
+
+  console.log("Live score sync summary:");
+  console.log(`- status: ${result.status}`);
+  console.log(`- reason: ${result.reason}`);
+  console.log(`- provider: ${result.provider}`);
+  console.log(`- active matches: ${result.activeMatches ?? 0}`);
+  console.log(`- updated matches: ${result.updatedMatches}`);
+  console.log(`- live fixtures: ${result.liveFixtures ?? 0}`);
+  console.log(`- external requests: ${result.externalRequests}`);
+  console.log(`- duration: ${durationMs}ms`);
+
+  if (result.nextRecommendedSyncInSeconds) {
+    console.log(
+      `- next recommended sync: ${result.nextRecommendedSyncInSeconds}s`,
+    );
+  } else if (result.nextRecommendedSyncInMinutes) {
+    console.log(
+      `- next recommended sync: ${result.nextRecommendedSyncInMinutes}min`,
+    );
+  }
+
+  if (result.message) {
+    console.log(`- message: ${result.message}`);
+  }
+}
+
 async function finishWithLog(
   supabase: SyncSupabaseClient,
   startedAt: Date,
   result: LiveScoreSyncResult,
 ) {
+  logSyncResultSummary(result, startedAt);
+
   await insertSyncLog(supabase, {
     provider: result.provider,
     status: logStatusForResult(result),
@@ -1214,17 +1394,21 @@ async function finishWithLog(
   return result;
 }
 
-export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
+async function runLiveScoreSyncForTarget(
+  supabaseConfig: ScoreSupabaseConfig,
+): Promise<LiveScoreSyncResult> {
   const startedAt = new Date();
   const provider = currentProvider();
-  const dryRun = isDryRunEnabled();
-  const supabaseConfig = getScriptSupabaseConfig();
+  const dryRun = isScoreDryRunEnabled();
   const supabase = createServiceClient(supabaseConfig);
 
-  logScriptSupabaseTarget("Live score sync", supabaseConfig, dryRun);
+  logScoreSupabaseTarget("Live score sync", supabaseConfig, dryRun);
+  console.log(`Started at: ${startedAt.toISOString()}`);
+  console.log(`Provider: ${provider}`);
 
   try {
     if (provider === "manual") {
+      console.log("Skipping sync: manual provider selected.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "manual_provider",
@@ -1236,6 +1420,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     }
 
     if (provider === "api-football" && !process.env.API_FOOTBALL_KEY) {
+      console.log("Skipping sync: missing API_FOOTBALL_KEY.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "missing_api_key",
@@ -1247,6 +1432,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     }
 
     if (provider === "football-data" && !process.env.FOOTBALL_DATA_API_KEY) {
+      console.log("Skipping sync: missing FOOTBALL_DATA_API_KEY.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "missing_football_data_api_key",
@@ -1288,7 +1474,19 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
           ? worldcup26SyncIntervalInMinutes()
           : syncIntervalForKickoffTimes(kickoffTimes.size);
 
+    console.log(`Today (${TIMEZONE}): ${today}`);
+    console.log(`Matches loaded: ${matches.length}`);
+    console.log(`Today matches: ${todayMatches.length}`);
+    console.log(`Active candidate matches: ${activeCandidateMatches.length}`);
+    console.log(`Active matches in window: ${activeMatches.length}`);
+    console.log(
+      `Kickoff times today: ${
+        Array.from(kickoffTimes).join(", ") || "none"
+      }`,
+    );
+
     if (activeMatches.length === 0) {
+      console.log("Skipping sync: no matches inside active window.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "outside_active_window",
@@ -1327,6 +1525,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     );
 
     if (mappedActiveMatches.length === 0) {
+      console.log("Skipping sync: active matches do not have fixture mapping.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "missing_fixture_mapping",
@@ -1350,6 +1549,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     ).sort((first, second) => first - second);
 
     if (provider === "football-data" && activeMatchdays.length === 0) {
+      console.log("Skipping sync: missing active matchday for football-data.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "missing_active_matchday",
@@ -1370,6 +1570,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
       HALFTIME_PAUSE_MINUTES;
 
     if (allActiveMatchesAreHalftime && activeHalftimeWasRecentlyUpdated) {
+      console.log("Skipping sync: halftime pause is still active.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "halftime_pause",
@@ -1388,6 +1589,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
       latestUpdate &&
       minutesSince(latestUpdate, now) < nextRecommendedSyncInMinutes
     ) {
+      console.log("Skipping sync: minimum interval was not reached.");
       return finishWithLog(supabase, startedAt, {
         status: "skipped",
         reason: "minimum_interval_not_reached",
@@ -1401,17 +1603,26 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
     }
 
     let fixtures: LiveScoreFixture[];
-    const expectedExternalRequests =
-      provider === "football-data" ? activeMatchdays.length : 1;
+    let externalRequests = 0;
 
     try {
-      fixtures = await fetchProviderFixtures(provider, today, activeMatchdays);
+      const result = await fetchProviderFixtures(provider, today, activeMatchdays);
+
+      fixtures = result.fixtures;
+      externalRequests = result.externalRequests;
+      console.log(`Provider fixtures loaded: ${fixtures.length}`);
+      console.log(`Provider external requests: ${externalRequests}`);
     } catch (error) {
+      console.warn(
+        `Provider fetch failed: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
       return finishWithLog(supabase, startedAt, {
         status: "error",
         reason: "provider_error",
         provider,
-        externalRequests: expectedExternalRequests,
+        externalRequests,
         updatedMatches: 0,
         activeMatches: mappedActiveMatches.length,
         activeMatchdays,
@@ -1460,7 +1671,7 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
       status: "synced",
       reason: "active_match_window",
       provider,
-      externalRequests: expectedExternalRequests,
+      externalRequests,
       updatedMatches,
       activeMatches: mappedActiveMatches.length,
       activeMatchdays,
@@ -1470,6 +1681,11 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
       nextRecommendedSyncInMinutes,
     });
   } catch (error) {
+    console.error(
+      `Unexpected live score sync error: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    );
     return finishWithLog(supabase, startedAt, {
       status: "error",
       reason: "unexpected_error",
@@ -1480,4 +1696,62 @@ export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
       message: error instanceof Error ? error.message : "Unknown error",
     });
   }
+}
+
+export async function runLiveScoreSync(): Promise<LiveScoreSyncResult> {
+  const supabaseConfigs = resolveScoreSupabaseEnvs();
+  const results: LiveScoreSyncResult[] = [];
+  const dryRun = isScoreDryRunEnabled();
+
+  logScoreSupabaseTargets("Live score multi-target sync", supabaseConfigs, dryRun);
+
+  for (const supabaseConfig of supabaseConfigs) {
+    results.push(await runLiveScoreSyncForTarget(supabaseConfig));
+  }
+
+  if (results.length === 1) {
+    return results[0];
+  }
+
+  const hasError = results.some((result) => result.status === "error");
+  const hasSynced = results.some((result) => result.status === "synced");
+  const provider = results[0]?.provider ?? currentProvider();
+  const externalRequests = results.reduce(
+    (total, result) => total + result.externalRequests,
+    0,
+  );
+  const updatedMatches = results.reduce(
+    (total, result) => total + result.updatedMatches,
+    0,
+  );
+  const activeMatches = results.reduce(
+    (total, result) => total + (result.activeMatches ?? 0),
+    0,
+  );
+  const liveFixtures = results.reduce(
+    (total, result) => total + (result.liveFixtures ?? 0),
+    0,
+  );
+
+  console.log("\n=== Multi-target sync summary ===");
+  console.log(`Targets processed: ${results.length}`);
+  console.log(`Status: ${hasError ? "error" : hasSynced ? "synced" : "skipped"}`);
+  console.log(`Provider: ${provider}`);
+  console.log(`Active matches total: ${activeMatches}`);
+  console.log(`Updated matches total: ${updatedMatches}`);
+  console.log(`Live fixtures total: ${liveFixtures}`);
+  console.log(`External requests total: ${externalRequests}`);
+
+  return {
+    status: hasError ? "error" : hasSynced ? "synced" : "skipped",
+    reason: "multi_target_sync",
+    provider,
+    externalRequests,
+    updatedMatches,
+    activeMatches,
+    liveFixtures,
+    message: results
+      .map((result) => `${result.provider}:${result.status}:${result.reason}`)
+      .join("; "),
+  };
 }

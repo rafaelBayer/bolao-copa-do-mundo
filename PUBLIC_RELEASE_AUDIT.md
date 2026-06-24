@@ -18,28 +18,31 @@ Preparar o repositorio para publicacao publica no GitHub, removendo referencias 
 ## Arquivos alterados
 
 - `.env.example`
+- `.env.scores.example`
 - `.gitignore`
 - `README.md`
 - `docs/live-scores.md`
 - `docs/setup-supabase.md`
 - `components/groups/GroupsDashboardClient.tsx`
+- `lib/scores/resolveScoreSupabaseEnv.ts`
 - `lib/supabase/scriptEnv.ts`
 - `package.json`
 - `PUBLIC_RELEASE_AUDIT.md`
 
 ## Referencias removidas ou substituidas
 
-- Variaveis locais antigas com nome corporativo foram trocadas por nomes neutros `LEGACY_SUPABASE_*`.
-- O alvo local de scripts foi renomeado para `legacy`.
+- Variaveis locais antigas de multiplos Supabases foram removidas do app.
+- Scripts de placar passaram a usar `.env.scores.local`, separado de `.env.local`.
 - Regras de ignore com nome especifico antigo foram trocadas por padroes genericos de backup.
 - Documentacao de setup e live scores foi ajustada para nomes neutros e sem referencias internas.
-- Exemplos com `NEXT_PUBLIC_SUPABASE_TARGET` foram removidos dos docs, pois a selecao de projeto fica apenas nos scripts locais.
+- Exemplos de selecao de Supabase foram movidos para variaveis exclusivas dos scripts de placar.
 
 ## Secrets e credenciais
 
 - Nenhum secret real deve permanecer em arquivos versionados no estado atual.
 - `.env.example` contem apenas placeholders vazios ou genericos.
 - `.env.local` e `.env.production.local` foram sanitizados localmente e continuam ignorados pelo Git.
+- `.env.scores.local` foi criado localmente com placeholders e continua ignorado pelo Git.
 - Arquivos temporarios locais com contexto antigo e logs foram removidos.
 - Caso algum secret tenha sido exposto antes desta auditoria, manter as chaves rotacionadas e avaliar limpeza de historico Git antes de tornar o repositorio publico.
 
@@ -50,6 +53,7 @@ Confirmado ou adicionado:
 - `.env`
 - `.env.*`
 - `!.env.example`
+- `!.env.scores.example`
 - `backups/`
 - `*.dump`
 - `*.backup`

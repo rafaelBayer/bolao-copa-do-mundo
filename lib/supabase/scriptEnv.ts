@@ -1,19 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
 
-export type SupabaseTarget = "default" | "legacy" | "public";
-
 export type ScriptSupabaseConfig = {
-  target: SupabaseTarget;
+  target: "app";
   url: string;
   anonKey: string | null;
   serviceRoleKey: string;
-};
-
-type ResolvedSupabaseEnv = {
-  target: SupabaseTarget;
-  url: string | undefined;
-  anonKey: string | undefined;
-  serviceRoleKey: string | undefined;
 };
 
 export function loadScriptEnvFile(path: string) {
@@ -49,75 +40,28 @@ export function loadScriptEnvFiles() {
   loadScriptEnvFile(".env");
 }
 
+function requiredEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+
+  return value;
+}
+
 function optionalEnv(name: string) {
-  return process.env[name]?.trim() || undefined;
-}
-
-function resolveTarget(): SupabaseTarget {
-  const target = optionalEnv("SUPABASE_TARGET")?.toLowerCase();
-
-  if (!target) {
-    return "default";
-  }
-
-  if (target === "legacy" || target === "public") {
-    return target;
-  }
-
-  throw new Error(
-    `Invalid SUPABASE_TARGET "${target}". Use "legacy", "public" or leave it empty.`,
-  );
-}
-
-export function resolveSupabaseEnv(): ResolvedSupabaseEnv {
-  const target = resolveTarget();
-
-  if (target === "legacy") {
-    return {
-      target,
-      url: optionalEnv("LEGACY_SUPABASE_URL"),
-      anonKey: optionalEnv("LEGACY_SUPABASE_ANON_KEY"),
-      serviceRoleKey: optionalEnv("LEGACY_SUPABASE_SERVICE_ROLE_KEY"),
-    };
-  }
-
-  if (target === "public") {
-    return {
-      target,
-      url: optionalEnv("PUBLIC_SUPABASE_URL"),
-      anonKey: optionalEnv("PUBLIC_SUPABASE_ANON_KEY"),
-      serviceRoleKey: optionalEnv("PUBLIC_SUPABASE_SERVICE_ROLE_KEY"),
-    };
-  }
-
-  return {
-    target: "default",
-    url: optionalEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    anonKey:
-      optionalEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY") ??
-      optionalEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
-    serviceRoleKey: optionalEnv("SUPABASE_SERVICE_ROLE_KEY"),
-  };
+  return process.env[name]?.trim() || null;
 }
 
 export function getScriptSupabaseConfig(): ScriptSupabaseConfig {
-  const config = resolveSupabaseEnv();
-
-  if (!config.url) {
-    throw new Error(`Supabase URL is not configured for target: ${config.target}`);
-  }
-
-  if (!config.serviceRoleKey) {
-    throw new Error(
-      `Supabase service role key is not configured for target: ${config.target}`,
-    );
-  }
-
   return {
-    target: config.target,
-    url: config.url,
-    anonKey: config.anonKey ?? null,
-    serviceRoleKey: config.serviceRoleKey,
+    target: "app",
+    url: requiredEnv("NEXT_PUBLIC_SUPABASE_URL"),
+    anonKey:
+      optionalEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY") ??
+      optionalEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
+    serviceRoleKey: requiredEnv("SUPABASE_SERVICE_ROLE_KEY"),
   };
 }
 

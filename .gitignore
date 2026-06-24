@@ -40,8 +40,13 @@ backups/
 
 # env
 .env
+.env.local
 .env.*
 !.env.example
+!.env.scores.example
+.env.production
+.env.production.local
+.env.scores.local
 
 # vercel
 .vercel

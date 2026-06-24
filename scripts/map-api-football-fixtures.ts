@@ -1,9 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import {
-  getScriptSupabaseConfig,
-  loadScriptEnvFiles,
-  logScriptSupabaseTarget,
-} from "../lib/supabase/scriptEnv";
+  loadScoreScriptEnvFiles,
+  logScoreSupabaseTarget,
+  logScoreSupabaseTargets,
+  resolveScoreSupabaseEnvs,
+} from "../lib/scores/resolveScoreSupabaseEnv";
 
 const API_FOOTBALL_BASE_URL = "https://v3.football.api-sports.io";
 const TIMEZONE = "America/Sao_Paulo";
@@ -341,89 +342,99 @@ function findFixtureCandidates(match: MatchRow, fixtures: ApiFootballFixture[]) 
 }
 
 async function main() {
-  loadScriptEnvFiles();
+  loadScoreScriptEnvFiles();
 
   const dryRun = process.argv.includes("--dry-run");
-  const supabaseConfig = getScriptSupabaseConfig();
   const debug =
     process.argv.includes("--debug") ||
     process.env.DEBUG_API_FOOTBALL === "true";
 
-  logScriptSupabaseTarget("API-Football fixture mapping", supabaseConfig, dryRun);
+  console.log(`Dry run: ${dryRun ? "true" : "false"}`);
+  console.log(`Debug API-Football: ${debug ? "true" : "false"}`);
   console.log("Fetching API-Football fixtures...");
   const fixtures = await fetchApiFootballFixtures(debug);
   console.log(`Fixtures returned: ${fixtures.length}`);
+  console.log("API-Football fixtures fetched once before processing targets.");
 
-  const supabase = createClient<MappingDatabase>(
-    supabaseConfig.url,
-    supabaseConfig.serviceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+  const supabaseConfigs = resolveScoreSupabaseEnvs();
+  logScoreSupabaseTargets("API-Football fixture mapping multi-target run", supabaseConfigs, dryRun);
+
+  for (const supabaseConfig of supabaseConfigs) {
+    const startedAt = Date.now();
+    logScoreSupabaseTarget("API-Football fixture mapping", supabaseConfig, dryRun);
+
+    const supabase = createClient<MappingDatabase>(
+      supabaseConfig.supabaseUrl,
+      supabaseConfig.supabaseServiceRoleKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
       },
-    },
-  );
+    );
 
-  console.log("Fetching local matches...");
-  const matches = await fetchMatches(supabase);
-  console.log(`Local matches: ${matches.length}`);
+    console.log("Fetching local matches...");
+    const matches = await fetchMatches(supabase);
+    console.log(`Local matches: ${matches.length}`);
 
-  let safeMatches = 0;
-  let updatedMatches = 0;
-  let missingMatches = 0;
-  let ambiguousMatches = 0;
+    let safeMatches = 0;
+    let updatedMatches = 0;
+    let missingMatches = 0;
+    let ambiguousMatches = 0;
 
-  for (const match of matches) {
-    if (match.api_football_fixture_id) {
-      continue;
-    }
+    for (const match of matches) {
+      if (match.api_football_fixture_id) {
+        continue;
+      }
 
-    const candidates = findFixtureCandidates(match, fixtures);
-    const fixture = candidates.length === 1 ? candidates[0] : null;
+      const candidates = findFixtureCandidates(match, fixtures);
+      const fixture = candidates.length === 1 ? candidates[0] : null;
 
-    if (!fixture?.fixture?.id) {
-      if (candidates.length > 1) {
-        ambiguousMatches += 1;
+      if (!fixture?.fixture?.id) {
+        if (candidates.length > 1) {
+          ambiguousMatches += 1;
+          console.log(
+            `Ambiguous match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at}) - ${candidates.length} candidates`,
+          );
+          continue;
+        }
+
+        missingMatches += 1;
         console.log(
-          `Ambiguous match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at}) - ${candidates.length} candidates`,
+          `No safe match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at})`,
         );
         continue;
       }
 
-      missingMatches += 1;
+      safeMatches += 1;
       console.log(
-        `No safe match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at})`,
+        `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> fixture ${fixture.fixture.id}`,
       );
-      continue;
-    }
 
-    safeMatches += 1;
-    console.log(
-      `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> fixture ${fixture.fixture.id}`,
-    );
+      if (!dryRun) {
+        const { error } = await supabase
+          .from("matches")
+          .update({ api_football_fixture_id: fixture.fixture.id })
+          .eq("id", match.id);
 
-    if (!dryRun) {
-      const { error } = await supabase
-        .from("matches")
-        .update({ api_football_fixture_id: fixture.fixture.id })
-        .eq("id", match.id);
+        if (error) {
+          throw error;
+        }
 
-      if (error) {
-        throw error;
+        updatedMatches += 1;
       }
-
-      updatedMatches += 1;
     }
-  }
 
-  console.log("Done.");
-  console.log(`Safe matches: ${safeMatches}`);
-  console.log(`Ambiguous matches: ${ambiguousMatches}`);
-  console.log(`Missing matches: ${missingMatches}`);
-  console.log(`Updated matches: ${updatedMatches}`);
-  if (dryRun) {
-    console.log("Dry-run: no database changes applied.");
+    console.log("Done.");
+    console.log(`Duration: ${Date.now() - startedAt}ms`);
+    console.log(`Safe matches: ${safeMatches}`);
+    console.log(`Ambiguous matches: ${ambiguousMatches}`);
+    console.log(`Missing matches: ${missingMatches}`);
+    console.log(`Updated matches: ${updatedMatches}`);
+    if (dryRun) {
+      console.log("Dry-run: no database changes applied.");
+    }
   }
 }
 

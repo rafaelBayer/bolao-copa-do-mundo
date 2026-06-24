@@ -6,10 +6,10 @@ import {
   type EspnEvent,
 } from "../lib/scores/providers/espn";
 import {
-  getScriptSupabaseConfig,
-  loadScriptEnvFiles,
-  logScriptSupabaseTarget,
-} from "../lib/supabase/scriptEnv";
+  logScoreSupabaseTarget,
+  logScoreSupabaseTargets,
+  resolveScoreSupabaseEnvs,
+} from "../lib/scores/resolveScoreSupabaseEnv";
 
 type MappingDatabase = {
   public: {
@@ -51,6 +51,23 @@ type MatchRow = {
 };
 
 type MappingSupabaseClient = SupabaseClient<MappingDatabase>;
+const espnScoreboardCache = new Map<string, Promise<EspnEvent[]>>();
+
+async function fetchCachedEspnScoreboardByDate(date: string) {
+  const cachedEvents = espnScoreboardCache.get(date);
+
+  if (cachedEvents) {
+    console.log(`[cache] espn scoreboard: hit (${date})`);
+    return cachedEvents;
+  }
+
+  console.log(`[cache] espn scoreboard: miss (${date})`);
+  const eventsPromise = fetchEspnScoreboardByDate(date);
+
+  espnScoreboardCache.set(date, eventsPromise);
+
+  return eventsPromise;
+}
 
 async function fetchMatches(supabase: MappingSupabaseClient) {
   const { data, error } = await supabase
@@ -137,154 +154,161 @@ function findCandidates(match: MatchRow, events: EspnEvent[]) {
 }
 
 async function main() {
-  loadScriptEnvFiles();
-
   const dryRun = process.argv.includes("--dry-run");
-  const supabaseConfig = getScriptSupabaseConfig();
-  logScriptSupabaseTarget("ESPN fixture mapping", supabaseConfig, dryRun);
+  const supabaseConfigs = resolveScoreSupabaseEnvs();
 
-  const supabase = createClient<MappingDatabase>(
-    supabaseConfig.url,
-    supabaseConfig.serviceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+  logScoreSupabaseTargets("ESPN fixture mapping multi-target run", supabaseConfigs, dryRun);
+
+  for (const supabaseConfig of supabaseConfigs) {
+    const startedAt = Date.now();
+    logScoreSupabaseTarget("ESPN fixture mapping", supabaseConfig, dryRun);
+
+    const supabase = createClient<MappingDatabase>(
+      supabaseConfig.supabaseUrl,
+      supabaseConfig.supabaseServiceRoleKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
       },
-    },
-  );
-
-  console.log("Fetching local matches...");
-  const matches = await fetchMatches(supabase);
-  console.log(`Total local: ${matches.length}`);
-
-  const dates = dateRangeForMatches(matches);
-  const eventById = new Map<string, EspnEvent>();
-
-  console.log(`Fetching ESPN scoreboards for ${dates.length} dates...`);
-  for (const date of dates) {
-    const events = await fetchEspnScoreboardByDate(date);
-
-    events.forEach((event) => {
-      const fixture = mapEspnEventToInternalMatch(event);
-
-      if (fixture) {
-        eventById.set(String(fixture.providerFixtureId), event);
-      }
-    });
-  }
-
-  const events = Array.from(eventById.values());
-  console.log(`Total ESPN: ${events.length}`);
-
-  let mappedBefore = 0;
-  let mapped = 0;
-  let alreadyMapped = 0;
-  let updatedMatches = 0;
-  let pending = 0;
-  let ambiguous = 0;
-  let conflicts = 0;
-  const pendingLabels: string[] = [];
-  const conflictLabels: string[] = [];
-
-  for (const match of matches) {
-    if (match.score_provider === "espn" && match.score_provider_fixture_id) {
-      mappedBefore += 1;
-    }
-
-    const candidates = findCandidates(match, events);
-    const candidate = candidates.length === 1 ? candidates[0] : null;
-    const fixture = candidate?.fixture ?? null;
-
-    if (!fixture) {
-      if (candidates.length > 1) {
-        ambiguous += 1;
-        console.log(
-          `Ambiguous: ${match.home_team?.name} x ${match.away_team?.name} - ${candidates.length} candidates`,
-        );
-      } else {
-        pending += 1;
-        pendingLabels.push(
-          `${match.home_team?.name} x ${match.away_team?.name} (${match.group?.name ?? "sem grupo"}, rodada ${match.round_number ?? "-"})`,
-        );
-        console.log(
-          `Pending: ${match.home_team?.name} x ${match.away_team?.name}`,
-        );
-      }
-
-      continue;
-    }
-
-    mapped += 1;
-
-    if (
-      match.score_provider === "espn" &&
-      match.score_provider_fixture_id &&
-      match.score_provider_fixture_id !== String(fixture.providerFixtureId)
-    ) {
-      conflicts += 1;
-      conflictLabels.push(
-        `${match.home_team?.name} x ${match.away_team?.name}: local=${match.score_provider_fixture_id}, candidate=${fixture.providerFixtureId}`,
-      );
-      console.log(
-        `Conflict: ${match.home_team?.name} x ${match.away_team?.name} is mapped to ${match.score_provider_fixture_id}, candidate is ${fixture.providerFixtureId}`,
-      );
-      continue;
-    }
-
-    if (
-      match.score_provider === "espn" &&
-      match.score_provider_fixture_id === String(fixture.providerFixtureId)
-    ) {
-      alreadyMapped += 1;
-    }
-
-    console.log(
-      `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> espn:${fixture.providerFixtureId}`,
     );
 
-    if (
-      !dryRun &&
-      (match.score_provider !== "espn" ||
-        match.score_provider_fixture_id !== String(fixture.providerFixtureId))
-    ) {
-      const { error } = await supabase
-        .from("matches")
-        .update({
-          score_provider: "espn",
-          score_provider_fixture_id: String(fixture.providerFixtureId),
-        })
-        .eq("id", match.id);
+    console.log("Fetching local matches...");
+    const matches = await fetchMatches(supabase);
+    console.log(`Total local: ${matches.length}`);
 
-      if (error) {
-        throw error;
+    const dates = dateRangeForMatches(matches);
+    const eventById = new Map<string, EspnEvent>();
+
+    console.log(`Fetching ESPN scoreboards for ${dates.length} dates...`);
+    console.log(`Date range: ${dates.join(", ") || "none"}`);
+    for (const date of dates) {
+      const events = await fetchCachedEspnScoreboardByDate(date);
+
+      events.forEach((event) => {
+        const fixture = mapEspnEventToInternalMatch(event);
+
+        if (fixture) {
+          eventById.set(String(fixture.providerFixtureId), event);
+        }
+      });
+    }
+
+    const events = Array.from(eventById.values());
+    console.log(`Total ESPN: ${events.length}`);
+    console.log(`Scoreboard cache entries: ${espnScoreboardCache.size}`);
+
+    let mappedBefore = 0;
+    let mapped = 0;
+    let alreadyMapped = 0;
+    let updatedMatches = 0;
+    let pending = 0;
+    let ambiguous = 0;
+    let conflicts = 0;
+    const pendingLabels: string[] = [];
+    const conflictLabels: string[] = [];
+
+    for (const match of matches) {
+      if (match.score_provider === "espn" && match.score_provider_fixture_id) {
+        mappedBefore += 1;
       }
 
-      updatedMatches += 1;
+      const candidates = findCandidates(match, events);
+      const candidate = candidates.length === 1 ? candidates[0] : null;
+      const fixture = candidate?.fixture ?? null;
+
+      if (!fixture) {
+        if (candidates.length > 1) {
+          ambiguous += 1;
+          console.log(
+            `Ambiguous: ${match.home_team?.name} x ${match.away_team?.name} - ${candidates.length} candidates`,
+          );
+        } else {
+          pending += 1;
+          pendingLabels.push(
+            `${match.home_team?.name} x ${match.away_team?.name} (${match.group?.name ?? "sem grupo"}, rodada ${match.round_number ?? "-"})`,
+          );
+          console.log(
+            `Pending: ${match.home_team?.name} x ${match.away_team?.name}`,
+          );
+        }
+
+        continue;
+      }
+
+      mapped += 1;
+
+      if (
+        match.score_provider === "espn" &&
+        match.score_provider_fixture_id &&
+        match.score_provider_fixture_id !== String(fixture.providerFixtureId)
+      ) {
+        conflicts += 1;
+        conflictLabels.push(
+          `${match.home_team?.name} x ${match.away_team?.name}: local=${match.score_provider_fixture_id}, candidate=${fixture.providerFixtureId}`,
+        );
+        console.log(
+          `Conflict: ${match.home_team?.name} x ${match.away_team?.name} is mapped to ${match.score_provider_fixture_id}, candidate is ${fixture.providerFixtureId}`,
+        );
+        continue;
+      }
+
+      if (
+        match.score_provider === "espn" &&
+        match.score_provider_fixture_id === String(fixture.providerFixtureId)
+      ) {
+        alreadyMapped += 1;
+      }
+
+      console.log(
+        `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> espn:${fixture.providerFixtureId}`,
+      );
+
+      if (
+        !dryRun &&
+        (match.score_provider !== "espn" ||
+          match.score_provider_fixture_id !== String(fixture.providerFixtureId))
+      ) {
+        const { error } = await supabase
+          .from("matches")
+          .update({
+            score_provider: "espn",
+            score_provider_fixture_id: String(fixture.providerFixtureId),
+          })
+          .eq("id", match.id);
+
+        if (error) {
+          throw error;
+        }
+
+        updatedMatches += 1;
+      }
     }
-  }
 
-  console.log("Done.");
-  console.log(`Mapped before: ${mappedBefore}`);
-  console.log(`Mapped: ${mapped}`);
-  console.log(`Already mapped: ${alreadyMapped}`);
-  console.log(`Updated matches: ${updatedMatches}`);
-  console.log(`Pending: ${pending}`);
-  console.log(`Ambiguous: ${ambiguous}`);
-  console.log(`Conflicts: ${conflicts}`);
+    console.log("Done.");
+    console.log(`Duration: ${Date.now() - startedAt}ms`);
+    console.log(`Mapped before: ${mappedBefore}`);
+    console.log(`Mapped: ${mapped}`);
+    console.log(`Already mapped: ${alreadyMapped}`);
+    console.log(`Updated matches: ${updatedMatches}`);
+    console.log(`Pending: ${pending}`);
+    console.log(`Ambiguous: ${ambiguous}`);
+    console.log(`Conflicts: ${conflicts}`);
 
-  if (pendingLabels.length > 0) {
-    console.log("Pending matches:");
-    pendingLabels.forEach((label) => console.log(`- ${label}`));
-  }
+    if (pendingLabels.length > 0) {
+      console.log("Pending matches:");
+      pendingLabels.forEach((label) => console.log(`- ${label}`));
+    }
 
-  if (conflictLabels.length > 0) {
-    console.log("Conflicts:");
-    conflictLabels.forEach((label) => console.log(`- ${label}`));
-  }
+    if (conflictLabels.length > 0) {
+      console.log("Conflicts:");
+      conflictLabels.forEach((label) => console.log(`- ${label}`));
+    }
 
-  if (dryRun) {
-    console.log("Dry-run: no database changes applied.");
+    if (dryRun) {
+      console.log("Dry-run: no database changes applied.");
+    }
   }
 }
 

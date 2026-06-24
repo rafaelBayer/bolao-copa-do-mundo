@@ -21,24 +21,33 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-Na Vercel, use apenas essas variaveis padrao do Supabase publico/MVP. Nao configure `SUPABASE_TARGET` em producao.
+Na Vercel, use apenas essas variaveis padrao do Supabase do app.
 
-## Scripts locais com dois Supabase
+## Scripts locais de placar
 
-`SUPABASE_TARGET` e as variaveis `LEGACY_SUPABASE_*` / `PUBLIC_SUPABASE_*` sao apenas para scripts locais/server-side. Elas nao sao usadas pelo frontend.
+Os scripts de placar usam um arquivo separado, ignorado pelo Git:
+
+```txt
+.env.scores.local
+```
+
+Use `.env.scores.example` como modelo. Esse arquivo nao usa variaveis `NEXT_PUBLIC_*` e existe apenas para execucoes locais/server-side.
 
 Exemplos:
 
 ```bash
-SUPABASE_TARGET=legacy npm run scores:map-fixtures:dry
-SUPABASE_TARGET=public npm run scores:map-fixtures:dry
+SCORE_SUPABASE_TARGET=staging npm run scores:map-fixtures:dry
+SCORE_SUPABASE_TARGET=production,staging npm run scores:watch:local:dry
 ```
 
 No PowerShell:
 
 ```powershell
-$env:SUPABASE_TARGET="public"; npm run scores:map-fixtures:dry
+$env:SCORE_SUPABASE_TARGET="production,staging"; npm run scores:map-fixtures:dry
+Remove-Item Env:\SCORE_SUPABASE_TARGET
 ```
+
+O app Next.js nao alterna entre multiplos Supabases em runtime. A selecao de target existe apenas para scripts de placar locais. Use lista separada por virgula quando quiser aplicar a mesma execucao em mais de um banco.
 
 ## Placar ao vivo
 

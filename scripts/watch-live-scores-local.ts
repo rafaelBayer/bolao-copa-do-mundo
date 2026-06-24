@@ -1,6 +1,6 @@
 import { appendFileSync, mkdirSync } from "node:fs";
 import { runLiveScoreSync } from "../lib/scores/runLiveScoreSync";
-import { loadScriptEnvFiles } from "../lib/supabase/scriptEnv";
+import { loadScoreScriptEnvFiles } from "../lib/scores/resolveScoreSupabaseEnv";
 
 const DEFAULT_POLL_INTERVAL_SECONDS = 30;
 const LOG_FILE_PATH = "logs/scores-watch-local-current.log";
@@ -107,7 +107,7 @@ async function runOnce() {
 }
 
 async function main() {
-  loadScriptEnvFiles();
+  loadScoreScriptEnvFiles();
 
   const localSource = optionalEnv("LOCAL_SCORE_SOURCE");
 
@@ -117,10 +117,15 @@ async function main() {
 
   const intervalMs = pollIntervalMs();
   const runOnceOnly = process.argv.includes("--once");
+  const dryRun = process.argv.includes("--dry-run");
 
   log(
     `Watcher local iniciado. Fonte: ${process.env.LIVE_SCORE_PROVIDER ?? "manual"}. Intervalo: ${Math.round(intervalMs / 1000)}s.`,
   );
+  log(`Arquivo de log local: ${LOG_FILE_PATH}`);
+  log(`Dry run: ${dryRun ? "true" : "false"}`);
+  log(`Run once: ${runOnceOnly ? "true" : "false"}`);
+  log(`Score targets: ${optionalEnv("SCORE_SUPABASE_TARGET") ?? "production"}`);
 
   if (runOnceOnly) {
     await runOnce();

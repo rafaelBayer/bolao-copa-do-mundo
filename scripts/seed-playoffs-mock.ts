@@ -1,5 +1,8 @@
-import { existsSync, readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
+import {
+  getScriptSupabaseConfig,
+  loadScriptEnvFiles,
+} from "../lib/supabase/scriptEnv";
 
 type TeamRow = {
   id: string;
@@ -18,44 +21,6 @@ const FIRST_ROUND_MATCH_IDS = Array.from({ length: 16 }, (_, index) => {
   return `10000000-0000-0000-0000-000000000${position}`;
 });
 
-function loadEnvFile(path: string) {
-  if (!existsSync(path)) {
-    return;
-  }
-
-  const content = readFileSync(path, "utf8");
-
-  content.split(/\r?\n/).forEach((line) => {
-    const trimmedLine = line.trim();
-
-    if (!trimmedLine || trimmedLine.startsWith("#")) {
-      return;
-    }
-
-    const separatorIndex = trimmedLine.indexOf("=");
-
-    if (separatorIndex === -1) {
-      return;
-    }
-
-    const key = trimmedLine.slice(0, separatorIndex).trim();
-    const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-    const value = rawValue.replace(/^["']|["']$/g, "");
-
-    process.env[key] ??= value;
-  });
-}
-
-function requiredEnv(name: string) {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new Error(`Env obrigatoria ausente: ${name}`);
-  }
-
-  return value;
-}
-
 function nextMonthLockAt() {
   const date = new Date();
   date.setUTCMonth(date.getUTCMonth() + 1);
@@ -65,12 +30,10 @@ function nextMonthLockAt() {
 }
 
 async function main() {
-  loadEnvFile(".env.local");
-  loadEnvFile(".env");
+  loadScriptEnvFiles();
 
-  const supabaseUrl = requiredEnv("NEXT_PUBLIC_SUPABASE_URL");
-  const serviceRoleKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
-  const supabase = createClient(supabaseUrl, serviceRoleKey, {
+  const supabaseConfig = getScriptSupabaseConfig();
+  const supabase = createClient(supabaseConfig.url, supabaseConfig.serviceRoleKey, {
     auth: {
       persistSession: false,
       autoRefreshToken: false,

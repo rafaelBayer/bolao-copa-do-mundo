@@ -3,10 +3,11 @@ import { fetchApiFootballFixturesByCompetition } from "../lib/scores/providers/a
 import { fetchFootballDataMatchesByMatchdays } from "../lib/scores/providers/footballData";
 import type { LiveScoreFixture } from "../lib/scores/providers/types";
 import {
-  getScriptSupabaseConfig,
-  loadScriptEnvFiles,
-  logScriptSupabaseTarget,
-} from "../lib/supabase/scriptEnv";
+  loadScoreScriptEnvFiles,
+  logScoreSupabaseTarget,
+  logScoreSupabaseTargets,
+  resolveScoreSupabaseEnvs,
+} from "../lib/scores/resolveScoreSupabaseEnv";
 
 const TIMEZONE = "America/Sao_Paulo";
 const FOOTBALL_DATA_GROUP_MATCHDAYS = [1, 2, 3];
@@ -222,23 +223,22 @@ function logFootballDataFixtureSummary(fixtures: LiveScoreFixture[]) {
 }
 
 async function main() {
-  loadScriptEnvFiles();
+  loadScoreScriptEnvFiles();
 
   const dryRun = process.argv.includes("--dry-run");
   const provider = currentProvider();
 
   console.log(`Live score provider: ${provider}`);
+  console.log(`Dry run: ${dryRun ? "true" : "false"}`);
 
   if (provider === "manual") {
     console.log("Manual provider selected. No fixture mapping is needed.");
     return;
   }
 
-  const supabaseConfig = getScriptSupabaseConfig();
-  logScriptSupabaseTarget("Live score fixture mapping", supabaseConfig, dryRun);
-
   console.log("Fetching provider fixtures...");
   const fixtures = await fetchProviderFixtures(provider);
+  console.log("Provider fixtures fetched once before processing targets.");
 
   if (provider === "football-data") {
     logFootballDataFixtureSummary(fixtures);
@@ -246,92 +246,101 @@ async function main() {
     console.log(`Fixtures returned: ${fixtures.length}`);
   }
 
-  const supabase = createClient<MappingDatabase>(
-    supabaseConfig.url,
-    supabaseConfig.serviceRoleKey,
-    {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
+  const supabaseConfigs = resolveScoreSupabaseEnvs();
+  logScoreSupabaseTargets("Live score fixture mapping multi-target run", supabaseConfigs, dryRun);
+
+  for (const supabaseConfig of supabaseConfigs) {
+    const startedAt = Date.now();
+    logScoreSupabaseTarget("Live score fixture mapping", supabaseConfig, dryRun);
+
+    const supabase = createClient<MappingDatabase>(
+      supabaseConfig.supabaseUrl,
+      supabaseConfig.supabaseServiceRoleKey,
+      {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
       },
-    },
-  );
+    );
 
-  console.log("Fetching local matches...");
-  const matches = await fetchMatches(supabase);
-  console.log(`Local matches: ${matches.length}`);
+    console.log("Fetching local matches...");
+    const matches = await fetchMatches(supabase);
+    console.log(`Local matches: ${matches.length}`);
 
-  let safeMatches = 0;
-  let updatedMatches = 0;
-  let missingMatches = 0;
-  let ambiguousMatches = 0;
+    let safeMatches = 0;
+    let updatedMatches = 0;
+    let missingMatches = 0;
+    let ambiguousMatches = 0;
 
-  for (const match of matches) {
-    if (
-      match.score_provider === provider &&
-      match.score_provider_fixture_id
-    ) {
-      continue;
-    }
+    for (const match of matches) {
+      if (
+        match.score_provider === provider &&
+        match.score_provider_fixture_id
+      ) {
+        continue;
+      }
 
-    const candidates = findFixtureCandidates(match, fixtures, provider);
-    const fixture = candidates.length === 1 ? candidates[0] : null;
+      const candidates = findFixtureCandidates(match, fixtures, provider);
+      const fixture = candidates.length === 1 ? candidates[0] : null;
 
-    if (!fixture) {
-      if (candidates.length > 1) {
-        ambiguousMatches += 1;
+      if (!fixture) {
+        if (candidates.length > 1) {
+          ambiguousMatches += 1;
+          console.log(
+            `Ambiguous match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at}) - ${candidates.length} candidates`,
+          );
+          continue;
+        }
+
+        missingMatches += 1;
         console.log(
-          `Ambiguous match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at}) - ${candidates.length} candidates`,
+          `No safe match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at})`,
         );
         continue;
       }
 
-      missingMatches += 1;
+      safeMatches += 1;
       console.log(
-        `No safe match: ${match.home_team?.name} x ${match.away_team?.name} (${match.kickoff_at})`,
+        `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> ${provider}:${fixture.providerFixtureId}`,
       );
-      continue;
-    }
 
-    safeMatches += 1;
-    console.log(
-      `${dryRun ? "Would map" : "Mapping"}: ${match.home_team?.name} x ${match.away_team?.name} -> ${provider}:${fixture.providerFixtureId}`,
-    );
+      if (!dryRun) {
+        const update =
+          provider === "api-football"
+            ? {
+                api_football_fixture_id: Number(fixture.providerFixtureId),
+                score_provider: provider,
+                score_provider_fixture_id: String(fixture.providerFixtureId),
+              }
+            : {
+                score_provider: provider,
+                score_provider_fixture_id: String(fixture.providerFixtureId),
+              };
 
-    if (!dryRun) {
-      const update =
-        provider === "api-football"
-          ? {
-              api_football_fixture_id: Number(fixture.providerFixtureId),
-              score_provider: provider,
-              score_provider_fixture_id: String(fixture.providerFixtureId),
-            }
-          : {
-              score_provider: provider,
-              score_provider_fixture_id: String(fixture.providerFixtureId),
-            };
+        const { error } = await supabase
+          .from("matches")
+          .update(update)
+          .eq("id", match.id);
 
-      const { error } = await supabase
-        .from("matches")
-        .update(update)
-        .eq("id", match.id);
+        if (error) {
+          throw error;
+        }
 
-      if (error) {
-        throw error;
+        updatedMatches += 1;
       }
-
-      updatedMatches += 1;
     }
-  }
 
-  console.log("Done.");
-  console.log(`Safe matches: ${safeMatches}`);
-  console.log(`Ambiguous matches: ${ambiguousMatches}`);
-  console.log(`Missing matches: ${missingMatches}`);
-  console.log(`Updated matches: ${updatedMatches}`);
+    console.log("Done.");
+    console.log(`Duration: ${Date.now() - startedAt}ms`);
+    console.log(`Safe matches: ${safeMatches}`);
+    console.log(`Ambiguous matches: ${ambiguousMatches}`);
+    console.log(`Missing matches: ${missingMatches}`);
+    console.log(`Updated matches: ${updatedMatches}`);
 
-  if (dryRun) {
-    console.log("Dry-run: no database changes applied.");
+    if (dryRun) {
+      console.log("Dry-run: no database changes applied.");
+    }
   }
 }
 
