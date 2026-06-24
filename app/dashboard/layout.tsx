@@ -86,12 +86,19 @@ export default async function DashboardLayout({
       ? metadata.name
       : null;
 
-  const { error: defaultPoolError } = await supabase.rpc(
-    "ensure_default_pool_membership",
-    {
-      preferred_name: preferredName,
-    },
-  );
+  const { data: existingMembershipData } = await supabase
+    .from("pool_members")
+    .select("pool_id")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  const { error: defaultPoolError } = existingMembershipData?.pool_id
+    ? { error: null }
+    : await supabase.rpc("ensure_default_pool_membership", {
+        preferred_name: preferredName,
+      });
 
   if (defaultPoolError) {
     console.error("Failed to ensure default pool membership", defaultPoolError);

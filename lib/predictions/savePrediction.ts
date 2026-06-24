@@ -18,11 +18,20 @@ export async function savePrediction({
 }: SavePredictionInput) {
   const supabase = createClient();
 
-  const { data, error } = await supabase.rpc("save_prediction", {
-    target_match_id: matchId,
-    predicted_home_score: homeScore,
-    predicted_away_score: awayScore,
-  });
+  const rpcPayload = poolId
+    ? {
+        target_pool_id: poolId,
+        target_match_id: matchId,
+        predicted_home_score: homeScore,
+        predicted_away_score: awayScore,
+      }
+    : {
+        target_match_id: matchId,
+        predicted_home_score: homeScore,
+        predicted_away_score: awayScore,
+      };
+
+  const { data, error } = await supabase.rpc("save_prediction", rpcPayload);
 
   if (error) {
     throw error;

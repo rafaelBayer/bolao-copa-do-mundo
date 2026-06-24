@@ -513,6 +513,7 @@ export const MatchPredictionInput = forwardRef<
 
       try {
         const savedPrediction = await savePrediction({
+          poolId,
           userId,
           matchId: match.id,
           homeScore: submittedScores.homeScore,
@@ -547,7 +548,7 @@ export const MatchPredictionInput = forwardRef<
         setStatus("error");
       }
     },
-    [match.id, onSaved, prediction, shouldSave, userId],
+    [match.id, onSaved, poolId, prediction, shouldSave, userId],
   );
 
   const loadCrowdPredictions = useCallback(async () => {
