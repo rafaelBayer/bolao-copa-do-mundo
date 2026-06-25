@@ -46,8 +46,6 @@ type Worldcup26Game = Awaited<ReturnType<typeof fetchWorldcup26GameByMongoId>>;
 const providerFixturesCache = new Map<string, Promise<LiveScoreFixture[]>>();
 const worldcup26GamesCache = new Map<string, Promise<Worldcup26Games>>();
 const worldcup26GameCache = new Map<string, Promise<Worldcup26Game>>();
-const espnScoreboardCache = new Map<string, Promise<EspnEvent[]>>();
-const espnSummaryCache = new Map<string, Promise<EspnEvent>>();
 
 function logProviderCacheHit(label: string, cacheKey: string) {
   console.log(`[cache] ${label}: hit (${cacheKey})`);
@@ -568,47 +566,17 @@ async function fetchCachedWorldcup26GameByMongoId(fixtureId: string) {
 }
 
 async function fetchCachedEspnScoreboardByDate(date: string) {
-  const cachedEvents = espnScoreboardCache.get(date);
-
-  if (cachedEvents) {
-    logProviderCacheHit("espn scoreboard", date);
-    return {
-      events: await cachedEvents,
-      externalRequests: 0,
-    };
-  }
-
   logProviderCacheMiss("espn scoreboard", date);
-
-  const eventsPromise = fetchEspnScoreboardByDate(date);
-
-  espnScoreboardCache.set(date, eventsPromise);
-
   return {
-    events: await eventsPromise,
+    events: await fetchEspnScoreboardByDate(date),
     externalRequests: 1,
   };
 }
 
 async function fetchCachedEspnSummaryByEventId(fixtureId: string) {
-  const cachedEvent = espnSummaryCache.get(fixtureId);
-
-  if (cachedEvent) {
-    logProviderCacheHit("espn summary", fixtureId);
-    return {
-      event: await cachedEvent,
-      externalRequests: 0,
-    };
-  }
-
   logProviderCacheMiss("espn summary", fixtureId);
-
-  const eventPromise = fetchEspnSummaryByEventId(fixtureId);
-
-  espnSummaryCache.set(fixtureId, eventPromise);
-
   return {
-    event: await eventPromise,
+    event: await fetchEspnSummaryByEventId(fixtureId),
     externalRequests: 1,
   };
 }
@@ -677,20 +645,21 @@ function mergeEspnEvents(primary: EspnEvent, secondary: EspnEvent | null) {
   const competition =
     primaryCompetition || secondaryCompetition
       ? {
-          ...(secondaryCompetition ?? {}),
           ...(primaryCompetition ?? {}),
+          ...(secondaryCompetition ?? {}),
           competitors:
-            primaryCompetition?.competitors ?? secondaryCompetition?.competitors,
+            secondaryCompetition?.competitors ?? primaryCompetition?.competitors,
           details,
         }
       : undefined;
 
   return {
     ...primary,
+    ...secondary,
     date: primary.date ?? secondary.date,
     name: primary.name ?? secondary.name,
     shortName: primary.shortName ?? secondary.shortName,
-    status: primary.status ?? secondary.status,
+    status: secondary.status ?? primary.status,
     competitions: competition ? [competition] : primary.competitions,
   };
 }
