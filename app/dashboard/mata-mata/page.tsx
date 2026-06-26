@@ -5,6 +5,7 @@ import { KnockoutBracket } from "@/components/knockout/KnockoutBracket";
 import {
   KNOCKOUT_TOURNAMENT_KEY,
 } from "@/lib/knockout/buildBracket";
+import { knockoutBracketMock } from "@/lib/mock/knockoutBracket";
 import type {
   KnockoutMatch,
   KnockoutPick,
@@ -153,6 +154,24 @@ function mapRankingEntry(value: unknown): KnockoutRankingEntry {
   };
 }
 
+const shouldUseLocalKnockoutMock = process.env.NODE_ENV === "development";
+
+function UnavailableKnockoutMessage() {
+  return (
+    <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
+      <Card className="p-6">
+        <Badge tone="amber">Mata-mata</Badge>
+        <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+          O mata-mata ainda nao esta disponivel.
+        </h1>
+        <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+          Assim que os confrontos forem definidos, voce podera preencher seus palpites aqui.
+        </p>
+      </Card>
+    </main>
+  );
+}
+
 export default async function MataMataPage({ searchParams }: MataMataPageProps) {
   const supabase = await createClient();
   const resolvedSearchParams = await searchParams;
@@ -208,32 +227,45 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     );
   }
 
-  const [{ data: stateData, error: stateError }, { data: rankingData }] =
-    await Promise.all([
-      supabase.rpc("get_knockout_state", {
-        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-      }),
-      supabase.rpc("get_pool_knockout_ranking", {
-        target_pool_id: selectedPool.id,
-        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-      }),
-    ]);
-  const stateRow = single(stateData as Record<string, unknown>[] | null);
+  const { stateRow, rankingEntries, isLocalMock } =
+    shouldUseLocalKnockoutMock
+      ? {
+          stateRow: {
+            settings: knockoutBracketMock.settings,
+            matches: knockoutBracketMock.matches,
+            bracket: knockoutBracketMock.bracket,
+            picks: knockoutBracketMock.picks,
+            is_locked: knockoutBracketMock.isLocked,
+            deadline_at: knockoutBracketMock.settings.deadlineAt,
+          },
+          rankingEntries: knockoutBracketMock.rankingEntries,
+          isLocalMock: true,
+        }
+      : await (async () => {
+          const [{ data: stateData, error: stateError }, { data: rankingData }] =
+            await Promise.all([
+              supabase.rpc("get_knockout_state", {
+                target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+              }),
+              supabase.rpc("get_pool_knockout_ranking", {
+                target_pool_id: selectedPool.id,
+                target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+              }),
+            ]);
 
-  if (stateError || !stateRow) {
-    return (
-      <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
-        <Card className="p-6">
-          <Badge tone="amber">Mata-mata</Badge>
-          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
-            Mata-mata ainda nao configurado.
-          </h1>
-          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-            Aplique a migration e cadastre os confrontos dos 16 avos para liberar a tela.
-          </p>
-        </Card>
-      </main>
-    );
+          return {
+            stateRow: stateError
+              ? null
+              : single(stateData as Record<string, unknown>[] | null),
+            rankingEntries: Array.isArray(rankingData)
+              ? (rankingData as unknown[]).map(mapRankingEntry)
+              : [],
+            isLocalMock: false,
+          };
+        })();
+
+  if (!stateRow) {
+    return <UnavailableKnockoutMessage />;
   }
 
   const settings = mapSettings(stateRow.settings);
@@ -244,9 +276,13 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
   const picks = Array.isArray(stateRow.picks)
     ? (stateRow.picks as unknown[]).map(mapPick)
     : [];
-  const rankingEntries = Array.isArray(rankingData)
-    ? (rankingData as unknown[]).map(mapRankingEntry)
-    : [];
+
+  if (
+    !isLocalMock &&
+    matches.filter((match) => match.round === "round_of_32").length < 16
+  ) {
+    return <UnavailableKnockoutMessage />;
+  }
 
   return (
     <main className="mx-auto w-full max-w-[1800px] px-3 py-5 sm:px-5 sm:py-7 lg:px-8">
@@ -288,6 +324,7 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         isLocked={stateRow.is_locked === true}
         deadlineLabel={formatDateTime(String(stateRow.deadline_at)) ?? "A definir"}
         submittedAtLabel={formatDateTime(bracket?.submittedAt)}
+        isLocalMock={isLocalMock}
       />
     </main>
   );

@@ -53,7 +53,7 @@ function officialMatchMap(matches: KnockoutMatch[]) {
 
 function placeholder(round: KnockoutRound, position: number, side: "a" | "b") {
   if (round === "round_of_32") {
-    return side === "a" ? "Time A" : "Time B";
+    return "A definir";
   }
 
   const sourcePosition = position * 2 - (side === "a" ? 1 : 0);

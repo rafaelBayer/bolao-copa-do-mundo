@@ -38,6 +38,7 @@ type KnockoutBracketProps = {
   isLocked: boolean;
   deadlineLabel: string;
   submittedAtLabel: string | null;
+  isLocalMock?: boolean;
 };
 
 function toRpcPick(pick: KnockoutPick) {
@@ -71,6 +72,7 @@ export function KnockoutBracket({
   isLocked,
   deadlineLabel,
   submittedAtLabel,
+  isLocalMock = false,
 }: KnockoutBracketProps) {
   const [activeRound, setActiveRound] = useState<KnockoutRound>("round_of_32");
   const [picks, setPicks] = useState(() =>
@@ -79,7 +81,10 @@ export function KnockoutBracket({
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(
+    () => (isLocalMock ? null : createClient()),
+    [isLocalMock],
+  );
   const bracket = useMemo(() => buildBracket(matches, picks), [matches, picks]);
   const champion = championFromPicks(picks);
   const hasRoundOf32 =
@@ -120,6 +125,19 @@ export function KnockoutBracket({
     setMessage("Salvando...");
 
     startTransition(async () => {
+      if (isLocalMock) {
+        setPicks(validation.picks);
+        setMessage("Mock local validado. Nada foi salvo no banco.");
+        window.setTimeout(() => setMessage(null), 2400);
+        return;
+      }
+
+      if (!supabase) {
+        setMessage(null);
+        setErrorMessage("Nao foi possivel salvar o mata-mata agora.");
+        return;
+      }
+
       const { data, error } = await supabase.rpc("save_knockout_bracket", {
         target_tournament_key: tournamentKey,
         target_picks: validation.picks.map(toRpcPick),
@@ -246,7 +264,11 @@ export function KnockoutBracket({
 
       <KnockoutRanking entries={rankingEntries} />
 
-      {initialBracket ? null : (
+      {isLocalMock ? (
+        <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
+          Visualizacao local com dados temporarios. As escolhas nao sao enviadas ao banco.
+        </p>
+      ) : initialBracket ? null : (
         <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
           Seu mata-mata ainda nao foi salvo.
         </p>
