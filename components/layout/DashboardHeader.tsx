@@ -10,7 +10,6 @@ type DashboardHeaderProps = {
   userLabel: string;
   userEmail?: string | null;
   avatarUrl?: string | null;
-  showPlayoffs?: boolean;
   brandTitle?: string | null;
   brandLogoUrl?: string | null;
 };
@@ -19,7 +18,6 @@ export function DashboardHeader({
   userLabel,
   userEmail = null,
   avatarUrl = null,
-  showPlayoffs = false,
   brandTitle = "Bolao da Copa",
   brandLogoUrl = null,
 }: DashboardHeaderProps) {
@@ -48,16 +46,6 @@ export function DashboardHeader({
       icon: GitBranch,
       isActive: pathname === "/dashboard/mata-mata",
     },
-    ...(showPlayoffs
-      ? [
-          {
-            href: "/dashboard/playoffs",
-            label: "Playoffs",
-            icon: GitBranch,
-            isActive: pathname === "/dashboard/playoffs",
-          },
-        ]
-      : []),
   ];
 
   return (

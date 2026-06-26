@@ -104,12 +104,7 @@ export default async function DashboardLayout({
     console.error("Failed to ensure default pool membership", defaultPoolError);
   }
 
-  const [
-    { data: isSystemAdminData },
-    { data: membershipData },
-    { data: profileData },
-  ] = await Promise.all([
-    supabase.rpc("is_system_admin"),
+  const [{ data: membershipData }, { data: profileData }] = await Promise.all([
     supabase
       .from("pool_members")
       .select("pool_id, pools(name)")
@@ -156,7 +151,6 @@ export default async function DashboardLayout({
   const brandLogoUrl = branding?.logo_url?.trim() || null;
   const profileName = profile?.name?.trim();
   const userLabel = profileName || email || "Usuario";
-  const isSystemAdmin = isSystemAdminData === true;
 
   if (defaultPoolError && !membershipData) {
     return (
@@ -165,7 +159,6 @@ export default async function DashboardLayout({
           userLabel={userLabel}
           userEmail={email}
           avatarUrl={profile?.avatar_url ?? null}
-          showPlayoffs={isSystemAdmin}
           brandTitle={brandTitle}
           brandLogoUrl={brandLogoUrl}
         />
@@ -191,7 +184,6 @@ export default async function DashboardLayout({
         userLabel={userLabel}
         userEmail={email}
         avatarUrl={profile?.avatar_url ?? null}
-        showPlayoffs={isSystemAdmin}
         brandTitle={brandTitle}
         brandLogoUrl={brandLogoUrl}
       />
