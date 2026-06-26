@@ -42,6 +42,12 @@ export function DashboardHeader({
       icon: Medal,
       isActive: pathname === "/dashboard/leaderboard",
     },
+    {
+      href: "/dashboard/mata-mata",
+      label: "Mata-mata",
+      icon: GitBranch,
+      isActive: pathname === "/dashboard/mata-mata",
+    },
     ...(showPlayoffs
       ? [
           {

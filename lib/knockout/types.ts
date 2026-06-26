@@ -1,0 +1,74 @@
+export type KnockoutRound =
+  | "round_of_32"
+  | "round_of_16"
+  | "quarterfinal"
+  | "semifinal"
+  | "final"
+  | "champion";
+
+export type KnockoutMatch = {
+  id: string;
+  tournamentKey: string;
+  round: KnockoutRound;
+  position: number;
+  teamA: string | null;
+  teamB: string | null;
+  startsAt: string | null;
+  winnerTeam: string | null;
+};
+
+export type KnockoutPick = {
+  id?: string;
+  round: KnockoutRound;
+  position: number;
+  selectedTeam: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type KnockoutSettings = {
+  id: string;
+  tournamentKey: string;
+  name: string;
+  deadlineAt: string;
+  isActive: boolean;
+};
+
+export type UserKnockoutBracket = {
+  id: string;
+  userId: string;
+  tournamentKey: string;
+  submittedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type KnockoutRankingEntry = {
+  userId: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+  totalPoints: number;
+  correctPicks: number;
+  submittedAt: string | null;
+};
+
+export type KnockoutSlot = {
+  team: string | null;
+  label: string;
+};
+
+export type KnockoutBracketMatch = {
+  round: KnockoutRound;
+  position: number;
+  teamA: KnockoutSlot;
+  teamB: KnockoutSlot;
+  startsAt: string | null;
+  winnerTeam: string | null;
+  selectedTeam: string | null;
+};
+
+export type KnockoutRoundState = {
+  round: KnockoutRound;
+  matches: KnockoutBracketMatch[];
+};
