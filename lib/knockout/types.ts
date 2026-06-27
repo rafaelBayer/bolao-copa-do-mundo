@@ -11,9 +11,12 @@ export type KnockoutMatch = {
   tournamentKey: string;
   round: KnockoutRound;
   position: number;
+  externalMatchId: string | null;
+  teamASource: string | null;
   teamA: string | null;
   teamACode: string | null;
   teamAFlagUrl: string | null;
+  teamBSource: string | null;
   teamB: string | null;
   teamBCode: string | null;
   teamBFlagUrl: string | null;

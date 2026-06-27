@@ -24,7 +24,8 @@
     "scores:sync-results": "tsx scripts/sync-espn-results.ts",
     "scores:watch:local:dry": "tsx scripts/watch-live-scores-local.ts --once --dry-run",
     "scores:watch:local": "tsx scripts/watch-live-scores-local.ts",
-    "playoffs:mock": "tsx scripts/seed-playoffs-mock.ts"
+    "knockout:sync:dry": "tsx scripts/sync-knockout-fixtures.ts --dry-run",
+    "knockout:sync": "tsx scripts/sync-knockout-fixtures.ts"
   },
   "dependencies": {
     "@supabase/ssr": "latest",

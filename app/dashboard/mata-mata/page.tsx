@@ -94,9 +94,13 @@ function mapMatch(value: unknown): KnockoutMatch {
     tournamentKey: String(row.tournamentKey),
     round: String(row.round) as KnockoutRound,
     position: Number(row.position),
+    externalMatchId:
+      typeof row.externalMatchId === "string" ? row.externalMatchId : null,
+    teamASource: typeof row.teamASource === "string" ? row.teamASource : null,
     teamA: typeof row.teamA === "string" ? row.teamA : null,
     teamACode: typeof row.teamACode === "string" ? row.teamACode : null,
     teamAFlagUrl: typeof row.teamAFlagUrl === "string" ? row.teamAFlagUrl : null,
+    teamBSource: typeof row.teamBSource === "string" ? row.teamBSource : null,
     teamB: typeof row.teamB === "string" ? row.teamB : null,
     teamBCode: typeof row.teamBCode === "string" ? row.teamBCode : null,
     teamBFlagUrl: typeof row.teamBFlagUrl === "string" ? row.teamBFlagUrl : null,
@@ -259,11 +263,14 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     ]);
 
   if (stateError) {
-    console.error("Failed to load knockout state", stateError);
-
-    if (stateError.message?.includes("not found")) {
+    if (
+      stateError.code === "P0001" &&
+      stateError.message?.toLowerCase().includes("not found")
+    ) {
       return <UnavailableKnockoutMessage />;
     }
+
+    console.error("Failed to load knockout state", stateError);
 
     return <LoadErrorMessage />;
   }

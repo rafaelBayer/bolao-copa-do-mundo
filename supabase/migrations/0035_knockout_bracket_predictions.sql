@@ -21,9 +21,12 @@ create table if not exists public.knockout_matches (
     )
   ),
   position integer not null,
+  external_match_id text null,
+  team_a_source text null,
   team_a text null,
   team_a_code text null,
   team_a_flag_url text null,
+  team_b_source text null,
   team_b text null,
   team_b_code text null,
   team_b_flag_url text null,
@@ -236,9 +239,12 @@ begin
         'tournamentKey', km.tournament_key,
         'round', km.round,
         'position', km.position,
+        'externalMatchId', km.external_match_id,
+        'teamASource', km.team_a_source,
         'teamA', km.team_a,
         'teamACode', km.team_a_code,
         'teamAFlagUrl', km.team_a_flag_url,
+        'teamBSource', km.team_b_source,
         'teamB', km.team_b,
         'teamBCode', km.team_b_code,
         'teamBFlagUrl', km.team_b_flag_url,
@@ -319,19 +325,6 @@ begin
 
   if jsonb_typeof(target_picks) <> 'array' then
     raise exception 'Knockout picks must be an array';
-  end if;
-
-  select count(*)
-  into invalid_count
-  from public.knockout_matches km
-  where km.tournament_key = target_tournament_key
-    and km.round = 'round_of_32'
-    and km.position between 1 and 16
-    and nullif(trim(coalesce(km.team_a, '')), '') is not null
-    and nullif(trim(coalesce(km.team_b, '')), '') is not null;
-
-  if invalid_count <> 16 then
-    raise exception 'Round of 32 matches are not configured';
   end if;
 
   with submitted as (

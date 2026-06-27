@@ -6,34 +6,16 @@ import type {
   KnockoutRoundState,
   KnockoutSlot,
 } from "./types";
-
-export const KNOCKOUT_TOURNAMENT_KEY = "world_cup_2026";
-
-export const KNOCKOUT_ROUNDS: KnockoutRound[] = [
-  "round_of_32",
-  "round_of_16",
-  "quarterfinal",
-  "semifinal",
-  "final",
-];
-
-export const KNOCKOUT_ROUND_LABELS: Record<KnockoutRound, string> = {
-  round_of_32: "16 avos",
-  round_of_16: "Oitavas",
-  quarterfinal: "Quartas",
-  semifinal: "Semifinal",
-  final: "Final",
-  champion: "Campeao",
-};
-
-export const KNOCKOUT_ROUND_MATCH_COUNTS: Record<KnockoutRound, number> = {
-  round_of_32: 16,
-  round_of_16: 8,
-  quarterfinal: 4,
-  semifinal: 2,
-  final: 1,
-  champion: 1,
-};
+export {
+  KNOCKOUT_ROUND_LABELS,
+  KNOCKOUT_ROUND_MATCH_COUNTS,
+  KNOCKOUT_ROUNDS,
+  KNOCKOUT_TOURNAMENT_KEY,
+} from "./bracketStructure";
+import {
+  KNOCKOUT_ROUND_MATCH_COUNTS,
+  KNOCKOUT_ROUNDS,
+} from "./bracketStructure";
 
 export function pickKey(round: KnockoutRound, position: number) {
   return `${round}:${position}`;
