@@ -1,7 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { Save } from "lucide-react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +23,7 @@ import type {
   UserKnockoutBracket,
 } from "@/lib/knockout/types";
 import { KnockoutChampionCard } from "./KnockoutChampionCard";
+import { KnockoutMatchCard } from "./KnockoutMatchCard";
 import { KnockoutRanking } from "./KnockoutRanking";
 import { KnockoutRound as KnockoutRoundColumn } from "./KnockoutRound";
 import { KnockoutStatus } from "./KnockoutStatus";
@@ -38,8 +38,9 @@ type KnockoutBracketProps = {
   isLocked: boolean;
   deadlineLabel: string;
   submittedAtLabel: string | null;
-  isLocalMock?: boolean;
 };
+
+type SaveStatus = "idle" | "saving" | "draft" | "complete" | "error" | "locked";
 
 function toRpcPick(pick: KnockoutPick) {
   return {
@@ -62,6 +63,30 @@ function mapSavedPick(value: unknown): KnockoutPick {
   };
 }
 
+function statusLabel(status: SaveStatus, complete: boolean) {
+  if (status === "locked") {
+    return "Prazo encerrado";
+  }
+
+  if (status === "saving") {
+    return "Salvando...";
+  }
+
+  if (status === "error") {
+    return "Erro ao salvar";
+  }
+
+  if (status === "complete" || complete) {
+    return "Mata-mata completo";
+  }
+
+  if (status === "draft") {
+    return "Rascunho salvo";
+  }
+
+  return "Rascunho";
+}
+
 export function KnockoutBracket({
   tournamentKey,
   settings,
@@ -72,30 +97,114 @@ export function KnockoutBracket({
   isLocked,
   deadlineLabel,
   submittedAtLabel,
-  isLocalMock = false,
 }: KnockoutBracketProps) {
   const [activeRound, setActiveRound] = useState<KnockoutRound>("round_of_32");
   const [picks, setPicks] = useState(() =>
     pruneInvalidKnockoutPicks(matches, initialPicks),
   );
-  const [message, setMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-  const supabase = useMemo(
-    () => (isLocalMock ? null : createClient()),
-    [isLocalMock],
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>(
+    isLocked ? "locked" : "idle",
   );
+  const requestIdRef = useRef(0);
+  const supabase = useMemo(() => createClient(), []);
   const bracket = useMemo(() => buildBracket(matches, picks), [matches, picks]);
   const champion = championFromPicks(picks);
+  const completeValidation = useMemo(
+    () => validateKnockoutBracket(matches, picks),
+    [matches, picks],
+  );
+  const isComplete = completeValidation.isValid;
   const hasRoundOf32 =
     matches.filter((match) => match.round === "round_of_32").length === 16;
+  const roundState = (round: KnockoutRound) =>
+    bracket.find((item) => item.round === round);
+  const leftRounds = [
+    {
+      round: "round_of_32" as const,
+      matches: roundState("round_of_32")?.matches.slice(0, 8) ?? [],
+    },
+    {
+      round: "round_of_16" as const,
+      matches: roundState("round_of_16")?.matches.slice(0, 4) ?? [],
+    },
+    {
+      round: "quarterfinal" as const,
+      matches: roundState("quarterfinal")?.matches.slice(0, 2) ?? [],
+    },
+    {
+      round: "semifinal" as const,
+      matches: roundState("semifinal")?.matches.slice(0, 1) ?? [],
+    },
+  ];
+  const rightRounds = [
+    {
+      round: "semifinal" as const,
+      matches: roundState("semifinal")?.matches.slice(1, 2) ?? [],
+    },
+    {
+      round: "quarterfinal" as const,
+      matches: roundState("quarterfinal")?.matches.slice(2, 4) ?? [],
+    },
+    {
+      round: "round_of_16" as const,
+      matches: roundState("round_of_16")?.matches.slice(4, 8) ?? [],
+    },
+    {
+      round: "round_of_32" as const,
+      matches: roundState("round_of_32")?.matches.slice(8, 16) ?? [],
+    },
+  ];
+  const finalMatch = roundState("final")?.matches[0] ?? null;
+
+  const persistPicks = useCallback(
+    (nextPicks: KnockoutPick[]) => {
+      if (isLocked) {
+        setSaveStatus("locked");
+        return;
+      }
+
+      const requestId = requestIdRef.current + 1;
+      requestIdRef.current = requestId;
+      const complete = validateKnockoutBracket(matches, nextPicks).isValid;
+
+      setSaveStatus("saving");
+
+      void (async () => {
+        const { data, error } = await supabase.rpc("save_knockout_bracket", {
+          target_tournament_key: tournamentKey,
+          target_picks: nextPicks.map(toRpcPick),
+        });
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
+        if (error) {
+          setSaveStatus(
+            error.message.includes("locked") ? "locked" : "error",
+          );
+          return;
+        }
+
+        const row = Array.isArray(data) ? data[0] : data;
+        const savedPicks = Array.isArray(row?.picks)
+          ? (row.picks as unknown[]).map(mapSavedPick)
+          : nextPicks;
+
+        setPicks(pruneInvalidKnockoutPicks(matches, savedPicks));
+        setSaveStatus(complete ? "complete" : "draft");
+      })();
+    },
+    [isLocked, matches, supabase, tournamentKey],
+  );
 
   function updatePick(round: KnockoutRound, position: number, team: string) {
     if (isLocked) {
+      setSaveStatus("locked");
       return;
     }
 
-    const nextPicks = [
+    const nextPicks = pruneInvalidKnockoutPicks(matches, [
       ...picks.filter(
         (pick) => !(pick.round === round && pick.position === position),
       ),
@@ -104,64 +213,10 @@ export function KnockoutBracket({
         position,
         selectedTeam: team,
       },
-    ];
+    ]);
 
-    setErrorMessage(null);
-    setMessage(null);
-    setPicks(pruneInvalidKnockoutPicks(matches, nextPicks));
-  }
-
-  function saveBracket() {
-    const validation = validateKnockoutBracket(matches, picks);
-
-    if (!validation.isValid) {
-      setMessage(null);
-      setErrorMessage(validation.message);
-      setPicks(validation.picks);
-      return;
-    }
-
-    setErrorMessage(null);
-    setMessage("Salvando...");
-
-    startTransition(async () => {
-      if (isLocalMock) {
-        setPicks(validation.picks);
-        setMessage("Mock local validado. Nada foi salvo no banco.");
-        window.setTimeout(() => setMessage(null), 2400);
-        return;
-      }
-
-      if (!supabase) {
-        setMessage(null);
-        setErrorMessage("Nao foi possivel salvar o mata-mata agora.");
-        return;
-      }
-
-      const { data, error } = await supabase.rpc("save_knockout_bracket", {
-        target_tournament_key: tournamentKey,
-        target_picks: validation.picks.map(toRpcPick),
-      });
-
-      if (error) {
-        setMessage(null);
-        setErrorMessage(
-          error.message.includes("locked")
-            ? "O prazo para editar seu mata-mata ja encerrou."
-            : "Nao foi possivel salvar o mata-mata agora.",
-        );
-        return;
-      }
-
-      const row = Array.isArray(data) ? data[0] : data;
-      const savedPicks = Array.isArray(row?.picks)
-        ? (row.picks as unknown[]).map(mapSavedPick)
-        : validation.picks;
-
-      setPicks(savedPicks);
-      setMessage("Mata-mata salvo com sucesso.");
-      window.setTimeout(() => setMessage(null), 2400);
-    });
+    setPicks(nextPicks);
+    persistPicks(nextPicks);
   }
 
   return (
@@ -180,29 +235,23 @@ export function KnockoutBracket({
             <p className="mt-2 text-sm font-semibold text-slate-400 light:text-slate-600">
               {settings.name}
             </p>
+            <p className="mt-3 max-w-xl text-sm text-slate-500 light:text-slate-500">
+              Clique nos vencedores de cada confronto para montar sua simulacao.
+            </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              onClick={saveBracket}
-              disabled={isLocked || isPending || !hasRoundOf32}
-            >
-              <Save size={16} aria-hidden="true" />
-              Salvar mata-mata
-            </Button>
+          <div className="rounded-full border border-slate-800 bg-slate-900/55 px-3 py-1.5 text-xs font-black text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
+            {statusLabel(saveStatus, isComplete)}
           </div>
         </div>
 
-        <div className="mt-4 min-h-6 text-sm font-bold">
-          {message ? (
-            <span className="text-emerald-300 light:text-emerald-700">
-              {message}
-            </span>
-          ) : null}
-          {errorMessage ? (
-            <span className="text-amber-300 light:text-amber-700">
-              {errorMessage}
+        <div className="mt-4 min-h-6 text-sm font-bold text-slate-500 light:text-slate-500">
+          {isComplete
+            ? "Chave completa. Voce ainda pode editar ate o prazo."
+            : "Suas escolhas parciais sao salvas automaticamente."}
+          {saveStatus === "error" ? (
+            <span className="ml-2 text-red-300 light:text-red-600">
+              Erro ao salvar. Tente novamente.
             </span>
           ) : null}
         </div>
@@ -211,7 +260,7 @@ export function KnockoutBracket({
       {!hasRoundOf32 ? (
         <Card className="p-5">
           <p className="text-sm font-bold text-slate-300 light:text-slate-700">
-            Os confrontos dos 16 avos ainda nao foram cadastrados.
+            Os confrontos do mata-mata ainda serao divulgados.
           </p>
         </Card>
       ) : null}
@@ -236,7 +285,7 @@ export function KnockoutBracket({
         ))}
       </div>
 
-      <div className="overflow-x-auto pb-3">
+      <div className="overflow-x-auto pb-3 lg:hidden">
         <div className="flex min-w-max gap-4">
           {bracket.map((roundState) => (
             <div
@@ -248,7 +297,7 @@ export function KnockoutBracket({
               <KnockoutRoundColumn
                 round={roundState.round}
                 matches={roundState.matches}
-                disabled={isLocked || isPending}
+                disabled={isLocked}
                 onSelect={updatePick}
               />
             </div>
@@ -262,13 +311,64 @@ export function KnockoutBracket({
         </div>
       </div>
 
+      <div className="hidden overflow-x-auto pb-4 lg:block">
+        <div className="mx-auto min-w-[1280px] max-w-[1500px] rounded-lg border border-slate-800/75 bg-slate-950/38 px-6 py-6 light:border-slate-200 light:bg-slate-50">
+          <div className="grid min-h-[44rem] grid-cols-[repeat(4,9.25rem)_13rem_repeat(4,9.25rem)] items-stretch justify-center gap-x-7">
+            {leftRounds.map((roundConfig) => (
+              <KnockoutRoundColumn
+                key={`left-${roundConfig.round}`}
+                round={roundConfig.round}
+                matches={roundConfig.matches}
+                disabled={isLocked}
+                side="left"
+                compactTitle
+                className="h-full"
+                onSelect={updatePick}
+              />
+            ))}
+
+            <section className="flex h-full min-w-[13rem] flex-col items-center justify-center">
+              <h2 className="mb-4 text-center text-[10px] font-black uppercase tracking-[0.14em] text-slate-400 light:text-slate-500">
+                {KNOCKOUT_ROUND_LABELS.final}
+              </h2>
+              {finalMatch ? (
+                <div className="relative">
+                  <span className="pointer-events-none absolute right-full top-1/2 h-px w-7 bg-slate-700/75 light:bg-slate-300" />
+                  <span className="pointer-events-none absolute left-full top-1/2 h-px w-7 bg-slate-700/75 light:bg-slate-300" />
+                  <KnockoutMatchCard
+                    match={finalMatch}
+                    disabled={isLocked}
+                    side="center"
+                    onSelect={(team) =>
+                      updatePick(finalMatch.round, finalMatch.position, team)
+                    }
+                  />
+                </div>
+              ) : null}
+              <div className="mt-8">
+                <KnockoutChampionCard champion={champion} />
+              </div>
+            </section>
+
+            {rightRounds.map((roundConfig) => (
+              <KnockoutRoundColumn
+                key={`right-${roundConfig.round}`}
+                round={roundConfig.round}
+                matches={roundConfig.matches}
+                disabled={isLocked}
+                side="right"
+                compactTitle
+                className="h-full"
+                onSelect={updatePick}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
       <KnockoutRanking entries={rankingEntries} />
 
-      {isLocalMock ? (
-        <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
-          Visualizacao local com dados temporarios. As escolhas nao sao enviadas ao banco.
-        </p>
-      ) : initialBracket ? null : (
+      {initialBracket ? null : (
         <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
           Seu mata-mata ainda nao foi salvo.
         </p>

@@ -5,7 +5,7 @@ export const KNOCKOUT_SCORE_WEIGHTS: Partial<Record<KnockoutRound, number>> = {
   round_of_16: 4,
   quarterfinal: 6,
   semifinal: 10,
-  champion: 15,
+  final: 15,
 };
 
 export type KnockoutScoreSummary = {
@@ -29,9 +29,6 @@ export function scoreKnockoutBracket(
       officialWinners.set(officialWinnerKey(match), match.winnerTeam);
     }
 
-    if (match.round === "final" && match.position === 1 && match.winnerTeam) {
-      officialWinners.set("champion:1", match.winnerTeam);
-    }
   });
 
   return picks.reduce<KnockoutScoreSummary>(

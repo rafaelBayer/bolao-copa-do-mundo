@@ -22,9 +22,14 @@ create table if not exists public.knockout_matches (
   ),
   position integer not null,
   team_a text null,
+  team_a_code text null,
+  team_a_flag_url text null,
   team_b text null,
+  team_b_code text null,
+  team_b_flag_url text null,
   starts_at timestamptz null,
   winner_team text null,
+  winner_team_code text null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(tournament_key, round, position)
@@ -35,6 +40,7 @@ create table if not exists public.user_knockout_brackets (
   user_id uuid not null references auth.users(id) on delete cascade,
   tournament_key text not null references public.knockout_settings(tournament_key) on delete cascade,
   submitted_at timestamptz null,
+  completed_at timestamptz null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(user_id, tournament_key)
@@ -49,8 +55,7 @@ create table if not exists public.user_knockout_picks (
       'round_of_16',
       'quarterfinal',
       'semifinal',
-      'final',
-      'champion'
+      'final'
     )
   ),
   position integer not null,
@@ -158,7 +163,6 @@ as $$
     when 'quarterfinal' then 3
     when 'semifinal' then 4
     when 'final' then 5
-    when 'champion' then 6
     else 99
   end;
 $$;
@@ -175,7 +179,6 @@ as $$
     when 'quarterfinal' then 4
     when 'semifinal' then 2
     when 'final' then 1
-    when 'champion' then 1
     else 0
   end;
 $$;
@@ -234,9 +237,14 @@ begin
         'round', km.round,
         'position', km.position,
         'teamA', km.team_a,
+        'teamACode', km.team_a_code,
+        'teamAFlagUrl', km.team_a_flag_url,
         'teamB', km.team_b,
+        'teamBCode', km.team_b_code,
+        'teamBFlagUrl', km.team_b_flag_url,
         'startsAt', km.starts_at,
-        'winnerTeam', km.winner_team
+        'winnerTeam', km.winner_team,
+        'winnerTeamCode', km.winner_team_code
       ) order by public.knockout_round_order(km.round), km.position), '[]'::jsonb)
       from public.knockout_matches km
       where km.tournament_key = target_tournament_key
@@ -248,6 +256,7 @@ begin
         'userId', bracket_record.user_id,
         'tournamentKey', bracket_record.tournament_key,
         'submittedAt', bracket_record.submitted_at,
+        'completedAt', bracket_record.completed_at,
         'createdAt', bracket_record.created_at,
         'updatedAt', bracket_record.updated_at
       )
@@ -288,6 +297,7 @@ declare
   bracket_id uuid;
   total_picks integer;
   invalid_count integer;
+  is_complete boolean;
 begin
   if current_user_id is null then
     raise exception 'Authentication required';
@@ -338,10 +348,6 @@ begin
   select count(*)
   into total_picks
   from submitted;
-
-  if total_picks <> 32 then
-    raise exception 'Knockout bracket must be complete';
-  end if;
 
   with submitted as (
     select
@@ -426,15 +432,6 @@ begin
       and allowed.selected_team = s.selected_team
     where s.round = 'final'
   ),
-  champion_pick as (
-    select s.position, s.selected_team
-    from submitted s
-    join final_pick fp
-      on fp.position = 1
-      and fp.selected_team = s.selected_team
-    where s.round = 'champion'
-      and s.position = 1
-  ),
   valid_picks as (
     select 'round_of_32'::text as round, position, selected_team from r32
     union all
@@ -445,8 +442,6 @@ begin
     select 'semifinal', position, selected_team from sf
     union all
     select 'final', position, selected_team from final_pick
-    union all
-    select 'champion', position, selected_team from champion_pick
   )
   select
     (
@@ -464,21 +459,47 @@ begin
     raise exception 'Knockout bracket is inconsistent';
   end if;
 
+  with submitted as (
+    select
+      lower(trim(p.round)) as round,
+      p.position::integer as position
+    from jsonb_to_recordset(target_picks) as p(
+      round text,
+      position integer,
+      selected_team text
+    )
+  )
+  select
+    count(*) = 31
+    and count(*) filter (where round = 'round_of_32') = 16
+    and count(*) filter (where round = 'round_of_16') = 8
+    and count(*) filter (where round = 'quarterfinal') = 4
+    and count(*) filter (where round = 'semifinal') = 2
+    and count(*) filter (where round = 'final') = 1
+  into is_complete
+  from submitted;
+
   insert into public.user_knockout_brackets as target_bracket (
     user_id,
     tournament_key,
     submitted_at,
+    completed_at,
     updated_at
   )
   values (
     current_user_id,
     target_tournament_key,
     now(),
+    case when is_complete then now() else null end,
     now()
   )
   on conflict (user_id, tournament_key)
   do update set
     submitted_at = now(),
+    completed_at = case
+      when is_complete then coalesce(target_bracket.completed_at, now())
+      else null
+    end,
     updated_at = now()
   returning target_bracket.id into bracket_id;
 
@@ -509,6 +530,7 @@ begin
       'userId', ukb.user_id,
       'tournamentKey', ukb.tournament_key,
       'submittedAt', ukb.submitted_at,
+      'completedAt', ukb.completed_at,
       'createdAt', ukb.created_at,
       'updatedAt', ukb.updated_at
     ) as bracket,
@@ -566,24 +588,12 @@ begin
         when 'round_of_16' then 4
         when 'quarterfinal' then 6
         when 'semifinal' then 10
+        when 'final' then 15
         else 0
       end as points
     from public.knockout_matches km
     where km.tournament_key = target_tournament_key
-      and km.round in ('round_of_32', 'round_of_16', 'quarterfinal', 'semifinal')
-      and km.winner_team is not null
-
-    union all
-
-    select
-      'champion'::text,
-      1,
-      km.winner_team,
-      15
-    from public.knockout_matches km
-    where km.tournament_key = target_tournament_key
-      and km.round = 'final'
-      and km.position = 1
+      and km.round in ('round_of_32', 'round_of_16', 'quarterfinal', 'semifinal', 'final')
       and km.winner_team is not null
   ),
   member_scores as (

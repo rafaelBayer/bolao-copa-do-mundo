@@ -12,9 +12,14 @@ export type KnockoutMatch = {
   round: KnockoutRound;
   position: number;
   teamA: string | null;
+  teamACode: string | null;
+  teamAFlagUrl: string | null;
   teamB: string | null;
+  teamBCode: string | null;
+  teamBFlagUrl: string | null;
   startsAt: string | null;
   winnerTeam: string | null;
+  winnerTeamCode: string | null;
 };
 
 export type KnockoutPick = {
@@ -39,6 +44,7 @@ export type UserKnockoutBracket = {
   userId: string;
   tournamentKey: string;
   submittedAt: string | null;
+  completedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -55,6 +61,8 @@ export type KnockoutRankingEntry = {
 
 export type KnockoutSlot = {
   team: string | null;
+  code: string | null;
+  flagUrl: string | null;
   label: string;
 };
 

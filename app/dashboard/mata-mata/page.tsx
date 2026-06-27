@@ -5,7 +5,6 @@ import { KnockoutBracket } from "@/components/knockout/KnockoutBracket";
 import {
   KNOCKOUT_TOURNAMENT_KEY,
 } from "@/lib/knockout/buildBracket";
-import { knockoutBracketMock } from "@/lib/mock/knockoutBracket";
 import type {
   KnockoutMatch,
   KnockoutPick,
@@ -96,9 +95,15 @@ function mapMatch(value: unknown): KnockoutMatch {
     round: String(row.round) as KnockoutRound,
     position: Number(row.position),
     teamA: typeof row.teamA === "string" ? row.teamA : null,
+    teamACode: typeof row.teamACode === "string" ? row.teamACode : null,
+    teamAFlagUrl: typeof row.teamAFlagUrl === "string" ? row.teamAFlagUrl : null,
     teamB: typeof row.teamB === "string" ? row.teamB : null,
+    teamBCode: typeof row.teamBCode === "string" ? row.teamBCode : null,
+    teamBFlagUrl: typeof row.teamBFlagUrl === "string" ? row.teamBFlagUrl : null,
     startsAt: typeof row.startsAt === "string" ? row.startsAt : null,
     winnerTeam: typeof row.winnerTeam === "string" ? row.winnerTeam : null,
+    winnerTeamCode:
+      typeof row.winnerTeamCode === "string" ? row.winnerTeamCode : null,
   };
 }
 
@@ -114,6 +119,7 @@ function mapBracket(value: unknown): UserKnockoutBracket | null {
     userId: String(row.userId),
     tournamentKey: String(row.tournamentKey),
     submittedAt: typeof row.submittedAt === "string" ? row.submittedAt : null,
+    completedAt: typeof row.completedAt === "string" ? row.completedAt : null,
     createdAt: String(row.createdAt),
     updatedAt: String(row.updatedAt),
   };
@@ -154,8 +160,6 @@ function mapRankingEntry(value: unknown): KnockoutRankingEntry {
   };
 }
 
-const shouldUseLocalKnockoutMock = process.env.NODE_ENV === "development";
-
 function UnavailableKnockoutMessage() {
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
@@ -165,7 +169,23 @@ function UnavailableKnockoutMessage() {
           O mata-mata ainda nao esta disponivel.
         </h1>
         <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-          Assim que os confrontos forem definidos, voce podera preencher seus palpites aqui.
+          Assim que os confrontos forem definidos, voce podera montar sua chave.
+        </p>
+      </Card>
+    </main>
+  );
+}
+
+function LoadErrorMessage() {
+  return (
+    <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
+      <Card className="p-6">
+        <Badge tone="amber">Mata-mata</Badge>
+        <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+          Nao foi possivel carregar o mata-mata agora.
+        </h1>
+        <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+          Tente novamente em alguns instantes.
         </p>
       </Card>
     </main>
@@ -227,42 +247,31 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     );
   }
 
-  const { stateRow, rankingEntries, isLocalMock } =
-    shouldUseLocalKnockoutMock
-      ? {
-          stateRow: {
-            settings: knockoutBracketMock.settings,
-            matches: knockoutBracketMock.matches,
-            bracket: knockoutBracketMock.bracket,
-            picks: knockoutBracketMock.picks,
-            is_locked: knockoutBracketMock.isLocked,
-            deadline_at: knockoutBracketMock.settings.deadlineAt,
-          },
-          rankingEntries: knockoutBracketMock.rankingEntries,
-          isLocalMock: true,
-        }
-      : await (async () => {
-          const [{ data: stateData, error: stateError }, { data: rankingData }] =
-            await Promise.all([
-              supabase.rpc("get_knockout_state", {
-                target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-              }),
-              supabase.rpc("get_pool_knockout_ranking", {
-                target_pool_id: selectedPool.id,
-                target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-              }),
-            ]);
+  const [{ data: stateData, error: stateError }, { data: rankingData }] =
+    await Promise.all([
+      supabase.rpc("get_knockout_state", {
+        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+      }),
+      supabase.rpc("get_pool_knockout_ranking", {
+        target_pool_id: selectedPool.id,
+        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+      }),
+    ]);
 
-          return {
-            stateRow: stateError
-              ? null
-              : single(stateData as Record<string, unknown>[] | null),
-            rankingEntries: Array.isArray(rankingData)
-              ? (rankingData as unknown[]).map(mapRankingEntry)
-              : [],
-            isLocalMock: false,
-          };
-        })();
+  if (stateError) {
+    console.error("Failed to load knockout state", stateError);
+
+    if (stateError.message?.includes("not found")) {
+      return <UnavailableKnockoutMessage />;
+    }
+
+    return <LoadErrorMessage />;
+  }
+
+  const stateRow = single(stateData as Record<string, unknown>[] | null);
+  const rankingEntries = Array.isArray(rankingData)
+    ? (rankingData as unknown[]).map(mapRankingEntry)
+    : [];
 
   if (!stateRow) {
     return <UnavailableKnockoutMessage />;
@@ -278,7 +287,6 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     : [];
 
   if (
-    !isLocalMock &&
     matches.filter((match) => match.round === "round_of_32").length < 16
   ) {
     return <UnavailableKnockoutMessage />;
@@ -324,7 +332,6 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         isLocked={stateRow.is_locked === true}
         deadlineLabel={formatDateTime(String(stateRow.deadline_at)) ?? "A definir"}
         submittedAtLabel={formatDateTime(bracket?.submittedAt)}
-        isLocalMock={isLocalMock}
       />
     </main>
   );

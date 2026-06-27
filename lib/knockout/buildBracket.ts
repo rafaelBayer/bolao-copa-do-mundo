@@ -62,11 +62,45 @@ function placeholder(round: KnockoutRound, position: number, side: "a" | "b") {
 
 function slot(
   team: string | null | undefined,
+  code: string | null | undefined,
+  flagUrl: string | null | undefined,
   label: string,
 ): KnockoutSlot {
   return {
     team: team?.trim() || null,
+    code: code?.trim() || null,
+    flagUrl: flagUrl?.trim() || null,
     label,
+  };
+}
+
+function teamMetaForPick(team: string | null, matches: KnockoutMatch[]) {
+  if (!team) {
+    return {
+      code: null,
+      flagUrl: null,
+    };
+  }
+
+  for (const match of matches) {
+    if (match.teamA === team) {
+      return {
+        code: match.teamACode,
+        flagUrl: match.teamAFlagUrl,
+      };
+    }
+
+    if (match.teamB === team) {
+      return {
+        code: match.teamBCode,
+        flagUrl: match.teamBFlagUrl,
+      };
+    }
+  }
+
+  return {
+    code: null,
+    flagUrl: null,
   };
 }
 
@@ -137,19 +171,42 @@ function buildBracketMatch(input: {
     return {
       round,
       position,
-      teamA: slot(official?.teamA, official?.teamA ?? placeholder(round, position, "a")),
-      teamB: slot(official?.teamB, official?.teamB ?? placeholder(round, position, "b")),
+      teamA: slot(
+        official?.teamA,
+        official?.teamACode,
+        official?.teamAFlagUrl,
+        official?.teamA ?? placeholder(round, position, "a"),
+      ),
+      teamB: slot(
+        official?.teamB,
+        official?.teamBCode,
+        official?.teamBFlagUrl,
+        official?.teamB ?? placeholder(round, position, "b"),
+      ),
       startsAt: official?.startsAt ?? null,
       winnerTeam: official?.winnerTeam ?? null,
       selectedTeam,
     };
   }
 
+  const teamAMeta = teamMetaForPick(teams[0] ?? null, matches);
+  const teamBMeta = teamMetaForPick(teams[1] ?? null, matches);
+
   return {
     round,
     position,
-    teamA: slot(teams[0], teams[0] ?? placeholder(round, position, "a")),
-    teamB: slot(teams[1], teams[1] ?? placeholder(round, position, "b")),
+    teamA: slot(
+      teams[0],
+      teamAMeta.code,
+      teamAMeta.flagUrl,
+      teams[0] ?? placeholder(round, position, "a"),
+    ),
+    teamB: slot(
+      teams[1],
+      teamBMeta.code,
+      teamBMeta.flagUrl,
+      teams[1] ?? placeholder(round, position, "b"),
+    ),
     startsAt: official?.startsAt ?? null,
     winnerTeam: official?.winnerTeam ?? null,
     selectedTeam,
@@ -176,5 +233,5 @@ export function buildBracket(
 }
 
 export function championFromPicks(picks: KnockoutPick[]) {
-  return buildPickMap(picks).get(pickKey("champion", 1))?.selectedTeam ?? null;
+  return buildPickMap(picks).get(pickKey("final", 1))?.selectedTeam ?? null;
 }

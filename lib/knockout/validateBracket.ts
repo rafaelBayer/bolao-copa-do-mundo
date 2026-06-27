@@ -5,7 +5,7 @@ import {
   buildPickMap,
   pickKey,
 } from "./buildBracket";
-import type { KnockoutMatch, KnockoutPick, KnockoutRound } from "./types";
+import type { KnockoutMatch, KnockoutPick } from "./types";
 
 export type KnockoutValidationResult = {
   isValid: boolean;
@@ -59,22 +59,6 @@ export function pruneInvalidKnockoutPicks(
     }
   });
 
-  const finalPick = nextPicks.find(
-    (pick) => pick.round === "final" && pick.position === 1,
-  );
-  const championPick = picks.find(
-    (pick) => pick.round === "champion" && pick.position === 1,
-  );
-
-  if (finalPick) {
-    nextPicks.push({
-      ...championPick,
-      round: "champion",
-      position: 1,
-      selectedTeam: finalPick.selectedTeam,
-    });
-  }
-
   return nextPicks;
 }
 
@@ -85,7 +69,7 @@ export function validateKnockoutBracket(
   const prunedPicks = pruneInvalidKnockoutPicks(matches, picks);
   const pickByKey = buildPickMap(prunedPicks);
 
-  for (const round of [...KNOCKOUT_ROUNDS, "champion" as KnockoutRound]) {
+  for (const round of KNOCKOUT_ROUNDS) {
     for (let position = 1; position <= KNOCKOUT_ROUND_MATCH_COUNTS[round]; position += 1) {
       if (!pickByKey.has(pickKey(round, position))) {
         return {
