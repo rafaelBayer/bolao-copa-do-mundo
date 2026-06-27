@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import "./globals.css";
 
@@ -26,7 +27,10 @@ export default function RootLayout({
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
       <body>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          {children}
+          <SiteFooter />
+        </ThemeProvider>
       </body>
     </html>
   );
