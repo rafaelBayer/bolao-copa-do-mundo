@@ -186,6 +186,7 @@ as $$
   end;
 $$;
 
+drop function if exists public.get_knockout_state(text);
 create or replace function public.get_knockout_state(target_tournament_key text)
 returns table (
   settings jsonb,
@@ -193,7 +194,13 @@ returns table (
   bracket jsonb,
   picks jsonb,
   is_locked boolean,
-  deadline_at timestamptz
+  deadline_at timestamptz,
+  is_available boolean,
+  lock_at timestamptz,
+  first_match_starts_at timestamptz,
+  user_bracket_complete boolean,
+  user_picks_count integer,
+  missing_picks_count integer
 )
 language plpgsql
 security definer
@@ -203,6 +210,11 @@ declare
   current_user_id uuid := auth.uid();
   settings_record public.knockout_settings%rowtype;
   bracket_record public.user_knockout_brackets%rowtype;
+  configured_round_of_32_count integer := 0;
+  first_round_of_32_starts_at timestamptz;
+  computed_lock_at timestamptz;
+  pick_count integer := 0;
+  bracket_complete boolean := false;
 begin
   if current_user_id is null then
     raise exception 'Authentication required';
@@ -224,13 +236,51 @@ begin
   where ukb.tournament_key = target_tournament_key
     and ukb.user_id = current_user_id;
 
+  select
+    count(*) filter (
+      where km.round = 'round_of_32'
+        and km.position between 1 and 16
+        and nullif(trim(coalesce(km.team_a, '')), '') is not null
+        and nullif(trim(coalesce(km.team_b, '')), '') is not null
+    ),
+    min(km.starts_at) filter (
+      where km.round = 'round_of_32'
+        and km.starts_at is not null
+    )
+  into configured_round_of_32_count, first_round_of_32_starts_at
+  from public.knockout_matches km
+  where km.tournament_key = target_tournament_key;
+
+  computed_lock_at := coalesce(
+    first_round_of_32_starts_at - interval '10 minutes',
+    settings_record.deadline_at
+  );
+
+  if bracket_record.id is not null then
+    with user_picks as (
+      select ukp.round, ukp.position
+      from public.user_knockout_picks ukp
+      where ukp.bracket_id = bracket_record.id
+    )
+    select
+      count(*),
+      count(*) = 31
+        and count(*) filter (where round = 'round_of_32') = 16
+        and count(*) filter (where round = 'round_of_16') = 8
+        and count(*) filter (where round = 'quarterfinal') = 4
+        and count(*) filter (where round = 'semifinal') = 2
+        and count(*) filter (where round = 'final') = 1
+    into pick_count, bracket_complete
+    from user_picks;
+  end if;
+
   return query
   select
     jsonb_build_object(
       'id', settings_record.id,
       'tournamentKey', settings_record.tournament_key,
       'name', settings_record.name,
-      'deadlineAt', settings_record.deadline_at,
+      'deadlineAt', computed_lock_at,
       'isActive', settings_record.is_active
     ) as settings,
     (
@@ -279,8 +329,121 @@ begin
       from public.user_knockout_picks ukp
       where ukp.bracket_id = bracket_record.id
     ) as picks,
-    now() >= settings_record.deadline_at as is_locked,
-    settings_record.deadline_at as deadline_at;
+    now() >= computed_lock_at as is_locked,
+    computed_lock_at as deadline_at,
+    configured_round_of_32_count = 16
+      and first_round_of_32_starts_at is not null
+      and now() < computed_lock_at as is_available,
+    computed_lock_at as lock_at,
+    first_round_of_32_starts_at as first_match_starts_at,
+    bracket_complete as user_bracket_complete,
+    pick_count as user_picks_count,
+    greatest(31 - pick_count, 0) as missing_picks_count;
+end;
+$$;
+
+create or replace function public.get_knockout_notice_state(target_tournament_key text)
+returns table (
+  is_available boolean,
+  is_locked boolean,
+  lock_at timestamptz,
+  first_match_starts_at timestamptz,
+  user_bracket_complete boolean,
+  user_picks_count integer,
+  missing_picks_count integer
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  settings_record public.knockout_settings%rowtype;
+  bracket_id uuid;
+  configured_round_of_32_count integer := 0;
+  first_round_of_32_starts_at timestamptz;
+  computed_lock_at timestamptz;
+  pick_count integer := 0;
+  bracket_complete boolean := false;
+begin
+  if current_user_id is null then
+    raise exception 'Authentication required';
+  end if;
+
+  select *
+  into settings_record
+  from public.knockout_settings ks
+  where ks.tournament_key = target_tournament_key
+    and ks.is_active;
+
+  if settings_record.id is null then
+    return query
+    select
+      false,
+      false,
+      null::timestamptz,
+      null::timestamptz,
+      false,
+      0,
+      31;
+    return;
+  end if;
+
+  select
+    count(*) filter (
+      where km.round = 'round_of_32'
+        and km.position between 1 and 16
+        and nullif(trim(coalesce(km.team_a, '')), '') is not null
+        and nullif(trim(coalesce(km.team_b, '')), '') is not null
+    ),
+    min(km.starts_at) filter (
+      where km.round = 'round_of_32'
+        and km.starts_at is not null
+    )
+  into configured_round_of_32_count, first_round_of_32_starts_at
+  from public.knockout_matches km
+  where km.tournament_key = target_tournament_key;
+
+  computed_lock_at := coalesce(
+    first_round_of_32_starts_at - interval '10 minutes',
+    settings_record.deadline_at
+  );
+
+  select ukb.id
+  into bracket_id
+  from public.user_knockout_brackets ukb
+  where ukb.tournament_key = target_tournament_key
+    and ukb.user_id = current_user_id;
+
+  if bracket_id is not null then
+    with user_picks as (
+      select ukp.round, ukp.position
+      from public.user_knockout_picks ukp
+      where ukp.bracket_id = bracket_id
+    )
+    select
+      count(*),
+      count(*) = 31
+        and count(*) filter (where round = 'round_of_32') = 16
+        and count(*) filter (where round = 'round_of_16') = 8
+        and count(*) filter (where round = 'quarterfinal') = 4
+        and count(*) filter (where round = 'semifinal') = 2
+        and count(*) filter (where round = 'final') = 1
+    into pick_count, bracket_complete
+    from user_picks;
+  end if;
+
+  return query
+  select
+    configured_round_of_32_count = 16
+      and first_round_of_32_starts_at is not null
+      and now() < computed_lock_at as is_available,
+    now() >= computed_lock_at as is_locked,
+    computed_lock_at as lock_at,
+    first_round_of_32_starts_at as first_match_starts_at,
+    bracket_complete as user_bracket_complete,
+    pick_count as user_picks_count,
+    greatest(31 - pick_count, 0) as missing_picks_count;
 end;
 $$;
 
@@ -304,6 +467,8 @@ declare
   total_picks integer;
   invalid_count integer;
   is_complete boolean;
+  first_round_of_32_starts_at timestamptz;
+  computed_lock_at timestamptz;
 begin
   if current_user_id is null then
     raise exception 'Authentication required';
@@ -319,8 +484,20 @@ begin
     raise exception 'Knockout tournament not found';
   end if;
 
-  if now() >= settings_record.deadline_at then
-    raise exception 'Knockout bracket is locked';
+  select min(km.starts_at)
+  into first_round_of_32_starts_at
+  from public.knockout_matches km
+  where km.tournament_key = target_tournament_key
+    and km.round = 'round_of_32'
+    and km.starts_at is not null;
+
+  computed_lock_at := coalesce(
+    first_round_of_32_starts_at - interval '10 minutes',
+    settings_record.deadline_at
+  );
+
+  if now() >= computed_lock_at then
+    raise exception 'O prazo para editar o mata-mata ja encerrou.';
   end if;
 
   if jsonb_typeof(target_picks) <> 'array' then
@@ -633,10 +810,12 @@ $$;
 revoke all on function public.knockout_round_order(text) from public;
 revoke all on function public.knockout_expected_positions(text) from public;
 revoke all on function public.get_knockout_state(text) from public;
+revoke all on function public.get_knockout_notice_state(text) from public;
 revoke all on function public.save_knockout_bracket(text, jsonb) from public;
 revoke all on function public.get_pool_knockout_ranking(uuid, text) from public;
 
 grant execute on function public.get_knockout_state(text) to authenticated;
+grant execute on function public.get_knockout_notice_state(text) to authenticated;
 grant execute on function public.save_knockout_bracket(text, jsonb) to authenticated;
 grant execute on function public.get_pool_knockout_ranking(uuid, text) to authenticated;
 

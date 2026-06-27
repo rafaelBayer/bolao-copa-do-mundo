@@ -1,8 +1,10 @@
 ﻿import { redirect } from "next/navigation";
 import type { Metadata } from "next";
+import { KnockoutGlobalNotice } from "@/components/knockout/KnockoutGlobalNotice";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { KNOCKOUT_TOURNAMENT_KEY } from "@/lib/knockout/bracketStructure";
 import { createClient } from "@/lib/supabase/server";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -104,7 +106,11 @@ export default async function DashboardLayout({
     console.error("Failed to ensure default pool membership", defaultPoolError);
   }
 
-  const [{ data: membershipData }, { data: profileData }] = await Promise.all([
+  const [
+    { data: membershipData },
+    { data: profileData },
+    { data: knockoutNoticeData },
+  ] = await Promise.all([
     supabase
       .from("pool_members")
       .select("pool_id, pools(name)")
@@ -116,6 +122,9 @@ export default async function DashboardLayout({
       .select("name, avatar_url")
       .eq("id", userId)
       .maybeSingle(),
+    supabase.rpc("get_knockout_notice_state", {
+      target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+    }),
   ]);
   const profile = profileData as {
     name?: string | null;
@@ -151,6 +160,9 @@ export default async function DashboardLayout({
   const brandLogoUrl = branding?.logo_url?.trim() || null;
   const profileName = profile?.name?.trim();
   const userLabel = profileName || email || "Usuario";
+  const knockoutNotice = Array.isArray(knockoutNoticeData)
+    ? (knockoutNoticeData[0] as Record<string, unknown> | undefined)
+    : (knockoutNoticeData as Record<string, unknown> | null);
 
   if (defaultPoolError && !membershipData) {
     return (
@@ -187,6 +199,28 @@ export default async function DashboardLayout({
         brandTitle={brandTitle}
         brandLogoUrl={brandLogoUrl}
       />
+      {knockoutNotice ? (
+        <KnockoutGlobalNotice
+          isAvailable={knockoutNotice.is_available === true}
+          isLocked={knockoutNotice.is_locked === true}
+          userBracketComplete={knockoutNotice.user_bracket_complete === true}
+          userPicksCount={
+            typeof knockoutNotice.user_picks_count === "number"
+              ? knockoutNotice.user_picks_count
+              : 0
+          }
+          missingPicksCount={
+            typeof knockoutNotice.missing_picks_count === "number"
+              ? knockoutNotice.missing_picks_count
+              : 31
+          }
+          lockAt={
+            typeof knockoutNotice.lock_at === "string"
+              ? knockoutNotice.lock_at
+              : null
+          }
+        />
+      ) : null}
       {children}
     </div>
   );

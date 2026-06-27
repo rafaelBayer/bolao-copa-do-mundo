@@ -23,7 +23,7 @@ export function KnockoutStatus({
         ) : (
           <Clock size={14} aria-hidden="true" />
         )}
-        Prazo: {deadlineLabel}
+        Bloqueio: {deadlineLabel}
       </span>
       {submittedAtLabel ? (
         <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200 light:border-emerald-200 light:bg-emerald-50 light:text-emerald-700">

@@ -26,7 +26,9 @@ type KnockoutSyncDatabase = {
       knockout_settings: {
         Row: KnockoutSettingsRow;
         Insert: never;
-        Update: never;
+        Update: {
+          deadline_at?: string;
+        };
         Relationships: [];
       };
       knockout_matches: {
@@ -86,6 +88,7 @@ type MatchRow = {
 type KnockoutSettingsRow = {
   id: string;
   tournament_key: string;
+  deadline_at: string;
   is_active: boolean;
 };
 
@@ -473,6 +476,37 @@ function diffSide(label: string, current: TeamSelection, next: TeamSelection) {
   return `${label}: ${formatTeam(current)} -> ${formatTeam(next)}`;
 }
 
+function earliestStartsAt(rows: KnockoutMatchUpsert[]) {
+  const times = rows
+    .map((row) => row.starts_at)
+    .filter((value): value is string => Boolean(value))
+    .map((value) => new Date(value).getTime())
+    .filter(Number.isFinite);
+
+  if (times.length === 0) {
+    return null;
+  }
+
+  return new Date(Math.min(...times)).toISOString();
+}
+
+function lockAtForFirstMatch(firstMatchStartsAt: string | null) {
+  if (!firstMatchStartsAt) {
+    return null;
+  }
+
+  return new Date(new Date(firstMatchStartsAt).getTime() - 10 * 60 * 1000)
+    .toISOString();
+}
+
+function sameInstant(left: string | null, right: string | null) {
+  if (!left || !right) {
+    return left === right;
+  }
+
+  return new Date(left).getTime() === new Date(right).getTime();
+}
+
 async function fetchGroups(supabase: KnockoutSupabaseClient) {
   const { data, error } = await supabase
     .from("groups")
@@ -523,7 +557,7 @@ async function fetchKnockoutSettings(
 ) {
   const { data, error } = await supabase
     .from("knockout_settings")
-    .select("id, tournament_key, is_active")
+    .select("id, tournament_key, deadline_at, is_active")
     .eq("tournament_key", tournamentKey)
     .eq("is_active", true)
     .maybeSingle();
@@ -705,6 +739,11 @@ async function syncTarget({
   const pendingSlots = desiredRows.filter(
     (item) => item.pendingReasons.length > 0,
   );
+  const firstMatchStartsAt = earliestStartsAt(desiredRows.map((item) => item.row));
+  const computedLockAt = lockAtForFirstMatch(firstMatchStartsAt);
+  const deadlineNeedsUpdate = Boolean(
+    computedLockAt && !sameInstant(settings.deadline_at, computedLockAt),
+  );
 
   console.log("");
   console.log(`${dryRun ? "[DRY RUN] " : ""}Knockout updates detected:`);
@@ -727,6 +766,22 @@ async function syncTarget({
     });
   }
 
+  console.log("");
+  if (firstMatchStartsAt && computedLockAt) {
+    console.log(`First knockout match: ${firstMatchStartsAt}`);
+    console.log(`Lock time: ${computedLockAt}`);
+    if (deadlineNeedsUpdate) {
+      console.log(
+        `deadline_at ${dryRun ? "would be updated" : "will be updated"} from ${settings.deadline_at} to ${computedLockAt}`,
+      );
+    } else {
+      console.log("deadline_at already matches the lock time.");
+    }
+  } else {
+    console.log("First knockout match: pending");
+    console.log("Lock time: pending until a round_of_32 starts_at is available.");
+  }
+
   if (!dryRun && rowsWithDiff.length > 0) {
     const { error } = await supabase
       .from("knockout_matches")
@@ -736,6 +791,17 @@ async function syncTarget({
           onConflict: "tournament_key,round,position",
         },
       );
+
+    if (error) {
+      throw error;
+    }
+  }
+
+  if (!dryRun && deadlineNeedsUpdate && computedLockAt) {
+    const { error } = await supabase
+      .from("knockout_settings")
+      .update({ deadline_at: computedLockAt })
+      .eq("tournament_key", tournamentKey);
 
     if (error) {
       throw error;
@@ -758,11 +824,14 @@ async function syncTarget({
     `Matches unchanged: ${ROUND_OF_32_POSITIONS.length - rowsWithDiff.length}`,
   );
   console.log(`Pending slots: ${pendingSlots.length}`);
+  console.log(
+    `Deadline update: ${deadlineNeedsUpdate ? "yes" : "no"}`,
+  );
 
   if (dryRun) {
     console.log("No database changes were written.");
   } else {
-    console.log("Only knockout_matches was updated.");
+    console.log("Only knockout_matches and knockout_settings.deadline_at were updated.");
   }
 }
 

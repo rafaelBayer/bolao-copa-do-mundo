@@ -181,7 +181,10 @@ export function KnockoutBracket({
 
         if (error) {
           setSaveStatus(
-            error.message.includes("locked") ? "locked" : "error",
+            error.message.includes("locked") ||
+              error.message.includes("prazo")
+              ? "locked"
+              : "error",
           );
           return;
         }
@@ -247,7 +250,7 @@ export function KnockoutBracket({
 
         <div className="mt-4 min-h-6 text-sm font-bold text-slate-500 light:text-slate-500">
           {isComplete
-            ? "Chave completa. Voce ainda pode editar ate o prazo."
+              ? "Chave completa. Voce ainda pode editar ate 10 minutos antes do primeiro jogo."
             : "Suas escolhas parciais sao salvas automaticamente."}
           {saveStatus === "error" ? (
             <span className="ml-2 text-red-300 light:text-red-600">
