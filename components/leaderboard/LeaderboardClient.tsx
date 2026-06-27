@@ -12,7 +12,7 @@ import {
 } from "@/lib/scoring/buildLeaderboard";
 import { createClient } from "@/lib/supabase/client";
 
-type RankingMode = "general" | "round" | "live";
+type RankingMode = "overall" | "groups" | "knockout" | "round" | "live";
 
 type RoundLeaderboard = {
   entries: LeaderboardEntry[];
@@ -32,13 +32,25 @@ type RoundHighlights = {
 type LeaderboardClientProps = {
   poolId: string;
   poolName: string;
-  generalEntries: LeaderboardEntry[];
-  hasGeneralResult: boolean;
+  overallEntries: CombinedLeaderboardEntry[];
+  groupEntries: LeaderboardEntry[];
+  knockoutEntries: CombinedLeaderboardEntry[];
+  hasGroupResult: boolean;
+  hasKnockoutResult: boolean;
   roundLeaderboards: Record<number, RoundLeaderboard>;
   roundHighlights: Record<number, RoundHighlights>;
   liveEntries: LeaderboardEntry[];
   hasLiveResult: boolean;
   liveMatchesCount: number;
+};
+
+export type CombinedLeaderboardEntry = LeaderboardEntry & {
+  groupPoints: number;
+  knockoutPoints: number;
+  knockoutCorrectPicks: number;
+  knockoutPicksCount: number;
+  knockoutComplete: boolean;
+  knockoutUpdatedAt: string | null;
 };
 
 type LiveLeaderboardDataRow = LeaderboardDataRow & {
@@ -328,6 +340,104 @@ function LeaderboardTable({
   );
 }
 
+function CombinedLeaderboardTable({
+  entries,
+  poolId,
+  mode,
+}: {
+  entries: CombinedLeaderboardEntry[];
+  poolId: string;
+  mode: "overall" | "knockout";
+}) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-800 light:border-slate-200">
+      <div className="hidden overflow-x-auto md:block">
+        <table className="w-full min-w-[760px] text-sm">
+          <thead>
+            <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-500 light:border-slate-200">
+              <th className="px-4 py-3">Pos</th>
+              <th className="px-4 py-3">Participante</th>
+              <th className="px-4 py-3 text-right">
+                {mode === "overall" ? "Total" : "Mata-mata"}
+              </th>
+              {mode === "overall" ? (
+                <th className="px-4 py-3 text-right">Grupos</th>
+              ) : null}
+              <th className="px-4 py-3 text-right">Mata-mata</th>
+              <th className="px-4 py-3 text-right">Acertos</th>
+              <th className="px-4 py-3 text-right">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((entry) => (
+              <tr
+                key={entry.userId}
+                className="border-b border-slate-800/70 light:border-slate-200/80"
+              >
+                <td className="px-4 py-3 text-lg font-black text-slate-50 light:text-slate-950">
+                  {entry.position}
+                </td>
+                <td className="px-4 py-3">
+                  <ParticipantIdentity
+                    entry={entry}
+                    poolId={poolId}
+                    avatarSize="sm"
+                  />
+                </td>
+                <td className="px-4 py-3 text-right font-black text-emerald-300 light:text-emerald-700">
+                  {entry.totalPoints}
+                </td>
+                {mode === "overall" ? (
+                  <td className="px-4 py-3 text-right text-slate-300 light:text-slate-700">
+                    {entry.groupPoints}
+                  </td>
+                ) : null}
+                <td className="px-4 py-3 text-right text-slate-300 light:text-slate-700">
+                  {entry.knockoutPoints}
+                </td>
+                <td className="px-4 py-3 text-right text-slate-300 light:text-slate-700">
+                  {entry.knockoutCorrectPicks}
+                </td>
+                <td className="px-4 py-3 text-right text-slate-300 light:text-slate-700">
+                  {entry.knockoutComplete ? "Completo" : "Incompleto"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="divide-y divide-slate-800 md:hidden light:divide-slate-200">
+        {entries.map((entry) => (
+          <div key={entry.userId} className="p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="text-lg font-black text-slate-50 light:text-slate-950">
+                  {entry.position}
+                </span>
+                <ParticipantIdentity
+                  entry={entry}
+                  poolId={poolId}
+                  avatarSize="sm"
+                />
+              </div>
+              <p className="text-lg font-black text-emerald-300 light:text-emerald-700">
+                {entry.totalPoints} pts
+              </p>
+            </div>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-xs font-bold text-slate-400 light:text-slate-500">
+              {mode === "overall" ? <span>Grupos {entry.groupPoints}</span> : null}
+              <span>Mata {entry.knockoutPoints}</span>
+              <span>Acertos {entry.knockoutCorrectPicks}</span>
+              <span>{entry.knockoutComplete ? "Completo" : "Incompleto"}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function modeButtonClass(isActive: boolean) {
   return `rounded-lg px-3 py-2 text-sm font-bold transition ${
     isActive
@@ -434,15 +544,18 @@ function createLiveImpactMessage(
 export function LeaderboardClient({
   poolId,
   poolName,
-  generalEntries,
-  hasGeneralResult,
+  overallEntries,
+  groupEntries,
+  knockoutEntries,
+  hasGroupResult,
+  hasKnockoutResult,
   roundLeaderboards,
   roundHighlights,
   liveEntries,
   hasLiveResult,
   liveMatchesCount,
 }: LeaderboardClientProps) {
-  const [mode, setMode] = useState<RankingMode>("general");
+  const [mode, setMode] = useState<RankingMode>("overall");
   const [selectedRound, setSelectedRound] = useState(1);
   const [showScoringInfo, setShowScoringInfo] = useState(false);
   const [liveRankingEntries, setLiveRankingEntries] = useState(liveEntries);
@@ -486,45 +599,69 @@ export function LeaderboardClient({
       Boolean(item),
   );
   const activeEntries =
-    mode === "general"
-      ? generalEntries
-      : mode === "live"
-        ? liveRankingEntries
-        : selectedRoundLeaderboard?.entries ?? emptyLeaderboardEntries;
+    mode === "overall"
+      ? overallEntries
+      : mode === "groups"
+        ? groupEntries
+        : mode === "knockout"
+          ? knockoutEntries
+          : mode === "live"
+            ? liveRankingEntries
+            : selectedRoundLeaderboard?.entries ?? emptyLeaderboardEntries;
   const activeHasResult =
-    mode === "general"
-      ? hasGeneralResult
-      : mode === "live"
-        ? liveRankingHasResult
-        : Boolean(selectedRoundLeaderboard?.hasResult);
+    mode === "overall"
+      ? hasGroupResult || hasKnockoutResult
+      : mode === "groups"
+        ? hasGroupResult
+        : mode === "knockout"
+          ? hasKnockoutResult
+          : mode === "live"
+            ? liveRankingHasResult
+            : Boolean(selectedRoundLeaderboard?.hasResult);
   const podiumEntries = useMemo(
     () => activeEntries.filter((entry) => entry.totalPoints > 0).slice(0, 3),
     [activeEntries],
   );
   const podiumTitle =
-    mode === "general"
+    mode === "overall"
       ? "Top 3 geral"
-      : mode === "live"
-        ? "Top 3 ao vivo"
-        : `Top 3 da Rodada ${selectedRound}`;
+      : mode === "groups"
+        ? "Top 3 grupos"
+        : mode === "knockout"
+          ? "Top 3 mata-mata"
+          : mode === "live"
+            ? "Top 3 ao vivo"
+            : `Top 3 da Rodada ${selectedRound}`;
   const tableTitle =
-    mode === "general"
-      ? "Ranking geral"
-      : mode === "live"
-        ? "Ranking ao vivo"
-        : `Ranking da Rodada ${selectedRound}`;
+    mode === "overall"
+      ? "Classificacao geral"
+      : mode === "groups"
+        ? "Fase de grupos"
+        : mode === "knockout"
+          ? "Ranking Mata-mata"
+          : mode === "live"
+            ? "Ranking ao vivo"
+            : `Ranking da Rodada ${selectedRound}`;
   const emptyMessage =
-    mode === "general"
+    mode === "overall"
       ? "A classificacao sera atualizada quando os primeiros resultados forem cadastrados."
-      : mode === "live"
-        ? "Ainda nao ha placares finalizados ou ao vivo para calcular a classificacao."
-        : `A Rodada ${selectedRound} ainda nao possui jogos com resultado.`;
+      : mode === "groups"
+        ? "A fase de grupos ainda nao possui jogos com resultado."
+        : mode === "knockout"
+          ? "O mata-mata ainda nao possui resultados oficiais para pontuar."
+          : mode === "live"
+            ? "Ainda nao ha placares finalizados ou ao vivo para calcular a classificacao."
+            : `A Rodada ${selectedRound} ainda nao possui jogos com resultado.`;
   const noScoreMessage =
-    mode === "general"
+    mode === "overall"
       ? "Nenhum participante pontuou ainda."
-      : mode === "live"
-        ? "Nenhum participante pontuou na classificacao ao vivo ainda."
-        : `Nenhum participante pontuou na Rodada ${selectedRound} ainda.`;
+      : mode === "groups"
+        ? "Nenhum participante pontuou na fase de grupos ainda."
+        : mode === "knockout"
+          ? "Nenhum participante pontuou no mata-mata ainda."
+          : mode === "live"
+            ? "Nenhum participante pontuou na classificacao ao vivo ainda."
+            : `Nenhum participante pontuou na Rodada ${selectedRound} ainda.`;
 
   const refreshLiveLeaderboard = useCallback(async () => {
     setLiveRefreshStatus("refreshing");
@@ -636,17 +773,16 @@ export function LeaderboardClient({
                 Como funciona a pontuacao
               </p>
               <p className="mt-3 text-sm font-bold text-slate-300 light:text-slate-700">
-                Placar exato: 3 pts
+                Grupos - placar exato: 3 pts
               </p>
               <p className="mt-1 text-sm font-bold text-slate-300 light:text-slate-700">
-                Resultado correto: 1 pt
+                Grupos - resultado correto: 1 pt
               </p>
               <p className="mt-1 text-sm font-bold text-slate-300 light:text-slate-700">
-                Erro: 0 pts
+                Mata-mata: 2, 4, 6, 10 e 15 pts por fase
               </p>
               <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
-                Resultado correto significa acertar se o jogo terminou com
-                vitoria do mandante, empate ou vitoria do visitante.
+                No mata-mata, a pick da final representa o campeao.
               </p>
             </div>
           ) : null}
@@ -657,10 +793,24 @@ export function LeaderboardClient({
         <div className="inline-flex w-fit rounded-xl border border-slate-800 bg-slate-950/45 p-1 light:border-slate-200 light:bg-slate-50">
           <button
             type="button"
-            onClick={() => setMode("general")}
-            className={modeButtonClass(mode === "general")}
+            onClick={() => setMode("overall")}
+            className={modeButtonClass(mode === "overall")}
           >
-            Ranking geral
+            Geral
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("groups")}
+            className={modeButtonClass(mode === "groups")}
+          >
+            Grupos
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("knockout")}
+            className={modeButtonClass(mode === "knockout")}
+          >
+            Mata-mata
           </button>
           <button
             type="button"
@@ -749,11 +899,15 @@ export function LeaderboardClient({
               {podiumTitle}
             </h2>
             <p className="mt-1 text-xs text-slate-400 light:text-slate-500">
-              {mode === "general"
-                ? "Melhores participantes considerando todos os jogos com resultado."
-                : mode === "live"
-                  ? "Classificacao provisoria com jogos finalizados e placares atuais."
-                  : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}
+              {mode === "overall"
+                ? "Soma da fase de grupos com o mata-mata."
+                : mode === "groups"
+                  ? "Melhores participantes considerando apenas os jogos da fase de grupos."
+                  : mode === "knockout"
+                    ? "Melhores participantes considerando apenas acertos de avanco no mata-mata."
+                    : mode === "live"
+                      ? "Classificacao provisoria com jogos finalizados e placares atuais."
+                      : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}
             </p>
           </div>
         </div>
@@ -815,7 +969,15 @@ export function LeaderboardClient({
           </div>
         ) : null}
 
-        <LeaderboardTable entries={activeEntries} poolId={poolId} />
+        {mode === "overall" || mode === "knockout" ? (
+          <CombinedLeaderboardTable
+            entries={activeEntries as CombinedLeaderboardEntry[]}
+            poolId={poolId}
+            mode={mode}
+          />
+        ) : (
+          <LeaderboardTable entries={activeEntries} poolId={poolId} />
+        )}
       </Card>
     </div>
   );

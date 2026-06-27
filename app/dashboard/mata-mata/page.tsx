@@ -161,6 +161,29 @@ function mapRankingEntry(value: unknown): KnockoutRankingEntry {
       typeof row.correct_picks === "number" ? row.correct_picks : 0,
     submittedAt:
       typeof row.submitted_at === "string" ? row.submitted_at : null,
+    completedAt:
+      typeof row.completed_at === "string" ? row.completed_at : null,
+    picksCount: typeof row.picks_count === "number" ? row.picks_count : 0,
+    isComplete: row.is_complete === true,
+    roundOf32Points:
+      typeof row.round_of_32_points === "number" ? row.round_of_32_points : 0,
+    roundOf16Points:
+      typeof row.round_of_16_points === "number" ? row.round_of_16_points : 0,
+    quarterfinalPoints:
+      typeof row.quarterfinal_points === "number" ? row.quarterfinal_points : 0,
+    semifinalPoints:
+      typeof row.semifinal_points === "number" ? row.semifinal_points : 0,
+    finalPoints: typeof row.final_points === "number" ? row.final_points : 0,
+    roundOf32Correct:
+      typeof row.round_of_32_correct === "number" ? row.round_of_32_correct : 0,
+    roundOf16Correct:
+      typeof row.round_of_16_correct === "number" ? row.round_of_16_correct : 0,
+    quarterfinalCorrect:
+      typeof row.quarterfinal_correct === "number" ? row.quarterfinal_correct : 0,
+    semifinalCorrect:
+      typeof row.semifinal_correct === "number" ? row.semifinal_correct : 0,
+    finalCorrect:
+      typeof row.final_correct === "number" ? row.final_correct : 0,
   };
 }
 

@@ -721,6 +721,7 @@ begin
 end;
 $$;
 
+drop function if exists public.get_pool_knockout_ranking(uuid, text);
 create or replace function public.get_pool_knockout_ranking(
   target_pool_id uuid,
   target_tournament_key text
@@ -732,7 +733,20 @@ returns table (
   avatar_url text,
   total_points integer,
   correct_picks integer,
-  submitted_at timestamptz
+  submitted_at timestamptz,
+  completed_at timestamptz,
+  picks_count integer,
+  is_complete boolean,
+  round_of_32_points integer,
+  round_of_16_points integer,
+  quarterfinal_points integer,
+  semifinal_points integer,
+  final_points integer,
+  round_of_32_correct integer,
+  round_of_16_correct integer,
+  quarterfinal_correct integer,
+  semifinal_correct integer,
+  final_correct integer
 )
 language plpgsql
 security definer
@@ -770,12 +784,53 @@ begin
     select
       pm.user_id,
       ukb.submitted_at,
+      ukb.completed_at,
+      coalesce(count(ukp.id), 0)::integer as picks_count,
+      (
+        coalesce(count(ukp.id), 0) = 31
+        and count(*) filter (where ukp.round = 'round_of_32') = 16
+        and count(*) filter (where ukp.round = 'round_of_16') = 8
+        and count(*) filter (where ukp.round = 'quarterfinal') = 4
+        and count(*) filter (where ukp.round = 'semifinal') = 2
+        and count(*) filter (where ukp.round = 'final') = 1
+      ) as is_complete,
       coalesce(sum(
         case when ukp.selected_team = ow.winner_team then ow.points else 0 end
       ), 0)::integer as total_points,
       coalesce(count(*) filter (
         where ukp.selected_team = ow.winner_team
       ), 0)::integer as correct_picks
+      ,
+      coalesce(sum(
+        case when ukp.round = 'round_of_32' and ukp.selected_team = ow.winner_team then ow.points else 0 end
+      ), 0)::integer as round_of_32_points,
+      coalesce(sum(
+        case when ukp.round = 'round_of_16' and ukp.selected_team = ow.winner_team then ow.points else 0 end
+      ), 0)::integer as round_of_16_points,
+      coalesce(sum(
+        case when ukp.round = 'quarterfinal' and ukp.selected_team = ow.winner_team then ow.points else 0 end
+      ), 0)::integer as quarterfinal_points,
+      coalesce(sum(
+        case when ukp.round = 'semifinal' and ukp.selected_team = ow.winner_team then ow.points else 0 end
+      ), 0)::integer as semifinal_points,
+      coalesce(sum(
+        case when ukp.round = 'final' and ukp.selected_team = ow.winner_team then ow.points else 0 end
+      ), 0)::integer as final_points,
+      coalesce(count(*) filter (
+        where ukp.round = 'round_of_32' and ukp.selected_team = ow.winner_team
+      ), 0)::integer as round_of_32_correct,
+      coalesce(count(*) filter (
+        where ukp.round = 'round_of_16' and ukp.selected_team = ow.winner_team
+      ), 0)::integer as round_of_16_correct,
+      coalesce(count(*) filter (
+        where ukp.round = 'quarterfinal' and ukp.selected_team = ow.winner_team
+      ), 0)::integer as quarterfinal_correct,
+      coalesce(count(*) filter (
+        where ukp.round = 'semifinal' and ukp.selected_team = ow.winner_team
+      ), 0)::integer as semifinal_correct,
+      coalesce(count(*) filter (
+        where ukp.round = 'final' and ukp.selected_team = ow.winner_team
+      ), 0)::integer as final_correct
     from public.pool_members pm
     left join public.user_knockout_brackets ukb
       on ukb.user_id = pm.user_id
@@ -786,7 +841,7 @@ begin
       on ow.round = ukp.round
       and ow.position = ukp.position
     where pm.pool_id = target_pool_id
-    group by pm.user_id, ukb.submitted_at
+    group by pm.user_id, ukb.submitted_at, ukb.completed_at
   )
   select
     ms.user_id,
@@ -795,7 +850,20 @@ begin
     p.avatar_url,
     ms.total_points,
     ms.correct_picks,
-    ms.submitted_at
+    ms.submitted_at,
+    ms.completed_at,
+    ms.picks_count,
+    ms.is_complete,
+    ms.round_of_32_points,
+    ms.round_of_16_points,
+    ms.quarterfinal_points,
+    ms.semifinal_points,
+    ms.final_points,
+    ms.round_of_32_correct,
+    ms.round_of_16_correct,
+    ms.quarterfinal_correct,
+    ms.semifinal_correct,
+    ms.final_correct
   from member_scores ms
   left join public.profiles p on p.id = ms.user_id
   order by

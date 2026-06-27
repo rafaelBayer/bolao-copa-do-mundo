@@ -155,6 +155,9 @@ export function KnockoutBracket({
     },
   ];
   const finalMatch = roundState("final")?.matches[0] ?? null;
+  const currentUserScore = initialBracket
+    ? rankingEntries.find((entry) => entry.userId === initialBracket.userId)
+    : null;
 
   const persistPicks = useCallback(
     (nextPicks: KnockoutPick[]) => {
@@ -273,6 +276,33 @@ export function KnockoutBracket({
           O prazo para editar seu mata-mata ja encerrou.
         </Card>
       ) : null}
+
+      <Card className="p-4 sm:p-5">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
+              Pontuacao do mata-mata
+            </h2>
+            <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
+              16 avos: 2 pts por acerto; oitavas: 4; quartas: 6;
+              semifinal: 10; campeao: 15.
+            </p>
+          </div>
+          <div className="rounded-lg border border-slate-800 bg-slate-950/45 px-4 py-3 text-right light:border-slate-200 light:bg-slate-50">
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-500 light:text-slate-500">
+              Sua pontuacao
+            </p>
+            <p className="mt-1 text-2xl font-black text-emerald-300 light:text-emerald-700">
+              {currentUserScore?.totalPoints ?? 0} pts
+            </p>
+            <p className="mt-1 text-xs font-semibold text-slate-500 light:text-slate-500">
+              {currentUserScore
+                ? `${currentUserScore.correctPicks} acertos oficiais`
+                : "Sera calculada conforme os jogos terminarem"}
+            </p>
+          </div>
+        </div>
+      </Card>
 
       <div className="flex max-w-full gap-2 overflow-x-auto pb-1 lg:hidden">
         {KNOCKOUT_ROUNDS.map((round) => (

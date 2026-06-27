@@ -32,7 +32,14 @@ export function KnockoutRanking({ entries }: KnockoutRankingProps) {
                     {entry.name}
                   </p>
                   <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
-                    {entry.correctPicks} acertos
+                    {entry.correctPicks} acertos •{" "}
+                    {entry.isComplete ? "Completo" : "Incompleto"}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-semibold text-slate-600 light:text-slate-500">
+                    16 avos {entry.roundOf32Points} | Oitavas{" "}
+                    {entry.roundOf16Points} | Quartas{" "}
+                    {entry.quarterfinalPoints} | Semi {entry.semifinalPoints} |
+                    Final {entry.finalPoints}
                   </p>
                 </div>
                 <span className="text-lg font-black text-emerald-300 light:text-emerald-700">

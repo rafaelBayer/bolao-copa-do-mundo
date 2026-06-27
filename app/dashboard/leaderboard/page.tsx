@@ -1,11 +1,17 @@
 import Link from "next/link";
-import { LeaderboardClient } from "@/components/leaderboard/LeaderboardClient";
+import {
+  LeaderboardClient,
+  type CombinedLeaderboardEntry,
+} from "@/components/leaderboard/LeaderboardClient";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { KNOCKOUT_TOURNAMENT_KEY } from "@/lib/knockout/bracketStructure";
+import type { KnockoutRankingEntry } from "@/lib/knockout/types";
 import {
   buildLeaderboard,
   hasRealResult,
   type LeaderboardDataRow,
+  type LeaderboardEntry,
 } from "@/lib/scoring/buildLeaderboard";
 import { createClient } from "@/lib/supabase/server";
 
@@ -151,6 +157,137 @@ function buildRoundHighlights(
   };
 }
 
+function mapKnockoutRankingEntry(value: unknown): KnockoutRankingEntry {
+  const row = value as Record<string, unknown>;
+  const fallbackName =
+    typeof row.username === "string" ? row.username : "Participante";
+
+  return {
+    userId: String(row.user_id),
+    name:
+      typeof row.profile_name === "string" && row.profile_name.trim()
+        ? row.profile_name
+        : fallbackName,
+    username: typeof row.username === "string" ? row.username : null,
+    avatarUrl: typeof row.avatar_url === "string" ? row.avatar_url : null,
+    totalPoints:
+      typeof row.total_points === "number" ? row.total_points : 0,
+    correctPicks:
+      typeof row.correct_picks === "number" ? row.correct_picks : 0,
+    submittedAt:
+      typeof row.submitted_at === "string" ? row.submitted_at : null,
+    completedAt:
+      typeof row.completed_at === "string" ? row.completed_at : null,
+    picksCount: typeof row.picks_count === "number" ? row.picks_count : 0,
+    isComplete: row.is_complete === true,
+    roundOf32Points:
+      typeof row.round_of_32_points === "number" ? row.round_of_32_points : 0,
+    roundOf16Points:
+      typeof row.round_of_16_points === "number" ? row.round_of_16_points : 0,
+    quarterfinalPoints:
+      typeof row.quarterfinal_points === "number" ? row.quarterfinal_points : 0,
+    semifinalPoints:
+      typeof row.semifinal_points === "number" ? row.semifinal_points : 0,
+    finalPoints:
+      typeof row.final_points === "number" ? row.final_points : 0,
+    roundOf32Correct:
+      typeof row.round_of_32_correct === "number" ? row.round_of_32_correct : 0,
+    roundOf16Correct:
+      typeof row.round_of_16_correct === "number" ? row.round_of_16_correct : 0,
+    quarterfinalCorrect:
+      typeof row.quarterfinal_correct === "number" ? row.quarterfinal_correct : 0,
+    semifinalCorrect:
+      typeof row.semifinal_correct === "number" ? row.semifinal_correct : 0,
+    finalCorrect:
+      typeof row.final_correct === "number" ? row.final_correct : 0,
+  };
+}
+
+function sortCombinedEntries(entries: CombinedLeaderboardEntry[]) {
+  return [...entries]
+    .sort((left, right) => {
+      if (right.totalPoints !== left.totalPoints) {
+        return right.totalPoints - left.totalPoints;
+      }
+
+      if (right.knockoutPoints !== left.knockoutPoints) {
+        return right.knockoutPoints - left.knockoutPoints;
+      }
+
+      if (right.groupPoints !== left.groupPoints) {
+        return right.groupPoints - left.groupPoints;
+      }
+
+      return left.name.localeCompare(right.name, "pt-BR");
+    })
+    .map((entry, index) => ({
+      ...entry,
+      position: index + 1,
+    }));
+}
+
+function combineRankings(
+  groupEntries: LeaderboardEntry[],
+  knockoutEntries: KnockoutRankingEntry[],
+) {
+  const knockoutByUserId = new Map(
+    knockoutEntries.map((entry) => [entry.userId, entry]),
+  );
+  const userIds = new Set([
+    ...groupEntries.map((entry) => entry.userId),
+    ...knockoutEntries.map((entry) => entry.userId),
+  ]);
+  const combined = Array.from(userIds).map((userId) => {
+    const groupEntry = groupEntries.find((entry) => entry.userId === userId);
+    const knockoutEntry = knockoutByUserId.get(userId);
+    const name = groupEntry?.name ?? knockoutEntry?.name ?? "Participante";
+
+    return {
+      position: 0,
+      userId,
+      name,
+      username: groupEntry?.username ?? knockoutEntry?.username ?? null,
+      avatarUrl: groupEntry?.avatarUrl ?? knockoutEntry?.avatarUrl ?? null,
+      totalPoints:
+        (groupEntry?.totalPoints ?? 0) + (knockoutEntry?.totalPoints ?? 0),
+      exactScores: groupEntry?.exactScores ?? 0,
+      correctResults: groupEntry?.correctResults ?? 0,
+      scoredMatches: groupEntry?.scoredMatches ?? 0,
+      filledPredictions: groupEntry?.filledPredictions ?? 0,
+      groupPoints: groupEntry?.totalPoints ?? 0,
+      knockoutPoints: knockoutEntry?.totalPoints ?? 0,
+      knockoutCorrectPicks: knockoutEntry?.correctPicks ?? 0,
+      knockoutPicksCount: knockoutEntry?.picksCount ?? 0,
+      knockoutComplete: knockoutEntry?.isComplete ?? false,
+      knockoutUpdatedAt:
+        knockoutEntry?.completedAt ?? knockoutEntry?.submittedAt ?? null,
+    } satisfies CombinedLeaderboardEntry;
+  });
+  const knockoutTableEntries = knockoutEntries.map((entry) => ({
+    position: 0,
+    userId: entry.userId,
+    name: entry.name,
+    username: entry.username,
+    avatarUrl: entry.avatarUrl,
+    totalPoints: entry.totalPoints,
+    exactScores: 0,
+    correctResults: 0,
+    scoredMatches: entry.correctPicks,
+    filledPredictions: entry.picksCount,
+    groupPoints: 0,
+    knockoutPoints: entry.totalPoints,
+    knockoutCorrectPicks: entry.correctPicks,
+    knockoutPicksCount: entry.picksCount,
+    knockoutComplete: entry.isComplete,
+    knockoutUpdatedAt: entry.completedAt ?? entry.submittedAt,
+  } satisfies CombinedLeaderboardEntry));
+
+  return {
+    overallEntries: sortCombinedEntries(combined),
+    knockoutTableEntries: sortCombinedEntries(knockoutTableEntries),
+  };
+}
+
 export default async function LeaderboardPage({
   searchParams,
 }: LeaderboardPageProps) {
@@ -211,7 +348,11 @@ export default async function LeaderboardPage({
     );
   }
 
-  const [{ data, error }, { data: liveData, error: liveError }] =
+  const [
+    { data, error },
+    { data: liveData, error: liveError },
+    { data: knockoutRankingData, error: knockoutRankingError },
+  ] =
     await Promise.all([
       supabase.rpc("get_pool_leaderboard_data", {
         target_pool_id: selectedPool.id,
@@ -219,9 +360,21 @@ export default async function LeaderboardPage({
       supabase.rpc("get_pool_live_leaderboard_data", {
         target_pool_id: selectedPool.id,
       }),
+      supabase.rpc("get_pool_knockout_ranking", {
+        target_pool_id: selectedPool.id,
+        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+      }),
     ]);
   const rows = (data ?? []) as LeaderboardDataRow[];
   const liveRows = (liveData ?? []) as LiveLeaderboardDataRow[];
+  const groupEntries = buildLeaderboard(rows);
+  const knockoutEntries = Array.isArray(knockoutRankingData)
+    ? (knockoutRankingData as unknown[]).map(mapKnockoutRankingEntry)
+    : [];
+  const { overallEntries, knockoutTableEntries } = combineRankings(
+    groupEntries,
+    knockoutEntries,
+  );
   const liveMatchesCount = liveRows[0]?.live_matches_count ?? 0;
   const roundLeaderboards = Object.fromEntries(
     rounds.map((round) => [
@@ -289,11 +442,25 @@ export default async function LeaderboardPage({
         </Card>
       ) : null}
 
+      {knockoutRankingError ? (
+        <Card className="mb-5 p-5">
+          <Badge tone="amber">Mata-mata</Badge>
+          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+            Nao foi possivel carregar a pontuacao do mata-mata agora.
+          </p>
+        </Card>
+      ) : null}
+
       <LeaderboardClient
         poolId={selectedPool.id}
         poolName={selectedPool.name}
-        generalEntries={buildLeaderboard(rows)}
-        hasGeneralResult={hasRealResult(rows)}
+        overallEntries={overallEntries}
+        groupEntries={groupEntries}
+        knockoutEntries={knockoutTableEntries}
+        hasGroupResult={hasRealResult(rows)}
+        hasKnockoutResult={knockoutEntries.some(
+          (entry) => entry.totalPoints > 0,
+        )}
         roundLeaderboards={roundLeaderboards}
         roundHighlights={roundHighlights}
         liveEntries={buildLeaderboard(liveRows)}

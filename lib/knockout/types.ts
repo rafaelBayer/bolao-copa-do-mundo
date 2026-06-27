@@ -60,6 +60,19 @@ export type KnockoutRankingEntry = {
   totalPoints: number;
   correctPicks: number;
   submittedAt: string | null;
+  completedAt: string | null;
+  picksCount: number;
+  isComplete: boolean;
+  roundOf32Points: number;
+  roundOf16Points: number;
+  quarterfinalPoints: number;
+  semifinalPoints: number;
+  finalPoints: number;
+  roundOf32Correct: number;
+  roundOf16Correct: number;
+  quarterfinalCorrect: number;
+  semifinalCorrect: number;
+  finalCorrect: number;
 };
 
 export type KnockoutSlot = {
