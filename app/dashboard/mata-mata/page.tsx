@@ -293,7 +293,9 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
       return <UnavailableKnockoutMessage />;
     }
 
-    console.error("Failed to load knockout state", stateError);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to load knockout state", stateError);
+    }
 
     return <LoadErrorMessage />;
   }

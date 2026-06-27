@@ -3,8 +3,7 @@ import { NextResponse } from "next/server";
 export function GET() {
   return NextResponse.json(
     {
-      status: "disabled",
-      reason: "live_score_sync_not_available_in_auth_mvp",
+      error: "Esta rota nao esta disponivel.",
     },
     { status: 410 },
   );

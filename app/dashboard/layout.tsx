@@ -103,7 +103,9 @@ export default async function DashboardLayout({
       });
 
   if (defaultPoolError) {
-    console.error("Failed to ensure default pool membership", defaultPoolError);
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to ensure default pool membership", defaultPoolError);
+    }
   }
 
   const [

@@ -37,6 +37,7 @@ backups/
 *.backup
 *.sql.backup
 *backup*.sql
+*.csv
 
 # env
 .env
@@ -46,6 +47,7 @@ backups/
 !.env.scores.example
 .env.production
 .env.production.local
+.env.public
 .env.scores.local
 
 # vercel
