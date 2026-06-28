@@ -24,7 +24,7 @@ A aplicacao foi pensada para lidar com diferentes fases do torneio: fase de grup
 - Ranking da fase de grupos
 - Ranking do mata-mata
 - Ranking por rodada e ranking ao vivo
-- Simulador de mata-mata em formato de bracket
+- Palpites progressivos do mata-mata em formato de bracket oficial
 - Auto-save das escolhas do mata-mata
 - Bloqueio de palpites antes dos jogos
 - Aviso global quando o mata-mata estiver disponivel
@@ -51,17 +51,17 @@ Todo usuario autenticado pode ser associado automaticamente a um bolao geral. Is
 
 Usuarios podem criar boloes privados e convidar outras pessoas por link ou codigo. O acesso ao ranking e aos dados do bolao respeita a participacao do usuario.
 
-### Mata-mata estilo bracket
+### Mata-mata por confronto real
 
-No mata-mata, o usuario monta a chave completa antes dos playoffs, escolhendo os vencedores ate chegar ao campeao. A experiencia foi inspirada em simuladores de pick'em, onde a chave inteira e preenchida antes do inicio da fase eliminatoria.
+No mata-mata, o usuario palpita o vencedor de cada confronto real definido. A visualizacao segue o bracket oficial do torneio, mas as escolhas do usuario nao propagam times para fases futuras.
 
 ### Auto-save
 
-Cada escolha no mata-mata atualiza o estado local e dispara salvamento automatico. O usuario pode deixar o bracket incompleto como rascunho e continuar editando ate o prazo de bloqueio.
+Cada escolha no mata-mata atualiza o estado local e dispara salvamento automatico daquele confronto. O usuario pode preencher os jogos aos poucos conforme os confrontos reais forem definidos.
 
-### Bloqueio por deadline
+### Bloqueio por jogo
 
-Regras sensiveis, como impedir edicoes depois do prazo, nao dependem apenas do front-end. O banco tambem valida o deadline antes de aceitar alteracoes.
+Regras sensiveis, como impedir edicoes depois do prazo, nao dependem apenas do front-end. O banco tambem valida que cada confronto bloqueia 10 minutos antes do proprio inicio.
 
 ### Pontuacao separada
 
@@ -115,15 +115,15 @@ O mata-mata e uma aposta separada dos palpites de placar.
 O fluxo e:
 
 1. O usuario acessa a tela de Mata-mata.
-2. O sistema exibe os confrontos dos 16 avos.
-3. O usuario escolhe quem avanca em cada confronto.
-4. Os vencedores avancam automaticamente para as proximas fases.
-5. O usuario monta a chave inteira ate o campeao.
-6. Cada clique salva automaticamente o estado do bracket.
-7. O usuario pode manter rascunho parcial.
-8. O bracket bloqueia 10 minutos antes do primeiro jogo dos playoffs.
+2. O sistema exibe os confrontos oficiais definidos.
+3. O usuario escolhe o vencedor de cada jogo real disponivel.
+4. Cada clique salva automaticamente apenas aquele palpite.
+5. Confrontos sem times definidos ficam bloqueados.
+6. Cada confronto bloqueia 10 minutos antes do proprio inicio.
+7. As fases seguintes seguem os classificados oficiais, nao os palpites do usuario.
+8. O usuario pode errar um classificado e continuar palpitando normalmente nos jogos reais seguintes.
 
-O bracket e global por usuario e torneio:
+O conjunto de palpites e global por usuario e torneio:
 
 ```txt
 user_id + tournament_key
@@ -143,15 +143,13 @@ A fase de grupos usa a pontuacao tradicional de palpites de placar:
 
 ### Mata-mata
 
-O mata-mata pontua acertos de avanco, nao placar.
+O mata-mata pontua acertos do vencedor de cada confronto real, nao placar.
 
 - 16 avos: 2 pontos por acerto
-- Oitavas: 4 pontos por acerto
-- Quartas: 6 pontos por acerto
-- Semifinal: 10 pontos por acerto
-- Campeao: 15 pontos
-
-A pick da final representa o campeao.
+- Oitavas: 3 pontos por acerto
+- Quartas: 5 pontos por acerto
+- Semifinal: 8 pontos por acerto
+- Final: 12 pontos por acerto
 
 ### Rankings
 
@@ -159,7 +157,7 @@ A aplicacao suporta diferentes leituras da classificacao:
 
 - Geral: fase de grupos + mata-mata
 - Fase de grupos: apenas palpites de placar
-- Mata-mata: apenas pontos do bracket
+- Mata-mata: apenas pontos dos confrontos oficiais
 - Por rodada
 - Ao vivo, quando os resultados estao sendo atualizados
 
@@ -172,7 +170,7 @@ O projeto possui scripts para auxiliar na manutencao dos dados da competicao:
 - Validar resultados em dry-run
 - Mapear jogos por provedores externos
 - Sincronizar confrontos do mata-mata
-- Calcular deadline do mata-mata a partir do primeiro jogo dos playoffs
+- Atualizar confrontos oficiais e vencedores do mata-mata
 
 Comandos uteis:
 
@@ -183,6 +181,8 @@ npm run scores:sync-results:dry
 npm run scores:sync-results
 npm run knockout:sync:dry
 npm run knockout:sync
+npm run knockout:sync-espn:dry
+npm run knockout:sync-espn
 ```
 
 Use comandos reais de sincronizacao apenas depois de configurar o ambiente local, conferir o target e validar o dry-run.

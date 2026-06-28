@@ -8,12 +8,8 @@ import {
   KNOCKOUT_ROUND_LABELS,
   KNOCKOUT_ROUNDS,
   buildBracket,
-  championFromPicks,
 } from "@/lib/knockout/buildBracket";
-import {
-  pruneInvalidKnockoutPicks,
-  validateKnockoutBracket,
-} from "@/lib/knockout/validateBracket";
+import { pruneInvalidKnockoutPicks } from "@/lib/knockout/validateBracket";
 import type {
   KnockoutMatch,
   KnockoutPick,
@@ -22,7 +18,6 @@ import type {
   KnockoutSettings,
   UserKnockoutBracket,
 } from "@/lib/knockout/types";
-import { KnockoutChampionCard } from "./KnockoutChampionCard";
 import { KnockoutMatchCard } from "./KnockoutMatchCard";
 import { KnockoutRanking } from "./KnockoutRanking";
 import { KnockoutRound as KnockoutRoundColumn } from "./KnockoutRound";
@@ -35,20 +30,15 @@ type KnockoutBracketProps = {
   initialBracket: UserKnockoutBracket | null;
   initialPicks: KnockoutPick[];
   rankingEntries: KnockoutRankingEntry[];
-  isLocked: boolean;
-  deadlineLabel: string;
+  availableMatchesCount: number;
+  openPicksCount: number;
+  submittedOpenPicksCount: number;
+  missingOpenPicksCount: number;
+  nextLockLabel: string;
   submittedAtLabel: string | null;
 };
 
-type SaveStatus = "idle" | "saving" | "draft" | "complete" | "error" | "locked";
-
-function toRpcPick(pick: KnockoutPick) {
-  return {
-    round: pick.round,
-    position: pick.position,
-    selected_team: pick.selectedTeam,
-  };
-}
+type SaveStatus = "idle" | "saving" | "draft" | "error" | "locked";
 
 function mapSavedPick(value: unknown): KnockoutPick {
   const row = value as Record<string, unknown>;
@@ -57,15 +47,16 @@ function mapSavedPick(value: unknown): KnockoutPick {
     id: typeof row.id === "string" ? row.id : undefined,
     round: String(row.round) as KnockoutRound,
     position: Number(row.position),
-    selectedTeam: String(row.selectedTeam),
+    selectedTeam:
+      typeof row.selectedTeam === "string" ? row.selectedTeam : "",
     createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : undefined,
   };
 }
 
-function statusLabel(status: SaveStatus, complete: boolean) {
+function statusLabel(status: SaveStatus) {
   if (status === "locked") {
-    return "Prazo encerrado";
+    return "Palpite bloqueado";
   }
 
   if (status === "saving") {
@@ -76,15 +67,11 @@ function statusLabel(status: SaveStatus, complete: boolean) {
     return "Erro ao salvar";
   }
 
-  if (status === "complete" || complete) {
-    return "Mata-mata completo";
-  }
-
   if (status === "draft") {
-    return "Rascunho salvo";
+    return "Palpite salvo";
   }
 
-  return "Rascunho";
+  return "Palpites abertos";
 }
 
 export function KnockoutBracket({
@@ -94,26 +81,22 @@ export function KnockoutBracket({
   initialBracket,
   initialPicks,
   rankingEntries,
-  isLocked,
-  deadlineLabel,
+  availableMatchesCount,
+  openPicksCount,
+  submittedOpenPicksCount,
+  missingOpenPicksCount,
+  nextLockLabel,
   submittedAtLabel,
 }: KnockoutBracketProps) {
   const [activeRound, setActiveRound] = useState<KnockoutRound>("round_of_32");
   const [picks, setPicks] = useState(() =>
     pruneInvalidKnockoutPicks(matches, initialPicks),
   );
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>(
-    isLocked ? "locked" : "idle",
-  );
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const requestIdRef = useRef(0);
   const supabase = useMemo(() => createClient(), []);
   const bracket = useMemo(() => buildBracket(matches, picks), [matches, picks]);
-  const champion = championFromPicks(picks);
-  const completeValidation = useMemo(
-    () => validateKnockoutBracket(matches, picks),
-    [matches, picks],
-  );
-  const isComplete = completeValidation.isValid;
+  const hasOpenMatches = openPicksCount > 0;
   const hasRoundOf32 =
     matches.filter((match) => match.round === "round_of_32").length === 16;
   const roundState = (round: KnockoutRound) =>
@@ -159,23 +142,19 @@ export function KnockoutBracket({
     ? rankingEntries.find((entry) => entry.userId === initialBracket.userId)
     : null;
 
-  const persistPicks = useCallback(
-    (nextPicks: KnockoutPick[]) => {
-      if (isLocked) {
-        setSaveStatus("locked");
-        return;
-      }
-
+  const persistPick = useCallback(
+    (round: KnockoutRound, position: number, team: string) => {
       const requestId = requestIdRef.current + 1;
       requestIdRef.current = requestId;
-      const complete = validateKnockoutBracket(matches, nextPicks).isValid;
 
       setSaveStatus("saving");
 
       void (async () => {
-        const { data, error } = await supabase.rpc("save_knockout_bracket", {
+        const { data, error } = await supabase.rpc("save_knockout_pick", {
           target_tournament_key: tournamentKey,
-          target_picks: nextPicks.map(toRpcPick),
+          target_round: round,
+          target_position: position,
+          target_selected_team: team,
         });
 
         if (requestId !== requestIdRef.current) {
@@ -184,8 +163,9 @@ export function KnockoutBracket({
 
         if (error) {
           setSaveStatus(
-            error.message.includes("locked") ||
-              error.message.includes("prazo")
+            error.message.toLowerCase().includes("bloqueado") ||
+              error.message.toLowerCase().includes("prazo") ||
+              error.message.toLowerCase().includes("locked")
               ? "locked"
               : "error",
           );
@@ -193,19 +173,32 @@ export function KnockoutBracket({
         }
 
         const row = Array.isArray(data) ? data[0] : data;
-        const savedPicks = Array.isArray(row?.picks)
-          ? (row.picks as unknown[]).map(mapSavedPick)
-          : nextPicks;
+        const savedPick = row?.pick ? mapSavedPick(row.pick) : null;
 
-        setPicks(pruneInvalidKnockoutPicks(matches, savedPicks));
-        setSaveStatus(complete ? "complete" : "draft");
+        if (savedPick) {
+          setPicks((currentPicks) =>
+            pruneInvalidKnockoutPicks(matches, [
+              ...currentPicks.filter(
+                (pick) =>
+                  !(pick.round === savedPick.round && pick.position === savedPick.position),
+              ),
+              savedPick,
+            ]),
+          );
+        }
+
+        setSaveStatus("draft");
       })();
     },
-    [isLocked, matches, supabase, tournamentKey],
+    [matches, supabase, tournamentKey],
   );
 
   function updatePick(round: KnockoutRound, position: number, team: string) {
-    if (isLocked) {
+    const match = matches.find(
+      (item) => item.round === round && item.position === position,
+    );
+
+    if (!match?.canPick) {
       setSaveStatus("locked");
       return;
     }
@@ -222,7 +215,7 @@ export function KnockoutBracket({
     ]);
 
     setPicks(nextPicks);
-    persistPicks(nextPicks);
+    persistPick(round, position, team);
   }
 
   return (
@@ -231,30 +224,36 @@ export function KnockoutBracket({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
             <KnockoutStatus
-              isLocked={isLocked}
-              deadlineLabel={deadlineLabel}
+              hasOpenMatches={hasOpenMatches}
+              nextLockLabel={nextLockLabel}
+              availableMatchesCount={availableMatchesCount}
+              submittedOpenPicksCount={submittedOpenPicksCount}
+              openPicksCount={openPicksCount}
               submittedAtLabel={submittedAtLabel}
             />
             <h1 className="mt-4 text-3xl font-black text-slate-50 light:text-slate-950">
-              Mata-mata
+              Palpites do mata-mata
             </h1>
             <p className="mt-2 text-sm font-semibold text-slate-400 light:text-slate-600">
               {settings.name}
             </p>
             <p className="mt-3 max-w-xl text-sm text-slate-500 light:text-slate-500">
-              Clique nos vencedores de cada confronto para montar sua simulacao.
+              Voce pode preencher os palpites do mata-mata aos poucos. Cada jogo bloqueia 10 minutos antes do inicio.
+            </p>
+            <p className="mt-2 max-w-xl text-sm text-slate-500 light:text-slate-500">
+              As proximas fases seguem os classificados reais da Copa. Se voce errar um classificado, ainda podera palpitar nos proximos confrontos oficiais.
             </p>
           </div>
 
           <div className="rounded-full border border-slate-800 bg-slate-900/55 px-3 py-1.5 text-xs font-black text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
-            {statusLabel(saveStatus, isComplete)}
+            {statusLabel(saveStatus)}
           </div>
         </div>
 
         <div className="mt-4 min-h-6 text-sm font-bold text-slate-500 light:text-slate-500">
-          {isComplete
-              ? "Chave completa. Voce ainda pode editar ate 10 minutos antes do primeiro jogo."
-            : "Suas escolhas parciais sao salvas automaticamente."}
+          {missingOpenPicksCount > 0
+            ? `Ainda faltam ${missingOpenPicksCount} jogos abertos para palpitar.`
+            : "Todos os jogos abertos ja foram palpitados."}
           {saveStatus === "error" ? (
             <span className="ml-2 text-red-300 light:text-red-600">
               Erro ao salvar. Tente novamente.
@@ -271,21 +270,15 @@ export function KnockoutBracket({
         </Card>
       ) : null}
 
-      {isLocked ? (
-        <Card className="p-4 text-sm font-bold text-amber-200 light:text-amber-700">
-          O prazo para editar seu mata-mata ja encerrou.
-        </Card>
-      ) : null}
-
       <Card className="p-4 sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
-              Pontuacao do mata-mata
+              Pontuacao dos confrontos oficiais
             </h2>
             <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
-              16 avos: 2 pts por acerto; oitavas: 4; quartas: 6;
-              semifinal: 10; campeao: 15.
+              16 avos: 2 pts; oitavas: 3; quartas: 5; semifinal: 8;
+              final: 12. So contam jogos com vencedor oficial.
             </p>
           </div>
           <div className="rounded-lg border border-slate-800 bg-slate-950/45 px-4 py-3 text-right light:border-slate-200 light:bg-slate-50">
@@ -297,7 +290,7 @@ export function KnockoutBracket({
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-500 light:text-slate-500">
               {currentUserScore
-                ? `${currentUserScore.correctPicks} acertos oficiais`
+                ? `${currentUserScore.correctPicks} acertos em confrontos oficiais`
                 : "Sera calculada conforme os jogos terminarem"}
             </p>
           </div>
@@ -330,17 +323,11 @@ export function KnockoutBracket({
               <KnockoutRoundColumn
                 round={roundState.round}
                 matches={roundState.matches}
-                disabled={isLocked}
+                disabled={false}
                 onSelect={updatePick}
               />
             </div>
           ))}
-          <section className="min-w-[15rem]">
-            <h2 className="mb-3 text-sm font-black uppercase tracking-[0.16em] text-slate-400 light:text-slate-500">
-              {KNOCKOUT_ROUND_LABELS.champion}
-            </h2>
-            <KnockoutChampionCard champion={champion} />
-          </section>
         </div>
       </div>
 
@@ -352,7 +339,7 @@ export function KnockoutBracket({
                 key={`left-${roundConfig.round}`}
                 round={roundConfig.round}
                 matches={roundConfig.matches}
-                disabled={isLocked}
+                disabled={false}
                 side="left"
                 compactTitle
                 className="h-full"
@@ -370,7 +357,7 @@ export function KnockoutBracket({
                   <span className="pointer-events-none absolute left-full top-1/2 h-px w-7 bg-slate-700/75 light:bg-slate-300" />
                   <KnockoutMatchCard
                     match={finalMatch}
-                    disabled={isLocked}
+                    disabled={false}
                     side="center"
                     onSelect={(team) =>
                       updatePick(finalMatch.round, finalMatch.position, team)
@@ -378,9 +365,6 @@ export function KnockoutBracket({
                   />
                 </div>
               ) : null}
-              <div className="mt-8">
-                <KnockoutChampionCard champion={champion} />
-              </div>
             </section>
 
             {rightRounds.map((roundConfig) => (
@@ -388,7 +372,7 @@ export function KnockoutBracket({
                 key={`right-${roundConfig.round}`}
                 round={roundConfig.round}
                 matches={roundConfig.matches}
-                disabled={isLocked}
+                disabled={false}
                 side="right"
                 compactTitle
                 className="h-full"

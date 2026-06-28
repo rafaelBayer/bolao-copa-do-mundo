@@ -32,8 +32,7 @@ export function KnockoutRanking({ entries }: KnockoutRankingProps) {
                     {entry.name}
                   </p>
                   <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
-                    {entry.correctPicks} acertos •{" "}
-                    {entry.isComplete ? "Completo" : "Incompleto"}
+                    {entry.correctPicks} acertos oficiais | {entry.picksCount} palpites validos
                   </p>
                   <p className="mt-0.5 text-[11px] font-semibold text-slate-600 light:text-slate-500">
                     16 avos {entry.roundOf32Points} | Oitavas{" "}

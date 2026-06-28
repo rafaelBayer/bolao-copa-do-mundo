@@ -365,7 +365,7 @@ function CombinedLeaderboardTable({
               ) : null}
               <th className="px-4 py-3 text-right">Mata-mata</th>
               <th className="px-4 py-3 text-right">Acertos</th>
-              <th className="px-4 py-3 text-right">Status</th>
+              <th className="px-4 py-3 text-right">Palpites</th>
             </tr>
           </thead>
           <tbody>
@@ -399,7 +399,7 @@ function CombinedLeaderboardTable({
                   {entry.knockoutCorrectPicks}
                 </td>
                 <td className="px-4 py-3 text-right text-slate-300 light:text-slate-700">
-                  {entry.knockoutComplete ? "Completo" : "Incompleto"}
+                  {entry.knockoutPicksCount}
                 </td>
               </tr>
             ))}
@@ -429,7 +429,7 @@ function CombinedLeaderboardTable({
               {mode === "overall" ? <span>Grupos {entry.groupPoints}</span> : null}
               <span>Mata {entry.knockoutPoints}</span>
               <span>Acertos {entry.knockoutCorrectPicks}</span>
-              <span>{entry.knockoutComplete ? "Completo" : "Incompleto"}</span>
+              <span>Palpites {entry.knockoutPicksCount}</span>
             </div>
           </div>
         ))}
@@ -779,10 +779,10 @@ export function LeaderboardClient({
                 Grupos - resultado correto: 1 pt
               </p>
               <p className="mt-1 text-sm font-bold text-slate-300 light:text-slate-700">
-                Mata-mata: 2, 4, 6, 10 e 15 pts por fase
+                Mata-mata: 2, 3, 5, 8 e 12 pts por fase
               </p>
               <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
-                No mata-mata, a pick da final representa o campeao.
+                No mata-mata, cada acerto vale apenas para o confronto oficial correspondente.
               </p>
             </div>
           ) : null}
@@ -904,7 +904,7 @@ export function LeaderboardClient({
                 : mode === "groups"
                   ? "Melhores participantes considerando apenas os jogos da fase de grupos."
                   : mode === "knockout"
-                    ? "Melhores participantes considerando apenas acertos de avanco no mata-mata."
+                    ? "Melhores participantes considerando apenas vencedores de confrontos oficiais."
                     : mode === "live"
                       ? "Classificacao provisoria com jogos finalizados e placares atuais."
                       : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}

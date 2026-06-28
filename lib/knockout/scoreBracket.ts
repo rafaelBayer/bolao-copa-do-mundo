@@ -2,10 +2,10 @@ import type { KnockoutMatch, KnockoutPick, KnockoutRound } from "./types";
 
 export const KNOCKOUT_SCORE_WEIGHTS: Partial<Record<KnockoutRound, number>> = {
   round_of_32: 2,
-  round_of_16: 4,
-  quarterfinal: 6,
-  semifinal: 10,
-  final: 15,
+  round_of_16: 3,
+  quarterfinal: 5,
+  semifinal: 8,
+  final: 12,
 };
 
 export type KnockoutScoreBreakdown = {
@@ -35,6 +35,10 @@ export type KnockoutScoreSummary = {
 
 function officialWinnerKey(match: KnockoutMatch) {
   return `${match.round}:${match.position}`;
+}
+
+function selectedTeamBelongsToMatch(match: KnockoutMatch, selectedTeam: string) {
+  return selectedTeam === match.teamA || selectedTeam === match.teamB;
 }
 
 function emptyBreakdown(): KnockoutScoreBreakdown {
@@ -88,24 +92,32 @@ export function scoreKnockoutBracket(
   matches: KnockoutMatch[],
   picks: KnockoutPick[],
 ): KnockoutScoreSummary {
-  const officialWinners = new Map<string, string>();
+  const officialMatches = new Map<string, KnockoutMatch>();
 
   matches.forEach((match) => {
     if (match.winnerTeam) {
-      officialWinners.set(officialWinnerKey(match), match.winnerTeam);
+      officialMatches.set(officialWinnerKey(match), match);
     }
   });
 
   return picks.reduce<KnockoutScoreSummary>(
     (summary, pick) => {
       const weight = KNOCKOUT_SCORE_WEIGHTS[pick.round] ?? 0;
-      const officialWinner = officialWinners.get(`${pick.round}:${pick.position}`);
+      const officialMatch = officialMatches.get(`${pick.round}:${pick.position}`);
 
-      if (weight > 0 && officialWinner) {
+      if (
+        weight > 0 &&
+        officialMatch?.winnerTeam &&
+        selectedTeamBelongsToMatch(officialMatch, pick.selectedTeam)
+      ) {
         summary.possiblePoints += weight;
       }
 
-      if (weight > 0 && officialWinner === pick.selectedTeam) {
+      if (
+        weight > 0 &&
+        officialMatch?.winnerTeam === pick.selectedTeam &&
+        selectedTeamBelongsToMatch(officialMatch, pick.selectedTeam)
+      ) {
         summary.totalPoints += weight;
         summary.correctPicks += 1;
         addRoundScore(

@@ -105,6 +105,16 @@ function mapMatch(value: unknown): KnockoutMatch {
     teamBCode: typeof row.teamBCode === "string" ? row.teamBCode : null,
     teamBFlagUrl: typeof row.teamBFlagUrl === "string" ? row.teamBFlagUrl : null,
     startsAt: typeof row.startsAt === "string" ? row.startsAt : null,
+    lockAt: typeof row.lockAt === "string" ? row.lockAt : null,
+    isLocked: row.isLocked === true,
+    canPick: row.canPick === true,
+    userPick: typeof row.userPick === "string" ? row.userPick : null,
+    pointsIfCorrect:
+      typeof row.pointsIfCorrect === "number" ? row.pointsIfCorrect : 0,
+    isFinished: row.isFinished === true,
+    isPickCorrect:
+      typeof row.isPickCorrect === "boolean" ? row.isPickCorrect : null,
+    pickPoints: typeof row.pickPoints === "number" ? row.pickPoints : 0,
     winnerTeam: typeof row.winnerTeam === "string" ? row.winnerTeam : null,
     winnerTeamCode:
       typeof row.winnerTeamCode === "string" ? row.winnerTeamCode : null,
@@ -136,7 +146,8 @@ function mapPick(value: unknown): KnockoutPick {
     id: typeof row.id === "string" ? row.id : undefined,
     round: String(row.round) as KnockoutRound,
     position: Number(row.position),
-    selectedTeam: String(row.selectedTeam),
+    selectedTeam:
+      typeof row.selectedTeam === "string" ? row.selectedTeam : "",
     createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
     updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : undefined,
   };
@@ -196,7 +207,7 @@ function UnavailableKnockoutMessage() {
           O mata-mata ainda nao esta disponivel.
         </h1>
         <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-          Assim que os confrontos forem definidos, voce podera montar sua chave.
+          Assim que os confrontos forem definidos, voce podera palpitar nos jogos oficiais.
         </p>
       </Card>
     </main>
@@ -399,8 +410,33 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         initialBracket={bracket}
         initialPicks={picks}
         rankingEntries={rankingEntries}
-        isLocked={stateRow.is_locked === true}
-        deadlineLabel={formatDateTime(String(stateRow.deadline_at)) ?? "A definir"}
+        availableMatchesCount={
+          typeof stateRow.available_matches_count === "number"
+            ? stateRow.available_matches_count
+            : 0
+        }
+        openPicksCount={
+          typeof stateRow.open_picks_count === "number"
+            ? stateRow.open_picks_count
+            : 0
+        }
+        submittedOpenPicksCount={
+          typeof stateRow.submitted_open_picks_count === "number"
+            ? stateRow.submitted_open_picks_count
+            : 0
+        }
+        missingOpenPicksCount={
+          typeof stateRow.missing_open_picks_count === "number"
+            ? stateRow.missing_open_picks_count
+            : 0
+        }
+        nextLockLabel={
+          formatDateTime(
+            typeof stateRow.next_lock_at === "string"
+              ? stateRow.next_lock_at
+              : null,
+          ) ?? "Sem jogos abertos"
+        }
         submittedAtLabel={formatDateTime(bracket?.submittedAt)}
       />
     </main>

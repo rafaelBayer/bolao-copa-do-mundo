@@ -3,16 +3,15 @@ import { ArrowRight, Trophy } from "lucide-react";
 
 type KnockoutGlobalNoticeProps = {
   isAvailable: boolean;
-  isLocked: boolean;
-  userBracketComplete: boolean;
-  userPicksCount: number;
-  missingPicksCount: number;
-  lockAt: string | null;
+  openPicksCount: number;
+  submittedOpenPicksCount: number;
+  missingOpenPicksCount: number;
+  nextLockAt: string | null;
 };
 
 function formatLockAt(value: string | null) {
   if (!value) {
-    return "antes do primeiro jogo";
+    return "sem jogos abertos";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -26,17 +25,14 @@ function formatLockAt(value: string | null) {
 
 export function KnockoutGlobalNotice({
   isAvailable,
-  isLocked,
-  userBracketComplete,
-  userPicksCount,
-  missingPicksCount,
-  lockAt,
+  openPicksCount,
+  submittedOpenPicksCount,
+  missingOpenPicksCount,
+  nextLockAt,
 }: KnockoutGlobalNoticeProps) {
-  if (!isAvailable || isLocked || userBracketComplete) {
+  if (!isAvailable || openPicksCount === 0 || missingOpenPicksCount === 0) {
     return null;
   }
-
-  const hasStarted = userPicksCount > 0;
 
   return (
     <section className="mx-auto mt-4 w-full max-w-[1800px] px-3 sm:px-5 lg:px-8">
@@ -47,14 +43,12 @@ export function KnockoutGlobalNotice({
           </span>
           <div className="min-w-0">
             <p className="text-sm font-black text-emerald-100 light:text-emerald-900">
-              {hasStarted
-                ? "Seu mata-mata ainda esta incompleto."
-                : "Os playoffs foram liberados!"}
+              Os playoffs comecaram!
             </p>
             <p className="mt-1 text-sm leading-5 text-emerald-50/80 light:text-emerald-800">
-              {hasStarted
-                ? `Faltam ${missingPicksCount} escolhas. Finalize antes de ${formatLockAt(lockAt)}.`
-                : `Monte sua chave ate 10 minutos antes do primeiro jogo: ${formatLockAt(lockAt)}.`}
+              Faca seus palpites do mata-mata. Cada jogo bloqueia 10 minutos antes do inicio.
+              Voce ja palpitou {submittedOpenPicksCount} de {openPicksCount} jogos abertos.
+              Proximo bloqueio: {formatLockAt(nextLockAt)}.
             </p>
           </div>
         </div>
@@ -63,7 +57,7 @@ export function KnockoutGlobalNotice({
           href="/dashboard/mata-mata"
           className="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-400 px-4 py-2.5 text-sm font-black text-slate-950 shadow-sm transition hover:bg-emerald-300 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
         >
-          Montar mata-mata
+          Palpitar mata-mata
           <ArrowRight size={16} aria-hidden="true" />
         </Link>
       </div>

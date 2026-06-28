@@ -50,10 +50,9 @@ export function pruneInvalidKnockoutPicks(
         round,
         position,
         matches,
-        nextPicks,
       );
 
-      if (availableTeams.includes(pick.selectedTeam)) {
+      if (availableTeams.length === 0 || availableTeams.includes(pick.selectedTeam)) {
         nextPicks.push(pick);
       }
     }
@@ -74,7 +73,7 @@ export function validateKnockoutBracket(
       if (!pickByKey.has(pickKey(round, position))) {
         return {
           isValid: false,
-          message: "Preencha todos os confrontos ate o campeao.",
+          message: "Ainda ha jogos abertos para palpitar.",
           picks: prunedPicks,
         };
       }

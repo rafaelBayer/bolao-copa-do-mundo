@@ -204,21 +204,24 @@ export default async function DashboardLayout({
       {knockoutNotice ? (
         <KnockoutGlobalNotice
           isAvailable={knockoutNotice.is_available === true}
-          isLocked={knockoutNotice.is_locked === true}
-          userBracketComplete={knockoutNotice.user_bracket_complete === true}
-          userPicksCount={
-            typeof knockoutNotice.user_picks_count === "number"
-              ? knockoutNotice.user_picks_count
+          openPicksCount={
+            typeof knockoutNotice.open_picks_count === "number"
+              ? knockoutNotice.open_picks_count
               : 0
           }
-          missingPicksCount={
-            typeof knockoutNotice.missing_picks_count === "number"
-              ? knockoutNotice.missing_picks_count
-              : 31
+          submittedOpenPicksCount={
+            typeof knockoutNotice.submitted_open_picks_count === "number"
+              ? knockoutNotice.submitted_open_picks_count
+              : 0
           }
-          lockAt={
-            typeof knockoutNotice.lock_at === "string"
-              ? knockoutNotice.lock_at
+          missingOpenPicksCount={
+            typeof knockoutNotice.missing_open_picks_count === "number"
+              ? knockoutNotice.missing_open_picks_count
+              : 0
+          }
+          nextLockAt={
+            typeof knockoutNotice.next_lock_at === "string"
+              ? knockoutNotice.next_lock_at
               : null
           }
         />

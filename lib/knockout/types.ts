@@ -22,6 +22,14 @@ export type KnockoutMatch = {
   teamBCode: string | null;
   teamBFlagUrl: string | null;
   startsAt: string | null;
+  lockAt: string | null;
+  isLocked: boolean;
+  canPick: boolean;
+  userPick: string | null;
+  pointsIfCorrect: number;
+  isFinished: boolean;
+  isPickCorrect: boolean | null;
+  pickPoints: number;
   winnerTeam: string | null;
   winnerTeamCode: string | null;
 };
@@ -84,13 +92,22 @@ export type KnockoutSlot = {
 };
 
 export type KnockoutBracketMatch = {
+  id: string | null;
   round: KnockoutRound;
   position: number;
   teamA: KnockoutSlot;
   teamB: KnockoutSlot;
   startsAt: string | null;
+  lockAt: string | null;
+  isLocked: boolean;
+  canPick: boolean;
+  pointsIfCorrect: number;
+  isFinished: boolean;
+  isPickCorrect: boolean | null;
+  pickPoints: number;
   winnerTeam: string | null;
   selectedTeam: string | null;
+  invalidSelectedTeam: string | null;
 };
 
 export type KnockoutRoundState = {

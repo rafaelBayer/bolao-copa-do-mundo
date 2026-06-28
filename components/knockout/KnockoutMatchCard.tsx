@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Check, Lock } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { TeamFlag } from "@/components/groups/TeamFlag";
 import type { KnockoutBracketMatch } from "@/lib/knockout/types";
@@ -28,7 +28,7 @@ function TeamButton({
   disabled: boolean;
   onSelect: () => void;
 }) {
-  const shortLabel = code?.slice(0, 3).toUpperCase() ?? "---";
+  const shortLabel = code?.slice(0, 3).toUpperCase() ?? label;
 
   return (
     <button
@@ -81,6 +81,20 @@ function formatStartsAt(value: string | null) {
   }).format(new Date(value));
 }
 
+function formatLockAt(value: string | null) {
+  if (!value) {
+    return "Prazo a definir";
+  }
+
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(value));
+}
+
 export function KnockoutMatchCard({
   match,
   disabled,
@@ -88,7 +102,19 @@ export function KnockoutMatchCard({
   showMeta = false,
   onSelect,
 }: KnockoutMatchCardProps) {
-  const canSelect = Boolean(match.teamA.team && match.teamB.team && !disabled);
+  const hasTeams = Boolean(match.teamA.team && match.teamB.team);
+  const canSelect = Boolean(hasTeams && match.canPick && !disabled);
+  const statusLabel = !hasTeams
+    ? "Aguardando definicao dos classificados."
+    : match.isFinished
+      ? match.isPickCorrect === null
+        ? "Resultado oficial disponivel."
+        : match.isPickCorrect
+          ? `Acertou +${match.pickPoints} pts`
+          : "Errou 0 pts"
+      : match.isLocked
+        ? "Palpite bloqueado"
+        : `Aberto ate ${formatLockAt(match.lockAt)}`;
 
   return (
     <div className="relative">
@@ -131,6 +157,31 @@ export function KnockoutMatchCard({
             onSelect={() => match.teamB.team && onSelect(match.teamB.team)}
           />
         </div>
+        <div className="mt-2 min-h-4 text-[10px] font-bold leading-4 text-slate-500 light:text-slate-500">
+          {match.isLocked && hasTeams && !match.isFinished ? (
+            <span className="inline-flex items-center gap-1">
+              <Lock size={11} aria-hidden="true" />
+              {statusLabel}
+            </span>
+          ) : (
+            statusLabel
+          )}
+        </div>
+        {match.selectedTeam ? (
+          <div className="mt-1 text-[10px] font-bold text-emerald-200 light:text-emerald-700">
+            Palpite: {match.selectedTeam}
+          </div>
+        ) : null}
+        {match.invalidSelectedTeam ? (
+          <div className="mt-1 text-[10px] font-bold text-amber-200 light:text-amber-700">
+            Palpite antigo incompativel: {match.invalidSelectedTeam}
+          </div>
+        ) : null}
+        {match.winnerTeam ? (
+          <div className="mt-1 text-[10px] font-bold text-slate-300 light:text-slate-700">
+            Vencedor: {match.winnerTeam}
+          </div>
+        ) : null}
       </Card>
     </div>
   );

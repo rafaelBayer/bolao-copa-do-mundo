@@ -33,13 +33,15 @@ function officialMatchMap(matches: KnockoutMatch[]) {
   );
 }
 
-function placeholder(round: KnockoutRound, position: number, side: "a" | "b") {
-  if (round === "round_of_32") {
-    return "A definir";
-  }
+function placeholder() {
+  return "A definir";
+}
 
-  const sourcePosition = position * 2 - (side === "a" ? 1 : 0);
-  return `Vencedor ${sourcePosition}`;
+function isConcreteSide(
+  team: string | null | undefined,
+  source: string | null | undefined,
+) {
+  return Boolean(team?.trim()) && !source?.trim();
 }
 
 function slot(
@@ -56,86 +58,29 @@ function slot(
   };
 }
 
-function teamMetaForPick(team: string | null, matches: KnockoutMatch[]) {
-  if (!team) {
-    return {
-      code: null,
-      flagUrl: null,
-    };
-  }
-
-  for (const match of matches) {
-    if (match.teamA === team) {
-      return {
-        code: match.teamACode,
-        flagUrl: match.teamAFlagUrl,
-      };
-    }
-
-    if (match.teamB === team) {
-      return {
-        code: match.teamBCode,
-        flagUrl: match.teamBFlagUrl,
-      };
-    }
-  }
-
-  return {
-    code: null,
-    flagUrl: null,
-  };
-}
-
 export function availableTeamsForMatch(
   round: KnockoutRound,
   position: number,
   matches: KnockoutMatch[],
-  picks: KnockoutPick[],
 ) {
   if (round === "champion") {
-    const finalPick = buildPickMap(picks).get(pickKey("final", 1));
-    return finalPick ? [finalPick.selectedTeam] : [];
-  }
-
-  const matchByKey = officialMatchMap(matches);
-  const pickByKey = buildPickMap(picks);
-
-  if (round === "round_of_32") {
-    const match = matchByKey.get(pickKey(round, position));
-    return [match?.teamA, match?.teamB].filter(
-      (team): team is string => Boolean(team?.trim()),
-    );
-  }
-
-  const previousRound = previousRoundFor(round);
-
-  if (!previousRound) {
     return [];
   }
 
-  const firstSource = pickByKey.get(pickKey(previousRound, position * 2 - 1));
-  const secondSource = pickByKey.get(pickKey(previousRound, position * 2));
+  const matchByKey = officialMatchMap(matches);
+  const match = matchByKey.get(pickKey(round, position));
 
-  return [firstSource?.selectedTeam, secondSource?.selectedTeam].filter(
-    (team): team is string => Boolean(team),
-  );
-}
-
-function previousRoundFor(round: KnockoutRound): KnockoutRound | null {
-  switch (round) {
-    case "round_of_16":
-      return "round_of_32";
-    case "quarterfinal":
-      return "round_of_16";
-    case "semifinal":
-      return "quarterfinal";
-    case "final":
-      return "semifinal";
-    case "third_place":
-      return null;
-    default:
-      return null;
+  if (
+    !match ||
+    !isConcreteSide(match.teamA, match.teamASource) ||
+    !isConcreteSide(match.teamB, match.teamBSource)
+  ) {
+    return [];
   }
+
+  return [match.teamA, match.teamB].filter(
+    (team): team is string => Boolean(team?.trim()),
+  );
 }
 
 function buildBracketMatch(input: {
@@ -148,52 +93,49 @@ function buildBracketMatch(input: {
   const matchByKey = officialMatchMap(matches);
   const pickByKey = buildPickMap(picks);
   const official = matchByKey.get(pickKey(round, position));
-  const teams = availableTeamsForMatch(round, position, matches, picks);
-  const selectedTeam = pickByKey.get(pickKey(round, position))?.selectedTeam ?? null;
-
-  if (round === "round_of_32") {
-    return {
-      round,
-      position,
-      teamA: slot(
-        official?.teamA,
-        official?.teamACode,
-        official?.teamAFlagUrl,
-        official?.teamA ?? placeholder(round, position, "a"),
-      ),
-      teamB: slot(
-        official?.teamB,
-        official?.teamBCode,
-        official?.teamBFlagUrl,
-        official?.teamB ?? placeholder(round, position, "b"),
-      ),
-      startsAt: official?.startsAt ?? null,
-      winnerTeam: official?.winnerTeam ?? null,
-      selectedTeam,
-    };
-  }
-
-  const teamAMeta = teamMetaForPick(teams[0] ?? null, matches);
-  const teamBMeta = teamMetaForPick(teams[1] ?? null, matches);
+  const teams = availableTeamsForMatch(round, position, matches);
+  const savedPick =
+    official?.userPick ??
+    pickByKey.get(pickKey(round, position))?.selectedTeam ??
+    null;
+  const selectedTeam =
+    savedPick && teams.includes(savedPick) ? savedPick : null;
+  const invalidSelectedTeam =
+    savedPick && !teams.includes(savedPick) ? savedPick : null;
+  const teamA = isConcreteSide(official?.teamA, official?.teamASource)
+    ? official?.teamA
+    : null;
+  const teamB = isConcreteSide(official?.teamB, official?.teamBSource)
+    ? official?.teamB
+    : null;
 
   return {
+    id: official?.id ?? null,
     round,
     position,
     teamA: slot(
-      teams[0],
-      teamAMeta.code,
-      teamAMeta.flagUrl,
-      teams[0] ?? official?.teamA ?? placeholder(round, position, "a"),
+      teamA,
+      teamA ? official?.teamACode : null,
+      teamA ? official?.teamAFlagUrl : null,
+      teamA ?? placeholder(),
     ),
     teamB: slot(
-      teams[1],
-      teamBMeta.code,
-      teamBMeta.flagUrl,
-      teams[1] ?? official?.teamB ?? placeholder(round, position, "b"),
+      teamB,
+      teamB ? official?.teamBCode : null,
+      teamB ? official?.teamBFlagUrl : null,
+      teamB ?? placeholder(),
     ),
     startsAt: official?.startsAt ?? null,
+    lockAt: official?.lockAt ?? null,
+    isLocked: official?.isLocked ?? true,
+    canPick: official?.canPick ?? false,
+    pointsIfCorrect: official?.pointsIfCorrect ?? 0,
+    isFinished: official?.isFinished ?? false,
+    isPickCorrect: official?.isPickCorrect ?? null,
+    pickPoints: official?.pickPoints ?? 0,
     winnerTeam: official?.winnerTeam ?? null,
     selectedTeam,
+    invalidSelectedTeam,
   };
 }
 

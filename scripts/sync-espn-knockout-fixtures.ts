@@ -112,6 +112,8 @@ type KnockoutFixture = {
   homeCode: string | null;
   awayName: string;
   awayCode: string | null;
+  winnerName: string | null;
+  winnerCode: string | null;
 };
 
 type SourceRef = {
@@ -344,6 +346,22 @@ function sourceRefFromTeamName(value: string): SourceRef | null {
   };
 }
 
+function stringValue(value: unknown) {
+  return typeof value === "string" ? value.trim() : null;
+}
+
+function booleanValue(value: unknown) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    return value.trim().toLowerCase() === "true";
+  }
+
+  return false;
+}
+
 function isConcreteTeamName(value: string) {
   return !sourceRefFromTeamName(value) &&
     !/^(tbd|a definir|to be determined)$/i.test(value.trim());
@@ -351,6 +369,18 @@ function isConcreteTeamName(value: string) {
 
 function fixtureFromEvent(event: EspnEvent): KnockoutFixture | null {
   const fixture = mapEspnEventToInternalMatch(event);
+  const competitors = event.competitions?.[0]?.competitors ?? [];
+  const winner = competitors.find((competitor) => booleanValue(competitor.winner));
+  const winnerName =
+    fixture?.statusShort === "FT"
+      ? stringValue(winner?.team?.displayName) ??
+        stringValue(winner?.team?.name) ??
+        stringValue(winner?.team?.shortDisplayName)
+      : null;
+  const winnerCode =
+    fixture?.statusShort === "FT"
+      ? stringValue(winner?.team?.abbreviation)
+      : null;
 
   if (!fixture?.utcDate || !fixture.homeTeamName || !fixture.awayTeamName) {
     return null;
@@ -363,6 +393,8 @@ function fixtureFromEvent(event: EspnEvent): KnockoutFixture | null {
     homeCode: fixture.homeTeamCode ?? null,
     awayName: fixture.awayTeamName,
     awayCode: fixture.awayTeamCode ?? null,
+    winnerName,
+    winnerCode,
   };
 }
 
@@ -825,6 +857,13 @@ function buildRows(input: {
         awayLabel ?? official.fixture.awayName,
         official.fixture.awayCode,
       );
+      const winner = official.fixture.winnerName
+        ? resolveTeam(
+            input.teams,
+            official.fixture.winnerName,
+            official.fixture.winnerCode,
+          )
+        : null;
 
       rows.push({
         existing: existing ?? null,
@@ -843,8 +882,8 @@ function buildRows(input: {
           team_b_code: away.code,
           team_b_flag_url: away.flagUrl,
           starts_at: official.fixture.startsAt,
-          winner_team: existing?.winner_team ?? null,
-          winner_team_code: existing?.winner_team_code ?? null,
+          winner_team: winner?.name ?? existing?.winner_team ?? null,
+          winner_team_code: winner?.code ?? existing?.winner_team_code ?? null,
         },
       });
     });
