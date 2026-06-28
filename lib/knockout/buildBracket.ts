@@ -131,6 +131,8 @@ function previousRoundFor(round: KnockoutRound): KnockoutRound | null {
       return "quarterfinal";
     case "final":
       return "semifinal";
+    case "third_place":
+      return null;
     default:
       return null;
   }
@@ -181,13 +183,13 @@ function buildBracketMatch(input: {
       teams[0],
       teamAMeta.code,
       teamAMeta.flagUrl,
-      teams[0] ?? placeholder(round, position, "a"),
+      teams[0] ?? official?.teamA ?? placeholder(round, position, "a"),
     ),
     teamB: slot(
       teams[1],
       teamBMeta.code,
       teamBMeta.flagUrl,
-      teams[1] ?? placeholder(round, position, "b"),
+      teams[1] ?? official?.teamB ?? placeholder(round, position, "b"),
     ),
     startsAt: official?.startsAt ?? null,
     winnerTeam: official?.winnerTeam ?? null,

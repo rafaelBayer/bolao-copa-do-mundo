@@ -16,6 +16,7 @@ export const KNOCKOUT_ROUND_LABELS: Record<KnockoutRound, string> = {
   quarterfinal: "Quartas",
   semifinal: "Semifinal",
   final: "Final",
+  third_place: "3o lugar",
   champion: "Campeao",
 };
 
@@ -25,6 +26,7 @@ export const KNOCKOUT_ROUND_MATCH_COUNTS: Record<KnockoutRound, number> = {
   quarterfinal: 4,
   semifinal: 2,
   final: 1,
+  third_place: 1,
   champion: 1,
 };
 

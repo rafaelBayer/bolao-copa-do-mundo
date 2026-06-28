@@ -219,6 +219,44 @@ function LoadErrorMessage() {
   );
 }
 
+function logKnockoutStateError(error: unknown) {
+  const serializeError = (value: unknown) => {
+    if (!value || typeof value !== "object") {
+      return String(value);
+    }
+
+    const record = value as Record<string, unknown>;
+    const payload: Record<string, unknown> = {};
+
+    for (const key of Object.getOwnPropertyNames(value)) {
+      payload[key] = record[key];
+    }
+
+    for (const key of ["code", "message", "details", "hint", "name", "stack"]) {
+      if (!(key in payload) && key in record) {
+        payload[key] = record[key];
+      }
+    }
+
+    try {
+      return JSON.stringify(payload);
+    } catch {
+      return String(value);
+    }
+  };
+
+  if (error instanceof Error) {
+    console.error("Failed to load knockout state", serializeError({
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    }));
+    return;
+  }
+
+  console.error("Failed to load knockout state", serializeError(error));
+}
+
 export default async function MataMataPage({ searchParams }: MataMataPageProps) {
   const supabase = await createClient();
   const resolvedSearchParams = await searchParams;
@@ -294,7 +332,7 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     }
 
     if (process.env.NODE_ENV !== "production") {
-      console.error("Failed to load knockout state", stateError);
+      logKnockoutStateError(stateError);
     }
 
     return <LoadErrorMessage />;

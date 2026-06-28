@@ -4,6 +4,7 @@ export type KnockoutRound =
   | "quarterfinal"
   | "semifinal"
   | "final"
+  | "third_place"
   | "champion";
 
 export type KnockoutMatch = {
