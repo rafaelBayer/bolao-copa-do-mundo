@@ -10,6 +10,7 @@ type KnockoutRoundProps = {
   className?: string;
   compactTitle?: boolean;
   showMeta?: boolean;
+  highlightedMatchKey?: string | null;
   onSelect: (round: RoundName, position: number, team: string) => void;
 };
 
@@ -21,6 +22,7 @@ export function KnockoutRound({
   className = "",
   compactTitle = false,
   showMeta = false,
+  highlightedMatchKey = null,
   onSelect,
 }: KnockoutRoundProps) {
   return (
@@ -42,6 +44,9 @@ export function KnockoutRound({
             disabled={disabled}
             side={side}
             showMeta={showMeta}
+            isHighlighted={
+              highlightedMatchKey === `${match.round}:${match.position}`
+            }
             onSelect={(team) => onSelect(match.round, match.position, team)}
           />
         ))}

@@ -72,6 +72,12 @@ type SyncDatabase = {
         Update: Partial<MatchUpdate>;
         Relationships: [];
       };
+      knockout_matches: {
+        Row: MatchRow;
+        Insert: never;
+        Update: Partial<MatchUpdate>;
+        Relationships: [];
+      };
       live_score_sync_logs: {
         Row: never;
         Insert: LiveScoreSyncLogInsert;
@@ -94,6 +100,7 @@ type SyncDatabase = {
 
 type MatchRow = {
   id: string;
+  source_table: "matches" | "knockout_matches";
   kickoff_at: string | null;
   round_number: number | null;
   api_football_fixture_id: number | null;
@@ -436,7 +443,87 @@ async function fetchMatches(supabase: SyncSupabaseClient) {
     throw error;
   }
 
-  return (data ?? []) as unknown as MatchRow[];
+  return ((data ?? []) as unknown as Omit<MatchRow, "source_table">[]).map(
+    (match) => ({
+      ...match,
+      source_table: "matches" as const,
+    }),
+  );
+}
+
+async function fetchKnockoutMatches(supabase: SyncSupabaseClient) {
+  const { data, error } = await supabase
+    .from("knockout_matches")
+    .select(
+      [
+        "id",
+        "starts_at",
+        "round",
+        "position",
+        "external_match_id",
+        "score_provider",
+        "score_provider_fixture_id",
+        "status_short",
+        "status_long",
+        "elapsed",
+        "home_score_live",
+        "away_score_live",
+        "home_score",
+        "away_score",
+        "score_updated_at",
+        "team_a",
+        "team_b",
+      ].join(", "),
+    )
+    .not("starts_at", "is", null)
+    .order("starts_at", { ascending: true });
+
+  if (error) {
+    throw error;
+  }
+
+  return ((data ?? []) as unknown as Record<string, unknown>[]).map((match) => ({
+    id: String(match.id),
+    source_table: "knockout_matches" as const,
+    kickoff_at: typeof match.starts_at === "string" ? match.starts_at : null,
+    round_number: null,
+    api_football_fixture_id: null,
+    score_provider:
+      typeof match.score_provider === "string" ? match.score_provider : "espn",
+    score_provider_fixture_id:
+      typeof match.score_provider_fixture_id === "string"
+        ? match.score_provider_fixture_id
+        : typeof match.external_match_id === "string"
+          ? match.external_match_id
+          : null,
+    status_short:
+      typeof match.status_short === "string" ? match.status_short : null,
+    status_long:
+      typeof match.status_long === "string" ? match.status_long : null,
+    elapsed: typeof match.elapsed === "number" ? match.elapsed : null,
+    home_score_live:
+      typeof match.home_score_live === "number"
+        ? match.home_score_live
+        : null,
+    away_score_live:
+      typeof match.away_score_live === "number"
+        ? match.away_score_live
+        : null,
+    home_score: typeof match.home_score === "number" ? match.home_score : null,
+    away_score: typeof match.away_score === "number" ? match.away_score : null,
+    score_updated_at:
+      typeof match.score_updated_at === "string"
+        ? match.score_updated_at
+        : null,
+    home_team:
+      typeof match.team_a === "string"
+        ? { id: `knockout:${match.id}:a`, name: match.team_a }
+        : null,
+    away_team:
+      typeof match.team_b === "string"
+        ? { id: `knockout:${match.id}:b`, name: match.team_b }
+        : null,
+  }));
 }
 
 function providerFixtureIdForMatch(
@@ -984,6 +1071,13 @@ async function saveEspnGoals(input: {
   match: MatchRow;
   event: EspnEvent;
 }) {
+  if (input.match.source_table === "knockout_matches") {
+    return {
+      foundGoals: 0,
+      insertedGoals: 0,
+    };
+  }
+
   const goals = extractEspnGoals(input.event);
   let insertedGoals = 0;
 
@@ -1221,7 +1315,9 @@ async function runEspnSync(input: {
       match,
       event,
     });
-    insertedGoals += goalResult.insertedGoals;
+    if (match.source_table === "matches") {
+      insertedGoals += goalResult.insertedGoals;
+    }
 
     if (isLiveMatchStatus(statusShort)) {
       liveFixtures += 1;
@@ -1253,7 +1349,7 @@ async function updateMatch(
 ) {
   if (isScoreDryRunEnabled()) {
     console.log(
-      `[dry-run] Would update match ${match.id}: ${JSON.stringify({
+      `[dry-run] Would update ${match.source_table} ${match.id}: ${JSON.stringify({
         status_short: update.status_short,
         elapsed: update.elapsed,
         home_score_live: update.home_score_live,
@@ -1267,10 +1363,10 @@ async function updateMatch(
     return;
   }
 
-  const { error } = await supabase
-    .from("matches")
-    .update(update)
-    .eq("id", match.id);
+  const { error } =
+    match.source_table === "knockout_matches"
+      ? await supabase.from("knockout_matches").update(update).eq("id", match.id)
+      : await supabase.from("matches").update(update).eq("id", match.id);
 
   if (error) {
     throw error;
@@ -1414,7 +1510,9 @@ async function runLiveScoreSyncForTarget(
 
     const now = new Date();
     const today = datePartInTimezone(now, TIMEZONE);
-    const matches = await fetchMatches(supabase);
+    const groupMatches = await fetchMatches(supabase);
+    const knockoutMatches = await fetchKnockoutMatches(supabase);
+    const matches = [...groupMatches, ...knockoutMatches];
     const todayMatches = matches.filter(
       (match) =>
         match.kickoff_at &&
@@ -1445,6 +1543,8 @@ async function runLiveScoreSyncForTarget(
 
     console.log(`Today (${TIMEZONE}): ${today}`);
     console.log(`Matches loaded: ${matches.length}`);
+    console.log(`Group matches loaded: ${groupMatches.length}`);
+    console.log(`Knockout matches loaded: ${knockoutMatches.length}`);
     console.log(`Today matches: ${todayMatches.length}`);
     console.log(`Active candidate matches: ${activeCandidateMatches.length}`);
     console.log(`Active matches in window: ${activeMatches.length}`);

@@ -27,6 +27,17 @@ type PoolSummary = {
   name: string;
   isDefault: boolean;
 };
+type KnockoutLiveScoreFields = Pick<
+  KnockoutMatch,
+  | "statusShort"
+  | "statusLong"
+  | "elapsed"
+  | "homeScoreLive"
+  | "awayScoreLive"
+  | "homeScore"
+  | "awayScore"
+  | "scoreUpdatedAt"
+>;
 
 function single<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
@@ -106,6 +117,17 @@ function mapMatch(value: unknown): KnockoutMatch {
     teamBFlagUrl: typeof row.teamBFlagUrl === "string" ? row.teamBFlagUrl : null,
     startsAt: typeof row.startsAt === "string" ? row.startsAt : null,
     lockAt: typeof row.lockAt === "string" ? row.lockAt : null,
+    statusShort: typeof row.statusShort === "string" ? row.statusShort : null,
+    statusLong: typeof row.statusLong === "string" ? row.statusLong : null,
+    elapsed: typeof row.elapsed === "number" ? row.elapsed : null,
+    homeScoreLive:
+      typeof row.homeScoreLive === "number" ? row.homeScoreLive : null,
+    awayScoreLive:
+      typeof row.awayScoreLive === "number" ? row.awayScoreLive : null,
+    homeScore: typeof row.homeScore === "number" ? row.homeScore : null,
+    awayScore: typeof row.awayScore === "number" ? row.awayScore : null,
+    scoreUpdatedAt:
+      typeof row.scoreUpdatedAt === "string" ? row.scoreUpdatedAt : null,
     isLocked: row.isLocked === true,
     canPick: row.canPick === true,
     userPick: typeof row.userPick === "string" ? row.userPick : null,
@@ -119,6 +141,73 @@ function mapMatch(value: unknown): KnockoutMatch {
     winnerTeamCode:
       typeof row.winnerTeamCode === "string" ? row.winnerTeamCode : null,
   };
+}
+
+function mapLiveScoreFields(row: Record<string, unknown>): KnockoutLiveScoreFields {
+  return {
+    statusShort:
+      typeof row.status_short === "string" ? row.status_short : null,
+    statusLong: typeof row.status_long === "string" ? row.status_long : null,
+    elapsed: typeof row.elapsed === "number" ? row.elapsed : null,
+    homeScoreLive:
+      typeof row.home_score_live === "number" ? row.home_score_live : null,
+    awayScoreLive:
+      typeof row.away_score_live === "number" ? row.away_score_live : null,
+    homeScore: typeof row.home_score === "number" ? row.home_score : null,
+    awayScore: typeof row.away_score === "number" ? row.away_score : null,
+    scoreUpdatedAt:
+      typeof row.score_updated_at === "string" ? row.score_updated_at : null,
+  };
+}
+
+async function enrichMatchesWithLiveScores(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  matches: KnockoutMatch[],
+) {
+  const externalMatchIds = Array.from(
+    new Set(
+      matches
+        .map((match) => match.externalMatchId)
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
+
+  if (externalMatchIds.length === 0) {
+    return matches;
+  }
+
+  const { data, error } = await supabase
+    .from("knockout_matches")
+    .select(
+      "external_match_id, status_short, status_long, elapsed, home_score_live, away_score_live, home_score, away_score, score_updated_at",
+    )
+    .in("external_match_id", externalMatchIds);
+
+  if (error || !data) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("Failed to load knockout live score fields", error);
+    }
+
+    return matches;
+  }
+
+  const liveScoreByExternalMatchId = new Map(
+    (data as Record<string, unknown>[])
+      .filter((row) => typeof row.external_match_id === "string")
+      .map((row) => [
+        String(row.external_match_id),
+        mapLiveScoreFields(row),
+      ]),
+  );
+
+  return matches.map((match) => {
+    const liveScore =
+      match.externalMatchId ?
+        liveScoreByExternalMatchId.get(match.externalMatchId)
+      : null;
+
+    return liveScore ? { ...match, ...liveScore } : match;
+  });
 }
 
 function mapBracket(value: unknown): UserKnockoutBracket | null {
@@ -359,9 +448,10 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
   }
 
   const settings = mapSettings(stateRow.settings);
-  const matches = Array.isArray(stateRow.matches)
+  const rawMatches = Array.isArray(stateRow.matches)
     ? (stateRow.matches as unknown[]).map(mapMatch)
     : [];
+  const matches = await enrichMatchesWithLiveScores(supabase, rawMatches);
   const bracket = mapBracket(stateRow.bracket);
   const picks = Array.isArray(stateRow.picks)
     ? (stateRow.picks as unknown[]).map(mapPick)

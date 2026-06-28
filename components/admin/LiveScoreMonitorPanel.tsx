@@ -18,6 +18,7 @@ export type LiveScoreMonitorLog = {
 
 export type LiveScoreMonitorMatch = {
   id: string;
+  sourceLabel?: string;
   kickoffAt: string | null;
   homeTeamName: string;
   awayTeamName: string;
@@ -48,6 +49,7 @@ function formatDateTime(value: string | null) {
     year: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
   }).format(new Date(value));
 }
 
@@ -73,6 +75,21 @@ function formatScore(match: LiveScoreMonitorMatch) {
   }
 
   return `${homeScore} x ${awayScore}`;
+}
+
+function formatDurationSeconds(log: LiveScoreMonitorLog) {
+  if (!log.finishedAt) {
+    return "-";
+  }
+
+  const durationMs =
+    new Date(log.finishedAt).getTime() - new Date(log.startedAt).getTime();
+
+  if (!Number.isFinite(durationMs) || durationMs < 0) {
+    return "-";
+  }
+
+  return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
 function reasonLabel(reason: string | null) {
@@ -209,6 +226,11 @@ export function LiveScoreMonitorPanel({
                   <p className="font-black text-slate-50 light:text-slate-950">
                     {match.homeTeamName} x {match.awayTeamName}
                   </p>
+                  {match.sourceLabel ? (
+                    <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-emerald-300 light:text-emerald-700">
+                      {match.sourceLabel}
+                    </p>
+                  ) : null}
                   <div className="mt-2 space-y-1 text-xs font-bold text-slate-400 light:text-slate-500">
                     <p>Kickoff: {formatKickoff(match.kickoffAt)}</p>
                     <p>Fixture: {match.scoreProviderFixtureId ?? "-"}</p>
@@ -247,6 +269,7 @@ export function LiveScoreMonitorPanel({
                 <th className="px-4 py-3">Motivo</th>
                 <th className="px-4 py-3">Ativos</th>
                 <th className="px-4 py-3">Atualizados</th>
+                <th className="px-4 py-3">Tempo</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 light:divide-slate-200">
@@ -261,12 +284,13 @@ export function LiveScoreMonitorPanel({
                     <td className="px-4 py-3">{reasonLabel(log.reason)}</td>
                     <td className="px-4 py-3">{log.activeMatchesCount}</td>
                     <td className="px-4 py-3">{log.updatedMatchesCount}</td>
+                    <td className="px-4 py-3">{formatDurationSeconds(log)}</td>
                   </tr>
                 ))
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-4 py-6 text-center text-slate-400 light:text-slate-500"
                   >
                     Nenhuma execucao de sync registrada ainda.

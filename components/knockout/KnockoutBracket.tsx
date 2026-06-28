@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
@@ -9,7 +9,9 @@ import {
   KNOCKOUT_ROUNDS,
   buildBracket,
 } from "@/lib/knockout/buildBracket";
+import { knockoutMatchCardId } from "@/lib/knockout/matchDomId";
 import { pruneInvalidKnockoutPicks } from "@/lib/knockout/validateBracket";
+import { isInLiveScoreRefreshWindow } from "@/lib/scores/liveRefreshWindow";
 import type {
   KnockoutMatch,
   KnockoutPick,
@@ -19,6 +21,7 @@ import type {
   UserKnockoutBracket,
 } from "@/lib/knockout/types";
 import { KnockoutMatchCard } from "./KnockoutMatchCard";
+import { KnockoutLiveMatches } from "./KnockoutLiveMatches";
 import { KnockoutRanking } from "./KnockoutRanking";
 import { KnockoutRound as KnockoutRoundColumn } from "./KnockoutRound";
 import { KnockoutStatus } from "./KnockoutStatus";
@@ -39,6 +42,21 @@ type KnockoutBracketProps = {
 };
 
 type SaveStatus = "idle" | "saving" | "draft" | "error" | "locked";
+type FocusRequest = {
+  matchKey: string;
+  requestId: number;
+};
+type KnockoutLiveScoreFields = Pick<
+  KnockoutMatch,
+  | "statusShort"
+  | "statusLong"
+  | "elapsed"
+  | "homeScoreLive"
+  | "awayScoreLive"
+  | "homeScore"
+  | "awayScore"
+  | "scoreUpdatedAt"
+>;
 
 function mapSavedPick(value: unknown): KnockoutPick {
   const row = value as Record<string, unknown>;
@@ -74,6 +92,23 @@ function statusLabel(status: SaveStatus) {
   return "Palpites abertos";
 }
 
+function mapLiveScoreFields(row: Record<string, unknown>): KnockoutLiveScoreFields {
+  return {
+    statusShort:
+      typeof row.status_short === "string" ? row.status_short : null,
+    statusLong: typeof row.status_long === "string" ? row.status_long : null,
+    elapsed: typeof row.elapsed === "number" ? row.elapsed : null,
+    homeScoreLive:
+      typeof row.home_score_live === "number" ? row.home_score_live : null,
+    awayScoreLive:
+      typeof row.away_score_live === "number" ? row.away_score_live : null,
+    homeScore: typeof row.home_score === "number" ? row.home_score : null,
+    awayScore: typeof row.away_score === "number" ? row.away_score : null,
+    scoreUpdatedAt:
+      typeof row.score_updated_at === "string" ? row.score_updated_at : null,
+  };
+}
+
 export function KnockoutBracket({
   tournamentKey,
   settings,
@@ -89,16 +124,23 @@ export function KnockoutBracket({
   submittedAtLabel,
 }: KnockoutBracketProps) {
   const [activeRound, setActiveRound] = useState<KnockoutRound>("round_of_32");
+  const [visibleMatches, setVisibleMatches] = useState(matches);
   const [picks, setPicks] = useState(() =>
     pruneInvalidKnockoutPicks(matches, initialPicks),
   );
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const requestIdRef = useRef(0);
+  const lastFocusedRoundRequestIdRef = useRef<number | null>(null);
+  const lastScrolledRequestIdRef = useRef<number | null>(null);
   const supabase = useMemo(() => createClient(), []);
-  const bracket = useMemo(() => buildBracket(matches, picks), [matches, picks]);
+  const bracket = useMemo(
+    () => buildBracket(visibleMatches, picks),
+    [picks, visibleMatches],
+  );
   const hasOpenMatches = openPicksCount > 0;
   const hasRoundOf32 =
-    matches.filter((match) => match.round === "round_of_32").length === 16;
+    visibleMatches.filter((match) => match.round === "round_of_32").length === 16;
   const roundState = (round: KnockoutRound) =>
     bracket.find((item) => item.round === round);
   const leftRounds = [
@@ -141,6 +183,157 @@ export function KnockoutBracket({
   const currentUserScore = initialBracket
     ? rankingEntries.find((entry) => entry.userId === initialBracket.userId)
     : null;
+  const externalMatchIds = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          visibleMatches
+            .map((match) => match.externalMatchId)
+            .filter((value): value is string => Boolean(value)),
+        ),
+      ),
+    [visibleMatches],
+  );
+  const externalMatchIdsKey = externalMatchIds.join("|");
+  const shouldRefreshLiveScores = useMemo(() => {
+    const now = new Date();
+
+    return visibleMatches.some((match) =>
+      isInLiveScoreRefreshWindow(match.startsAt, now),
+    );
+  }, [visibleMatches]);
+
+  useEffect(() => {
+    const liveScoreExternalMatchIds = externalMatchIdsKey
+      ? externalMatchIdsKey.split("|")
+      : [];
+
+    if (!shouldRefreshLiveScores || liveScoreExternalMatchIds.length === 0) {
+      return;
+    }
+
+    async function refreshKnockoutLiveScores() {
+      const { data, error } = await supabase
+        .from("knockout_matches")
+        .select(
+          "external_match_id, status_short, status_long, elapsed, home_score_live, away_score_live, home_score, away_score, score_updated_at",
+        )
+        .in("external_match_id", liveScoreExternalMatchIds);
+
+      if (error || !data) {
+        return;
+      }
+
+      const liveScoreByExternalMatchId = new Map(
+        (data as Record<string, unknown>[])
+          .filter((row) => typeof row.external_match_id === "string")
+          .map((row) => [
+            String(row.external_match_id),
+            mapLiveScoreFields(row),
+          ]),
+      );
+
+      setVisibleMatches((currentMatches) =>
+        currentMatches.map((match) => {
+          const liveScore =
+            match.externalMatchId ?
+              liveScoreByExternalMatchId.get(match.externalMatchId)
+            : null;
+
+          return liveScore ? { ...match, ...liveScore } : match;
+        }),
+      );
+    }
+
+    void refreshKnockoutLiveScores();
+
+    const intervalId = window.setInterval(() => {
+      void refreshKnockoutLiveScores();
+    }, 60000);
+
+    return () => window.clearInterval(intervalId);
+  }, [externalMatchIdsKey, shouldRefreshLiveScores, supabase]);
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setFocusRequest((currentRequest) =>
+        currentRequest?.requestId === focusRequest.requestId
+          ? null
+          : currentRequest,
+      );
+    }, 4500);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [focusRequest]);
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    if (lastFocusedRoundRequestIdRef.current === focusRequest.requestId) {
+      return;
+    }
+
+    const targetMatch = visibleMatches.find(
+      (match) => `${match.round}:${match.position}` === focusRequest.matchKey,
+    );
+
+    if (!targetMatch || !KNOCKOUT_ROUNDS.includes(targetMatch.round)) {
+      return;
+    }
+
+    lastFocusedRoundRequestIdRef.current = focusRequest.requestId;
+
+    if (activeRound === targetMatch.round) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setActiveRound(targetMatch.round);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeRound, focusRequest, visibleMatches]);
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+
+    if (lastScrolledRequestIdRef.current === focusRequest.requestId) {
+      return;
+    }
+
+    const targetMatch = visibleMatches.find(
+      (match) => `${match.round}:${match.position}` === focusRequest.matchKey,
+    );
+
+    if (!targetMatch || activeRound !== targetMatch.round) {
+      return;
+    }
+
+    lastScrolledRequestIdRef.current = focusRequest.requestId;
+
+    const animationFrameId = window.requestAnimationFrame(() => {
+      document
+        .getElementById(knockoutMatchCardId(targetMatch))
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+
+    return () => window.cancelAnimationFrame(animationFrameId);
+  }, [activeRound, focusRequest, visibleMatches]);
+
+  const handleLiveMatchSelect = useCallback((match: KnockoutMatch) => {
+    setFocusRequest({
+      matchKey: `${match.round}:${match.position}`,
+      requestId: Date.now(),
+    });
+  }, []);
 
   const persistPick = useCallback(
     (round: KnockoutRound, position: number, team: string) => {
@@ -177,7 +370,7 @@ export function KnockoutBracket({
 
         if (savedPick) {
           setPicks((currentPicks) =>
-            pruneInvalidKnockoutPicks(matches, [
+            pruneInvalidKnockoutPicks(visibleMatches, [
               ...currentPicks.filter(
                 (pick) =>
                   !(pick.round === savedPick.round && pick.position === savedPick.position),
@@ -190,11 +383,11 @@ export function KnockoutBracket({
         setSaveStatus("draft");
       })();
     },
-    [matches, supabase, tournamentKey],
+    [supabase, tournamentKey, visibleMatches],
   );
 
   function updatePick(round: KnockoutRound, position: number, team: string) {
-    const match = matches.find(
+    const match = visibleMatches.find(
       (item) => item.round === round && item.position === position,
     );
 
@@ -203,7 +396,7 @@ export function KnockoutBracket({
       return;
     }
 
-    const nextPicks = pruneInvalidKnockoutPicks(matches, [
+    const nextPicks = pruneInvalidKnockoutPicks(visibleMatches, [
       ...picks.filter(
         (pick) => !(pick.round === round && pick.position === position),
       ),
@@ -217,6 +410,7 @@ export function KnockoutBracket({
     setPicks(nextPicks);
     persistPick(round, position, team);
   }
+  const highlightedMatchKey = focusRequest?.matchKey ?? null;
 
   return (
     <div className="space-y-6">
@@ -261,6 +455,11 @@ export function KnockoutBracket({
           ) : null}
         </div>
       </section>
+
+      <KnockoutLiveMatches
+        matches={visibleMatches}
+        onMatchSelect={handleLiveMatchSelect}
+      />
 
       {!hasRoundOf32 ? (
         <Card className="p-5">
@@ -324,6 +523,7 @@ export function KnockoutBracket({
                 round={roundState.round}
                 matches={roundState.matches}
                 disabled={false}
+                highlightedMatchKey={highlightedMatchKey}
                 onSelect={updatePick}
               />
             </div>
@@ -343,6 +543,7 @@ export function KnockoutBracket({
                 side="left"
                 compactTitle
                 className="h-full"
+                highlightedMatchKey={highlightedMatchKey}
                 onSelect={updatePick}
               />
             ))}
@@ -359,6 +560,10 @@ export function KnockoutBracket({
                     match={finalMatch}
                     disabled={false}
                     side="center"
+                    isHighlighted={
+                      highlightedMatchKey ===
+                      `${finalMatch.round}:${finalMatch.position}`
+                    }
                     onSelect={(team) =>
                       updatePick(finalMatch.round, finalMatch.position, team)
                     }
@@ -376,6 +581,7 @@ export function KnockoutBracket({
                 side="right"
                 compactTitle
                 className="h-full"
+                highlightedMatchKey={highlightedMatchKey}
                 onSelect={updatePick}
               />
             ))}

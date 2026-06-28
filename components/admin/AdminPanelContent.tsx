@@ -60,6 +60,23 @@ type AdminMatchRow = {
   away_team: { name: string } | { name: string }[] | null;
 };
 
+type AdminKnockoutMatchRow = {
+  id: string;
+  round: string;
+  position: number;
+  starts_at: string | null;
+  external_match_id: string | null;
+  score_provider_fixture_id: string | null;
+  status_short: string | null;
+  elapsed: number | null;
+  home_score_live: number | null;
+  away_score_live: number | null;
+  home_score: number | null;
+  away_score: number | null;
+  team_a: string | null;
+  team_b: string | null;
+};
+
 type LiveScoreSyncLogRow = {
   id: string;
   provider: string;
@@ -116,6 +133,7 @@ function mapMonitorMatch(row: AdminMatchRow): LiveScoreMonitorMatch {
 
   return {
     id: row.id,
+    sourceLabel: "Fase de grupos",
     kickoffAt: row.kickoff_at,
     homeTeamName: homeTeam?.name ?? "Mandante",
     awayTeamName: awayTeam?.name ?? "Visitante",
@@ -126,6 +144,45 @@ function mapMonitorMatch(row: AdminMatchRow): LiveScoreMonitorMatch {
     homeScore: row.home_score,
     awayScore: row.away_score,
     scoreProviderFixtureId: row.score_provider_fixture_id,
+  };
+}
+
+function knockoutRoundLabel(round: string) {
+  switch (round) {
+    case "round_of_32":
+      return "Mata-mata - 16 avos";
+    case "round_of_16":
+      return "Mata-mata - Oitavas";
+    case "quarterfinal":
+      return "Mata-mata - Quartas";
+    case "semifinal":
+      return "Mata-mata - Semifinal";
+    case "final":
+      return "Mata-mata - Final";
+    case "third_place":
+      return "Mata-mata - 3o lugar";
+    default:
+      return "Mata-mata";
+  }
+}
+
+function mapKnockoutMonitorMatch(
+  row: AdminKnockoutMatchRow,
+): LiveScoreMonitorMatch {
+  return {
+    id: `knockout:${row.id}`,
+    sourceLabel: knockoutRoundLabel(row.round),
+    kickoffAt: row.starts_at,
+    homeTeamName: row.team_a ?? "Mandante",
+    awayTeamName: row.team_b ?? "Visitante",
+    statusShort: row.status_short,
+    elapsed: row.elapsed,
+    homeScoreLive: row.home_score_live,
+    awayScoreLive: row.away_score_live,
+    homeScore: row.home_score,
+    awayScore: row.away_score,
+    scoreProviderFixtureId:
+      row.score_provider_fixture_id ?? row.external_match_id,
   };
 }
 
@@ -157,13 +214,18 @@ function isNearMatchWindow(match: AdminLiveMatch) {
   return now >= startsAt && now <= endsAt;
 }
 
-function isActiveScoreWindow(match: LiveScoreMonitorMatch, now: number) {
+function isActiveScoreWindow(
+  match: LiveScoreMonitorMatch,
+  now: number,
+  provider: string,
+) {
   if (!match.kickoffAt || match.statusShort === "FT") {
     return false;
   }
 
   const kickoff = new Date(match.kickoffAt).getTime();
-  const startsAt = kickoff - 5 * 60 * 1000;
+  const beforeMinutes = provider === "espn" ? 60 : 5;
+  const startsAt = kickoff - beforeMinutes * 60 * 1000;
   const endsAt = kickoff + 240 * 60 * 1000;
 
   return now >= startsAt && now <= endsAt;
@@ -347,6 +409,7 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
   const [
     { data: participantsData },
     { data: matchesData },
+    { data: knockoutMatchesData },
     { data: syncLogsData },
   ] = await Promise.all([
     supabase.rpc("get_pool_participants", {
@@ -370,6 +433,27 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
       `,
       )
       .order("kickoff_at", { ascending: true }),
+    supabase
+      .from("knockout_matches")
+      .select(
+        [
+          "id",
+          "round",
+          "position",
+          "starts_at",
+          "external_match_id",
+          "score_provider_fixture_id",
+          "status_short",
+          "elapsed",
+          "home_score_live",
+          "away_score_live",
+          "home_score",
+          "away_score",
+          "team_a",
+          "team_b",
+        ].join(", "),
+      )
+      .order("starts_at", { ascending: true }),
     supabase
       .from("live_score_sync_logs")
       .select(
@@ -399,19 +483,28 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
   const monitorMatches = ((matchesData ?? []) as unknown as AdminMatchRow[]).map(
     mapMonitorMatch,
   );
+  const knockoutMonitorMatches = (
+    (knockoutMatchesData ?? []) as unknown as AdminKnockoutMatchRow[]
+  ).map(mapKnockoutMonitorMatch);
+  const allMonitorMatches = [...monitorMatches, ...knockoutMonitorMatches].sort(
+    (left, right) =>
+      new Date(left.kickoffAt ?? 0).getTime() -
+      new Date(right.kickoffAt ?? 0).getTime(),
+  );
   const syncLogs = ((syncLogsData ?? []) as unknown as LiveScoreSyncLogRow[]).map(
     mapSyncLog,
   );
   const now = new Date().getTime();
+  const liveScoreProvider = currentLiveScoreProvider();
   const liveAdminMatches = mappedMatches.filter(isNearMatchWindow);
   const adminMatches =
     liveAdminMatches.length > 0 ? liveAdminMatches : mappedMatches.slice(0, 8);
-  const activeMonitorMatches = monitorMatches.filter((match) =>
-    isActiveScoreWindow(match, now),
+  const activeMonitorMatches = allMonitorMatches.filter((match) =>
+    isActiveScoreWindow(match, now, liveScoreProvider),
   );
   const nextMonitorMatch =
-    monitorMatches.find((match) => isNext24Hours(match, now)) ??
-    monitorMatches.find((match) =>
+    allMonitorMatches.find((match) => isNext24Hours(match, now)) ??
+    allMonitorMatches.find((match) =>
       match.kickoffAt ? new Date(match.kickoffAt).getTime() >= now : false,
     ) ??
     null;

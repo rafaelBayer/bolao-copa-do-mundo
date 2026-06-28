@@ -95,8 +95,8 @@ function buildBracketMatch(input: {
   const official = matchByKey.get(pickKey(round, position));
   const teams = availableTeamsForMatch(round, position, matches);
   const savedPick =
-    official?.userPick ??
     pickByKey.get(pickKey(round, position))?.selectedTeam ??
+    official?.userPick ??
     null;
   const selectedTeam =
     savedPick && teams.includes(savedPick) ? savedPick : null;
@@ -127,6 +127,14 @@ function buildBracketMatch(input: {
     ),
     startsAt: official?.startsAt ?? null,
     lockAt: official?.lockAt ?? null,
+    statusShort: official?.statusShort ?? null,
+    statusLong: official?.statusLong ?? null,
+    elapsed: official?.elapsed ?? null,
+    homeScoreLive: official?.homeScoreLive ?? null,
+    awayScoreLive: official?.awayScoreLive ?? null,
+    homeScore: official?.homeScore ?? null,
+    awayScore: official?.awayScore ?? null,
+    scoreUpdatedAt: official?.scoreUpdatedAt ?? null,
     isLocked: official?.isLocked ?? true,
     canPick: official?.canPick ?? false,
     pointsIfCorrect: official?.pointsIfCorrect ?? 0,

@@ -10,6 +10,7 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
+import { isInLiveScoreRefreshWindow } from "@/lib/scores/liveRefreshWindow";
 import { TeamFlag } from "@/components/groups/TeamFlag";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
 import type { MatchGoal, MatchWithTeams } from "@/types/match";
@@ -30,15 +31,7 @@ function isFilledPrediction(prediction: Prediction) {
 }
 
 function isInLiveRefreshWindow(match: MatchWithTeams, now: Date) {
-  if (!match.kickoffAt) {
-    return false;
-  }
-
-  const kickoff = new Date(match.kickoffAt);
-  const windowStart = new Date(kickoff.getTime() - 5 * 60 * 1000);
-  const windowEnd = new Date(kickoff.getTime() + 240 * 60 * 1000);
-
-  return now >= windowStart && now <= windowEnd;
+  return isInLiveScoreRefreshWindow(match.kickoffAt, now);
 }
 
 function isFinishedMatch(match: MatchWithTeams) {

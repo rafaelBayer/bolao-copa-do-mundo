@@ -3,9 +3,16 @@ import {
   isHalftimeStatus,
   isLiveMatchStatus,
 } from "@/lib/scores/liveScoreStatus";
-import type { MatchWithTeams } from "@/types/match";
 
-export function getMatchDisplayScore(match: MatchWithTeams) {
+type MatchDisplayScoreInput = {
+  statusShort: string | null;
+  homeScoreLive: number | null;
+  awayScoreLive: number | null;
+  homeScore: number | null;
+  awayScore: number | null;
+};
+
+export function getMatchDisplayScore(match: MatchDisplayScoreInput) {
   if (
     isFinalMatchStatus(match.statusShort) &&
     match.homeScore !== null &&

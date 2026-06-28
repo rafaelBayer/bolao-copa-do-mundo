@@ -1,6 +1,13 @@
 import { Check, Lock } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { TeamFlag } from "@/components/groups/TeamFlag";
+import { getMatchDisplayScore } from "@/lib/groups/getMatchDisplayScore";
+import { knockoutMatchCardId } from "@/lib/knockout/matchDomId";
+import {
+  isFinalMatchStatus,
+  isHalftimeStatus,
+  isLiveMatchStatus,
+} from "@/lib/scores/liveScoreStatus";
 import type { KnockoutBracketMatch } from "@/lib/knockout/types";
 
 type KnockoutMatchCardProps = {
@@ -8,6 +15,7 @@ type KnockoutMatchCardProps = {
   disabled: boolean;
   side?: "left" | "right" | "center";
   showMeta?: boolean;
+  isHighlighted?: boolean;
   onSelect: (team: string) => void;
 };
 
@@ -100,10 +108,21 @@ export function KnockoutMatchCard({
   disabled,
   side = "center",
   showMeta = false,
+  isHighlighted = false,
   onSelect,
 }: KnockoutMatchCardProps) {
   const hasTeams = Boolean(match.teamA.team && match.teamB.team);
   const canSelect = Boolean(hasTeams && match.canPick && !disabled);
+  const isLive = isLiveMatchStatus(match.statusShort);
+  const isHalftime = isHalftimeStatus(match.statusShort);
+  const isFinal = isFinalMatchStatus(match.statusShort) || match.isFinished;
+  const displayScore = getMatchDisplayScore(match);
+  const hasDisplayScore =
+    displayScore.homeScore !== null && displayScore.awayScore !== null;
+  const scoreLabel = hasDisplayScore
+    ? `${displayScore.homeScore} x ${displayScore.awayScore}`
+    : null;
+  const scoreTone = isLive ? "live" : isHalftime ? "halftime" : "final";
   const statusLabel = !hasTeams
     ? "Aguardando definicao dos classificados."
     : match.isFinished
@@ -117,7 +136,7 @@ export function KnockoutMatchCard({
         : `Aberto ate ${formatLockAt(match.lockAt)}`;
 
   return (
-    <div className="relative">
+    <div id={knockoutMatchCardId(match)} className="relative">
       {side === "left" ? (
         <span className="pointer-events-none absolute left-full top-1/2 hidden h-px w-5 bg-slate-700/75 light:bg-slate-300 lg:block" />
       ) : null}
@@ -125,16 +144,53 @@ export function KnockoutMatchCard({
         <span className="pointer-events-none absolute right-full top-1/2 hidden h-px w-5 bg-slate-700/75 light:bg-slate-300 lg:block" />
       ) : null}
       <Card
-        className={`w-[9.25rem] border-slate-800/80 bg-slate-950/72 p-2 shadow-sm light:border-slate-200 light:bg-white ${
+        className={`w-[9.25rem] p-2 shadow-sm ${
+          isLive
+            ? "border-red-400/70 bg-red-500/10 shadow-red-950/30 ring-1 ring-red-500/35 light:border-red-300 light:bg-red-50 light:ring-red-300/70"
+            : "border-slate-800/80 bg-slate-950/72 light:border-slate-200 light:bg-white"
+        } ${
+          isHighlighted
+            ? "ring-2 ring-amber-300 ring-offset-2 ring-offset-slate-950 light:ring-amber-500 light:ring-offset-white"
+            : ""
+        } ${
           match.selectedTeam
             ? "shadow-emerald-950/20 light:shadow-emerald-100"
             : ""
         }`}
       >
+        {isHighlighted ? (
+          <div className="mb-1.5 rounded-full bg-amber-300 px-2 py-0.5 text-center text-[9px] font-black uppercase tracking-normal text-slate-950 light:bg-amber-400">
+            Jogo selecionado
+          </div>
+        ) : null}
         {showMeta ? (
           <div className="mb-1.5 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-500 light:text-slate-500">
             <span>Jogo {match.position}</span>
             <span className="truncate">{formatStartsAt(match.startsAt)}</span>
+          </div>
+        ) : null}
+        {(isLive || isHalftime || isFinal) && scoreLabel ? (
+          <div
+            className={`mb-1.5 flex items-center justify-between gap-1.5 rounded-md px-1.5 py-0.5 text-[8px] font-black uppercase leading-3 tracking-normal ${
+              scoreTone === "live"
+                ? "bg-red-500 text-white shadow-sm shadow-red-950/30"
+                : scoreTone === "halftime"
+                  ? "bg-amber-400/15 text-amber-200 light:bg-amber-100 light:text-amber-800"
+                  : "bg-slate-800 text-slate-300 light:bg-slate-100 light:text-slate-700"
+            }`}
+          >
+            <span className="inline-flex items-center gap-1">
+              {isLive ? (
+                <span className="h-1 w-1 rounded-full bg-white motion-safe:animate-pulse" />
+              ) : null}
+              {isLive ? "AO VIVO" : isHalftime ? "Intervalo" : "Encerrado"}
+            </span>
+            <span className="inline-flex items-center gap-0.5 tabular-nums">
+              {isLive && match.elapsed !== null ? (
+                <span>{match.elapsed}&apos;</span>
+              ) : null}
+              <span>{scoreLabel}</span>
+            </span>
           </div>
         ) : null}
         <div className="space-y-1.5">
