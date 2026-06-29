@@ -103,6 +103,46 @@ function formatLockAt(value: string | null) {
   }).format(new Date(value));
 }
 
+function pointsTitle(match: KnockoutBracketMatch) {
+  const { pointsInfo } = match;
+
+  if (pointsInfo.ancestorMatchesCount === 0) {
+    return "Vale 2 pontos";
+  }
+
+  if (pointsInfo.bonusAvailable) {
+    return `Vale ate ${pointsInfo.totalPossiblePoints} pontos`;
+  }
+
+  if (pointsInfo.bonusPending) {
+    return `Pode valer ate ${pointsInfo.basePoints + pointsInfo.bonusPoints} pontos`;
+  }
+
+  return "Vale 2 pontos";
+}
+
+function pointsDescription(match: KnockoutBracketMatch) {
+  const { pointsInfo } = match;
+
+  if (pointsInfo.ancestorMatchesCount === 0) {
+    return null;
+  }
+
+  if (pointsInfo.bonusAvailable) {
+    return `${pointsInfo.basePoints} pelo acerto + ${pointsInfo.bonusPoints} de bonus por sequencia`;
+  }
+
+  if (pointsInfo.bonusPending) {
+    return "Bonus depende dos resultados anteriores desta chave";
+  }
+
+  if (pointsInfo.bonusBlockedReason === "broken_sequence") {
+    return "Bonus indisponivel porque sua sequencia nesta chave foi quebrada";
+  }
+
+  return null;
+}
+
 export function KnockoutMatchCard({
   match,
   disabled,
@@ -212,6 +252,16 @@ export function KnockoutMatchCard({
             disabled={!canSelect}
             onSelect={() => match.teamB.team && onSelect(match.teamB.team)}
           />
+        </div>
+        <div className="mt-2 rounded-md border border-slate-800/80 bg-slate-950/35 px-2 py-1.5 light:border-slate-200 light:bg-slate-50">
+          <p className="text-[10px] font-black leading-3 text-slate-200 light:text-slate-800">
+            {pointsTitle(match)}
+          </p>
+          {pointsDescription(match) ? (
+            <p className="mt-0.5 text-[9px] font-semibold leading-3 text-slate-500 light:text-slate-500">
+              {pointsDescription(match)}
+            </p>
+          ) : null}
         </div>
         <div className="mt-2 min-h-4 text-[10px] font-bold leading-4 text-slate-500 light:text-slate-500">
           {match.isLocked && hasTeams && !match.isFinished ? (

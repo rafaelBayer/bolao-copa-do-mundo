@@ -124,6 +124,17 @@ export type KnockoutBracketMatch = {
   winnerTeam: string | null;
   selectedTeam: string | null;
   invalidSelectedTeam: string | null;
+  pointsInfo: {
+    basePoints: number;
+    bonusPoints: number;
+    totalPossiblePoints: number;
+    bonusAvailable: boolean;
+    bonusPending: boolean;
+    bonusBlockedReason: string | null;
+    ancestorMatchesCount: number;
+    correctAncestorMatchesCount: number;
+    pendingAncestorMatchesCount: number;
+  };
 };
 
 export type KnockoutRoundState = {

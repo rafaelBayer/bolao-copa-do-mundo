@@ -145,11 +145,10 @@ A fase de grupos usa a pontuacao tradicional de palpites de placar:
 
 O mata-mata pontua acertos do vencedor de cada confronto real, nao placar.
 
-- 16 avos: 2 pontos por acerto
-- Oitavas: 3 pontos por acerto
-- Quartas: 5 pontos por acerto
-- Semifinal: 8 pontos por acerto
-- Final: 12 pontos por acerto
+- Acerto do vencedor: 2 pontos
+- Bonus de sequencia: quantidade de confrontos anteriores da arvore daquele jogo
+- O bonus so entra se o usuario acertou todos os confrontos anteriores que formaram aquela partida
+- Se qualquer confronto anterior obrigatorio foi errado, o jogo vale apenas os 2 pontos base
 
 ### Rankings
 

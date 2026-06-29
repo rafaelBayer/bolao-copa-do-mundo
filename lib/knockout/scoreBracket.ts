@@ -1,12 +1,10 @@
+import {
+  KNOCKOUT_ROUNDS,
+  sourcePositionsForNextRound,
+} from "./bracketStructure";
 import type { KnockoutMatch, KnockoutPick, KnockoutRound } from "./types";
 
-export const KNOCKOUT_SCORE_WEIGHTS: Partial<Record<KnockoutRound, number>> = {
-  round_of_32: 2,
-  round_of_16: 3,
-  quarterfinal: 5,
-  semifinal: 8,
-  final: 12,
-};
+export const KNOCKOUT_BASE_POINTS = 2;
 
 export type KnockoutScoreBreakdown = {
   roundOf32: number;
@@ -33,12 +31,182 @@ export type KnockoutScoreSummary = {
   correctBreakdown: KnockoutCorrectBreakdown;
 };
 
-function officialWinnerKey(match: KnockoutMatch) {
+export type KnockoutMatchPointsInfo = {
+  basePoints: number;
+  bonusPoints: number;
+  totalPossiblePoints: number;
+  bonusAvailable: boolean;
+  bonusPending: boolean;
+  bonusBlockedReason: string | null;
+  ancestorMatchesCount: number;
+  correctAncestorMatchesCount: number;
+  pendingAncestorMatchesCount: number;
+};
+
+export type KnockoutMatchScore = KnockoutMatchPointsInfo & {
+  totalPoints: number;
+  isCorrect: boolean;
+};
+
+function matchKey(match: Pick<KnockoutMatch, "round" | "position">) {
   return `${match.round}:${match.position}`;
+}
+
+function pickKey(round: KnockoutRound, position: number) {
+  return `${round}:${position}`;
 }
 
 function selectedTeamBelongsToMatch(match: KnockoutMatch, selectedTeam: string) {
   return selectedTeam === match.teamA || selectedTeam === match.teamB;
+}
+
+function pickMap(picks: KnockoutPick[]) {
+  return new Map(
+    picks.map((pick) => [pickKey(pick.round, pick.position), pick]),
+  );
+}
+
+function matchMap(matches: KnockoutMatch[]) {
+  return new Map(matches.map((match) => [matchKey(match), match]));
+}
+
+function previousRound(round: KnockoutRound) {
+  const roundIndex = KNOCKOUT_ROUNDS.indexOf(round);
+
+  if (roundIndex <= 0) {
+    return null;
+  }
+
+  return KNOCKOUT_ROUNDS[roundIndex - 1] ?? null;
+}
+
+function isCorrectPick(match: KnockoutMatch, pick: KnockoutPick | undefined) {
+  return Boolean(
+    match.winnerTeam &&
+      pick?.selectedTeam === match.winnerTeam &&
+      selectedTeamBelongsToMatch(match, pick.selectedTeam),
+  );
+}
+
+export function getKnockoutMatchAncestors(
+  match: KnockoutMatch,
+  matches: KnockoutMatch[],
+): KnockoutMatch[] {
+  const ancestorRound = previousRound(match.round);
+
+  if (!ancestorRound) {
+    return [];
+  }
+
+  const matchesByKey = matchMap(matches);
+  const directPositions = sourcePositionsForNextRound(match.position);
+  const directAncestors = directPositions
+    .map((position) => matchesByKey.get(pickKey(ancestorRound, position)))
+    .filter((ancestor): ancestor is KnockoutMatch => Boolean(ancestor));
+
+  return directAncestors.flatMap((ancestor) => [
+    ...getKnockoutMatchAncestors(ancestor, matches),
+    ancestor,
+  ]);
+}
+
+export function getKnockoutMatchPotentialPoints(
+  match: KnockoutMatch,
+  matches: KnockoutMatch[],
+  picks: KnockoutPick[],
+): KnockoutMatchPointsInfo {
+  const ancestors = getKnockoutMatchAncestors(match, matches);
+  const picksByKey = pickMap(picks);
+  const pendingAncestorMatchesCount = ancestors.filter(
+    (ancestor) => !ancestor.winnerTeam,
+  ).length;
+  const correctAncestorMatchesCount = ancestors.filter((ancestor) =>
+    isCorrectPick(ancestor, picksByKey.get(matchKey(ancestor))),
+  ).length;
+  const hasWrongFinishedAncestor = ancestors.some(
+    (ancestor) =>
+      ancestor.winnerTeam &&
+      !isCorrectPick(ancestor, picksByKey.get(matchKey(ancestor))),
+  );
+  const bonusPoints = ancestors.length;
+  const bonusAvailable =
+    ancestors.length > 0 &&
+    pendingAncestorMatchesCount === 0 &&
+    !hasWrongFinishedAncestor;
+
+  if (ancestors.length === 0) {
+    return {
+      basePoints: KNOCKOUT_BASE_POINTS,
+      bonusPoints: 0,
+      totalPossiblePoints: KNOCKOUT_BASE_POINTS,
+      bonusAvailable: false,
+      bonusPending: false,
+      bonusBlockedReason: null,
+      ancestorMatchesCount: 0,
+      correctAncestorMatchesCount: 0,
+      pendingAncestorMatchesCount: 0,
+    };
+  }
+
+  if (hasWrongFinishedAncestor) {
+    return {
+      basePoints: KNOCKOUT_BASE_POINTS,
+      bonusPoints: 0,
+      totalPossiblePoints: KNOCKOUT_BASE_POINTS,
+      bonusAvailable: false,
+      bonusPending: false,
+      bonusBlockedReason: "broken_sequence",
+      ancestorMatchesCount: ancestors.length,
+      correctAncestorMatchesCount,
+      pendingAncestorMatchesCount,
+    };
+  }
+
+  if (pendingAncestorMatchesCount > 0) {
+    return {
+      basePoints: KNOCKOUT_BASE_POINTS,
+      bonusPoints,
+      totalPossiblePoints: KNOCKOUT_BASE_POINTS,
+      bonusAvailable: false,
+      bonusPending: true,
+      bonusBlockedReason: "pending_ancestors",
+      ancestorMatchesCount: ancestors.length,
+      correctAncestorMatchesCount,
+      pendingAncestorMatchesCount,
+    };
+  }
+
+  return {
+    basePoints: KNOCKOUT_BASE_POINTS,
+    bonusPoints,
+    totalPossiblePoints: KNOCKOUT_BASE_POINTS + bonusPoints,
+    bonusAvailable,
+    bonusPending: false,
+    bonusBlockedReason: null,
+    ancestorMatchesCount: ancestors.length,
+    correctAncestorMatchesCount,
+    pendingAncestorMatchesCount,
+  };
+}
+
+export function calculateKnockoutMatchScore(
+  match: KnockoutMatch,
+  matches: KnockoutMatch[],
+  picks: KnockoutPick[],
+): KnockoutMatchScore {
+  const pointsInfo = getKnockoutMatchPotentialPoints(match, matches, picks);
+  const picksByKey = pickMap(picks);
+  const isCorrect = isCorrectPick(match, picksByKey.get(matchKey(match)));
+  const totalPoints = isCorrect
+    ? pointsInfo.basePoints +
+      (pointsInfo.bonusAvailable ? pointsInfo.bonusPoints : 0)
+    : 0;
+
+  return {
+    ...pointsInfo,
+    totalPoints,
+    isCorrect,
+  };
 }
 
 function emptyBreakdown(): KnockoutScoreBreakdown {
@@ -92,39 +260,25 @@ export function scoreKnockoutBracket(
   matches: KnockoutMatch[],
   picks: KnockoutPick[],
 ): KnockoutScoreSummary {
-  const officialMatches = new Map<string, KnockoutMatch>();
-
-  matches.forEach((match) => {
-    if (match.winnerTeam) {
-      officialMatches.set(officialWinnerKey(match), match);
-    }
-  });
-
-  return picks.reduce<KnockoutScoreSummary>(
-    (summary, pick) => {
-      const weight = KNOCKOUT_SCORE_WEIGHTS[pick.round] ?? 0;
-      const officialMatch = officialMatches.get(`${pick.round}:${pick.position}`);
-
-      if (
-        weight > 0 &&
-        officialMatch?.winnerTeam &&
-        selectedTeamBelongsToMatch(officialMatch, pick.selectedTeam)
-      ) {
-        summary.possiblePoints += weight;
+  return matches.reduce<KnockoutScoreSummary>(
+    (summary, match) => {
+      if (!KNOCKOUT_ROUNDS.includes(match.round) || !match.winnerTeam) {
+        return summary;
       }
 
-      if (
-        weight > 0 &&
-        officialMatch?.winnerTeam === pick.selectedTeam &&
-        selectedTeamBelongsToMatch(officialMatch, pick.selectedTeam)
-      ) {
-        summary.totalPoints += weight;
+      const matchScore = calculateKnockoutMatchScore(match, matches, picks);
+
+      summary.possiblePoints += matchScore.basePoints +
+        (matchScore.bonusAvailable ? matchScore.bonusPoints : 0);
+
+      if (matchScore.isCorrect) {
+        summary.totalPoints += matchScore.totalPoints;
         summary.correctPicks += 1;
         addRoundScore(
           summary.breakdown,
           summary.correctBreakdown,
-          pick.round,
-          weight,
+          match.round,
+          matchScore.totalPoints,
         );
       }
 

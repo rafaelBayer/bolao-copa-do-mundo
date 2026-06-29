@@ -4,16 +4,21 @@ import type { KnockoutRankingEntry } from "@/lib/knockout/types";
 
 type KnockoutRankingProps = {
   entries: KnockoutRankingEntry[];
+  hasError?: boolean;
 };
 
-export function KnockoutRanking({ entries }: KnockoutRankingProps) {
+export function KnockoutRanking({ entries, hasError = false }: KnockoutRankingProps) {
   return (
     <section>
       <h2 className="mb-3 text-lg font-black text-slate-50 light:text-slate-950">
         Ranking Mata-mata
       </h2>
       <Card className="overflow-hidden">
-        {entries.length === 0 ? (
+        {hasError ? (
+          <p className="p-4 text-sm font-semibold text-amber-300 light:text-amber-700">
+            Nao foi possivel calcular o ranking do mata-mata agora.
+          </p>
+        ) : entries.length === 0 ? (
           <p className="p-4 text-sm font-semibold text-slate-400 light:text-slate-600">
             Ranking indisponivel ate os primeiros resultados oficiais.
           </p>

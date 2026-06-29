@@ -13,6 +13,11 @@ export {
   KNOCKOUT_TOURNAMENT_KEY,
 } from "./bracketStructure";
 import {
+  calculateKnockoutMatchScore,
+  getKnockoutMatchPotentialPoints,
+  KNOCKOUT_BASE_POINTS,
+} from "./scoreBracket";
+import {
   KNOCKOUT_ROUND_MATCH_COUNTS,
   KNOCKOUT_ROUNDS,
 } from "./bracketStructure";
@@ -108,6 +113,22 @@ function buildBracketMatch(input: {
   const teamB = isConcreteSide(official?.teamB, official?.teamBSource)
     ? official?.teamB
     : null;
+  const pointsInfo = official
+    ? getKnockoutMatchPotentialPoints(official, matches, picks)
+    : {
+        basePoints: KNOCKOUT_BASE_POINTS,
+        bonusPoints: 0,
+        totalPossiblePoints: KNOCKOUT_BASE_POINTS,
+        bonusAvailable: false,
+        bonusPending: false,
+        bonusBlockedReason: null,
+        ancestorMatchesCount: 0,
+        correctAncestorMatchesCount: 0,
+        pendingAncestorMatchesCount: 0,
+      };
+  const matchScore = official
+    ? calculateKnockoutMatchScore(official, matches, picks)
+    : null;
 
   return {
     id: official?.id ?? null,
@@ -137,13 +158,14 @@ function buildBracketMatch(input: {
     scoreUpdatedAt: official?.scoreUpdatedAt ?? null,
     isLocked: official?.isLocked ?? true,
     canPick: official?.canPick ?? false,
-    pointsIfCorrect: official?.pointsIfCorrect ?? 0,
+    pointsIfCorrect: pointsInfo.totalPossiblePoints,
     isFinished: official?.isFinished ?? false,
     isPickCorrect: official?.isPickCorrect ?? null,
-    pickPoints: official?.pickPoints ?? 0,
+    pickPoints: matchScore?.totalPoints ?? 0,
     winnerTeam: official?.winnerTeam ?? null,
     selectedTeam,
     invalidSelectedTeam,
+    pointsInfo,
   };
 }
 

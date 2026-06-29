@@ -779,10 +779,11 @@ export function LeaderboardClient({
                 Grupos - resultado correto: 1 pt
               </p>
               <p className="mt-1 text-sm font-bold text-slate-300 light:text-slate-700">
-                Mata-mata: 2, 3, 5, 8 e 12 pts por fase
+                Mata-mata: 2 pts por vencedor correto
               </p>
               <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
-                No mata-mata, cada acerto vale apenas para o confronto oficial correspondente.
+                Bonus de sequencia entra quando toda a arvore anterior do
+                confronto tambem foi acertada.
               </p>
             </div>
           ) : null}

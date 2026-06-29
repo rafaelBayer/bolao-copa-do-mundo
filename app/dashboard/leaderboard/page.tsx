@@ -6,7 +6,12 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { KNOCKOUT_TOURNAMENT_KEY } from "@/lib/knockout/bracketStructure";
-import type { KnockoutRankingEntry } from "@/lib/knockout/types";
+import { loadPoolKnockoutRanking } from "@/lib/knockout/loadKnockoutRanking";
+import type {
+  KnockoutMatch,
+  KnockoutRankingEntry,
+  KnockoutRound,
+} from "@/lib/knockout/types";
 import {
   buildLeaderboard,
   hasRealResult,
@@ -157,49 +162,52 @@ function buildRoundHighlights(
   };
 }
 
-function mapKnockoutRankingEntry(value: unknown): KnockoutRankingEntry {
+function mapKnockoutMatchRow(value: unknown): KnockoutMatch {
   const row = value as Record<string, unknown>;
-  const fallbackName =
-    typeof row.username === "string" ? row.username : "Participante";
 
   return {
-    userId: String(row.user_id),
-    name:
-      typeof row.profile_name === "string" && row.profile_name.trim()
-        ? row.profile_name
-        : fallbackName,
-    username: typeof row.username === "string" ? row.username : null,
-    avatarUrl: typeof row.avatar_url === "string" ? row.avatar_url : null,
-    totalPoints:
-      typeof row.total_points === "number" ? row.total_points : 0,
-    correctPicks:
-      typeof row.correct_picks === "number" ? row.correct_picks : 0,
-    submittedAt:
-      typeof row.submitted_at === "string" ? row.submitted_at : null,
-    completedAt:
-      typeof row.completed_at === "string" ? row.completed_at : null,
-    picksCount: typeof row.picks_count === "number" ? row.picks_count : 0,
-    isComplete: row.is_complete === true,
-    roundOf32Points:
-      typeof row.round_of_32_points === "number" ? row.round_of_32_points : 0,
-    roundOf16Points:
-      typeof row.round_of_16_points === "number" ? row.round_of_16_points : 0,
-    quarterfinalPoints:
-      typeof row.quarterfinal_points === "number" ? row.quarterfinal_points : 0,
-    semifinalPoints:
-      typeof row.semifinal_points === "number" ? row.semifinal_points : 0,
-    finalPoints:
-      typeof row.final_points === "number" ? row.final_points : 0,
-    roundOf32Correct:
-      typeof row.round_of_32_correct === "number" ? row.round_of_32_correct : 0,
-    roundOf16Correct:
-      typeof row.round_of_16_correct === "number" ? row.round_of_16_correct : 0,
-    quarterfinalCorrect:
-      typeof row.quarterfinal_correct === "number" ? row.quarterfinal_correct : 0,
-    semifinalCorrect:
-      typeof row.semifinal_correct === "number" ? row.semifinal_correct : 0,
-    finalCorrect:
-      typeof row.final_correct === "number" ? row.final_correct : 0,
+    id: String(row.id),
+    tournamentKey: String(row.tournament_key),
+    round: String(row.round) as KnockoutRound,
+    position: Number(row.position),
+    externalMatchId:
+      typeof row.external_match_id === "string" ? row.external_match_id : null,
+    teamASource:
+      typeof row.team_a_source === "string" ? row.team_a_source : null,
+    teamA: typeof row.team_a === "string" ? row.team_a : null,
+    teamACode: typeof row.team_a_code === "string" ? row.team_a_code : null,
+    teamAFlagUrl:
+      typeof row.team_a_flag_url === "string" ? row.team_a_flag_url : null,
+    teamBSource:
+      typeof row.team_b_source === "string" ? row.team_b_source : null,
+    teamB: typeof row.team_b === "string" ? row.team_b : null,
+    teamBCode: typeof row.team_b_code === "string" ? row.team_b_code : null,
+    teamBFlagUrl:
+      typeof row.team_b_flag_url === "string" ? row.team_b_flag_url : null,
+    startsAt: typeof row.starts_at === "string" ? row.starts_at : null,
+    lockAt: null,
+    statusShort:
+      typeof row.status_short === "string" ? row.status_short : null,
+    statusLong: typeof row.status_long === "string" ? row.status_long : null,
+    elapsed: typeof row.elapsed === "number" ? row.elapsed : null,
+    homeScoreLive:
+      typeof row.home_score_live === "number" ? row.home_score_live : null,
+    awayScoreLive:
+      typeof row.away_score_live === "number" ? row.away_score_live : null,
+    homeScore: typeof row.home_score === "number" ? row.home_score : null,
+    awayScore: typeof row.away_score === "number" ? row.away_score : null,
+    scoreUpdatedAt:
+      typeof row.score_updated_at === "string" ? row.score_updated_at : null,
+    isLocked: true,
+    canPick: false,
+    userPick: null,
+    pointsIfCorrect: 2,
+    isFinished: typeof row.winner_team === "string",
+    isPickCorrect: null,
+    pickPoints: 0,
+    winnerTeam: typeof row.winner_team === "string" ? row.winner_team : null,
+    winnerTeamCode:
+      typeof row.winner_team_code === "string" ? row.winner_team_code : null,
   };
 }
 
@@ -351,7 +359,7 @@ export default async function LeaderboardPage({
   const [
     { data, error },
     { data: liveData, error: liveError },
-    { data: knockoutRankingData, error: knockoutRankingError },
+    { data: knockoutMatchData, error: knockoutMatchesError },
   ] =
     await Promise.all([
       supabase.rpc("get_pool_leaderboard_data", {
@@ -360,17 +368,50 @@ export default async function LeaderboardPage({
       supabase.rpc("get_pool_live_leaderboard_data", {
         target_pool_id: selectedPool.id,
       }),
-      supabase.rpc("get_pool_knockout_ranking", {
-        target_pool_id: selectedPool.id,
-        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-      }),
+      supabase
+        .from("knockout_matches")
+        .select(
+          [
+            "id",
+            "tournament_key",
+            "round",
+            "position",
+            "external_match_id",
+            "team_a_source",
+            "team_a",
+            "team_a_code",
+            "team_a_flag_url",
+            "team_b_source",
+            "team_b",
+            "team_b_code",
+            "team_b_flag_url",
+            "starts_at",
+            "status_short",
+            "status_long",
+            "elapsed",
+            "home_score_live",
+            "away_score_live",
+            "home_score",
+            "away_score",
+            "score_updated_at",
+            "winner_team",
+            "winner_team_code",
+          ].join(", "),
+        )
+        .eq("tournament_key", KNOCKOUT_TOURNAMENT_KEY),
     ]);
   const rows = (data ?? []) as LeaderboardDataRow[];
   const liveRows = (liveData ?? []) as LiveLeaderboardDataRow[];
   const groupEntries = buildLeaderboard(rows);
-  const knockoutEntries = Array.isArray(knockoutRankingData)
-    ? (knockoutRankingData as unknown[]).map(mapKnockoutRankingEntry)
+  const knockoutMatches = Array.isArray(knockoutMatchData)
+    ? (knockoutMatchData as unknown[]).map(mapKnockoutMatchRow)
     : [];
+  const { entries: knockoutEntries, error: knockoutRankingError } =
+    await loadPoolKnockoutRanking({
+      poolId: selectedPool.id,
+      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
+      matches: knockoutMatches,
+    });
   const { overallEntries, knockoutTableEntries } = combineRankings(
     groupEntries,
     knockoutEntries,
@@ -442,7 +483,7 @@ export default async function LeaderboardPage({
         </Card>
       ) : null}
 
-      {knockoutRankingError ? (
+      {knockoutMatchesError || knockoutRankingError ? (
         <Card className="mb-5 p-5">
           <Badge tone="amber">Mata-mata</Badge>
           <p className="mt-3 text-sm text-slate-400 light:text-slate-600">

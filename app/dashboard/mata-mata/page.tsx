@@ -5,10 +5,10 @@ import { KnockoutBracket } from "@/components/knockout/KnockoutBracket";
 import {
   KNOCKOUT_TOURNAMENT_KEY,
 } from "@/lib/knockout/buildBracket";
+import { loadPoolKnockoutRanking } from "@/lib/knockout/loadKnockoutRanking";
 import type {
   KnockoutMatch,
   KnockoutPick,
-  KnockoutRankingEntry,
   KnockoutRound,
   KnockoutSettings,
   UserKnockoutBracket,
@@ -242,51 +242,6 @@ function mapPick(value: unknown): KnockoutPick {
   };
 }
 
-function mapRankingEntry(value: unknown): KnockoutRankingEntry {
-  const row = value as Record<string, unknown>;
-  const fallbackName =
-    typeof row.username === "string" ? row.username : "Participante";
-
-  return {
-    userId: String(row.user_id),
-    name:
-      typeof row.profile_name === "string" && row.profile_name.trim()
-        ? row.profile_name
-        : fallbackName,
-    username: typeof row.username === "string" ? row.username : null,
-    avatarUrl: typeof row.avatar_url === "string" ? row.avatar_url : null,
-    totalPoints:
-      typeof row.total_points === "number" ? row.total_points : 0,
-    correctPicks:
-      typeof row.correct_picks === "number" ? row.correct_picks : 0,
-    submittedAt:
-      typeof row.submitted_at === "string" ? row.submitted_at : null,
-    completedAt:
-      typeof row.completed_at === "string" ? row.completed_at : null,
-    picksCount: typeof row.picks_count === "number" ? row.picks_count : 0,
-    isComplete: row.is_complete === true,
-    roundOf32Points:
-      typeof row.round_of_32_points === "number" ? row.round_of_32_points : 0,
-    roundOf16Points:
-      typeof row.round_of_16_points === "number" ? row.round_of_16_points : 0,
-    quarterfinalPoints:
-      typeof row.quarterfinal_points === "number" ? row.quarterfinal_points : 0,
-    semifinalPoints:
-      typeof row.semifinal_points === "number" ? row.semifinal_points : 0,
-    finalPoints: typeof row.final_points === "number" ? row.final_points : 0,
-    roundOf32Correct:
-      typeof row.round_of_32_correct === "number" ? row.round_of_32_correct : 0,
-    roundOf16Correct:
-      typeof row.round_of_16_correct === "number" ? row.round_of_16_correct : 0,
-    quarterfinalCorrect:
-      typeof row.quarterfinal_correct === "number" ? row.quarterfinal_correct : 0,
-    semifinalCorrect:
-      typeof row.semifinal_correct === "number" ? row.semifinal_correct : 0,
-    finalCorrect:
-      typeof row.final_correct === "number" ? row.final_correct : 0,
-  };
-}
-
 function UnavailableKnockoutMessage() {
   return (
     <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
@@ -412,16 +367,12 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     );
   }
 
-  const [{ data: stateData, error: stateError }, { data: rankingData }] =
-    await Promise.all([
-      supabase.rpc("get_knockout_state", {
-        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-      }),
-      supabase.rpc("get_pool_knockout_ranking", {
-        target_pool_id: selectedPool.id,
-        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-      }),
-    ]);
+  const { data: stateData, error: stateError } = await supabase.rpc(
+    "get_knockout_state",
+    {
+      target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+    },
+  );
 
   if (stateError) {
     if (
@@ -439,10 +390,6 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
   }
 
   const stateRow = single(stateData as Record<string, unknown>[] | null);
-  const rankingEntries = Array.isArray(rankingData)
-    ? (rankingData as unknown[]).map(mapRankingEntry)
-    : [];
-
   if (!stateRow) {
     return <UnavailableKnockoutMessage />;
   }
@@ -452,6 +399,12 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     ? (stateRow.matches as unknown[]).map(mapMatch)
     : [];
   const matches = await enrichMatchesWithLiveScores(supabase, rawMatches);
+  const { entries: rankingEntries, error: rankingError } =
+    await loadPoolKnockoutRanking({
+      poolId: selectedPool.id,
+      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
+      matches,
+    });
   const bracket = mapBracket(stateRow.bracket);
   const picks = Array.isArray(stateRow.picks)
     ? (stateRow.picks as unknown[]).map(mapPick)
@@ -500,6 +453,7 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         initialBracket={bracket}
         initialPicks={picks}
         rankingEntries={rankingEntries}
+        rankingError={rankingError ? true : false}
         availableMatchesCount={
           typeof stateRow.available_matches_count === "number"
             ? stateRow.available_matches_count

@@ -33,6 +33,7 @@ type KnockoutBracketProps = {
   initialBracket: UserKnockoutBracket | null;
   initialPicks: KnockoutPick[];
   rankingEntries: KnockoutRankingEntry[];
+  rankingError: boolean;
   availableMatchesCount: number;
   openPicksCount: number;
   submittedOpenPicksCount: number;
@@ -116,6 +117,7 @@ export function KnockoutBracket({
   initialBracket,
   initialPicks,
   rankingEntries,
+  rankingError,
   availableMatchesCount,
   openPicksCount,
   submittedOpenPicksCount,
@@ -476,8 +478,8 @@ export function KnockoutBracket({
               Pontuacao dos confrontos oficiais
             </h2>
             <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
-              16 avos: 2 pts; oitavas: 3; quartas: 5; semifinal: 8;
-              final: 12. So contam jogos com vencedor oficial.
+              Cada acerto vale 2 pts. Jogos avancados podem somar bonus se sua
+              sequencia anterior naquela chave estiver perfeita.
             </p>
           </div>
           <div className="rounded-lg border border-slate-800 bg-slate-950/45 px-4 py-3 text-right light:border-slate-200 light:bg-slate-50">
@@ -589,7 +591,7 @@ export function KnockoutBracket({
         </div>
       </div>
 
-      <KnockoutRanking entries={rankingEntries} />
+      <KnockoutRanking entries={rankingEntries} hasError={rankingError} />
 
       {initialBracket ? null : (
         <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
