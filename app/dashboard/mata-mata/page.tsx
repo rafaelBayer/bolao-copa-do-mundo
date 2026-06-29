@@ -5,6 +5,7 @@ import { KnockoutBracket } from "@/components/knockout/KnockoutBracket";
 import {
   KNOCKOUT_TOURNAMENT_KEY,
 } from "@/lib/knockout/buildBracket";
+import { loadCommunityPicks } from "@/lib/knockout/loadCommunityPicks";
 import { loadPoolKnockoutRanking } from "@/lib/knockout/loadKnockoutRanking";
 import type {
   KnockoutMatch,
@@ -405,6 +406,13 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
       tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
       matches,
     });
+  const { summaries: communityPicks, error: communityPicksError } =
+    await loadCommunityPicks({
+      poolId: selectedPool.id,
+      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
+      currentUserId: userId,
+      matches,
+    });
   const bracket = mapBracket(stateRow.bracket);
   const picks = Array.isArray(stateRow.picks)
     ? (stateRow.picks as unknown[]).map(mapPick)
@@ -454,6 +462,8 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         initialPicks={picks}
         rankingEntries={rankingEntries}
         rankingError={rankingError ? true : false}
+        communityPicksByMatchKey={Object.fromEntries(communityPicks)}
+        communityPicksError={communityPicksError ? true : false}
         availableMatchesCount={
           typeof stateRow.available_matches_count === "number"
             ? stateRow.available_matches_count

@@ -1,4 +1,4 @@
-import { Check, Lock } from "lucide-react";
+import { Check, Flame, Lock } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { TeamFlag } from "@/components/groups/TeamFlag";
 import { getMatchDisplayScore } from "@/lib/groups/getMatchDisplayScore";
@@ -8,7 +8,10 @@ import {
   isHalftimeStatus,
   isLiveMatchStatus,
 } from "@/lib/scores/liveScoreStatus";
-import type { KnockoutBracketMatch } from "@/lib/knockout/types";
+import type {
+  KnockoutBracketMatch,
+  KnockoutCommunityPicksSummary,
+} from "@/lib/knockout/types";
 
 type KnockoutMatchCardProps = {
   match: KnockoutBracketMatch;
@@ -16,6 +19,8 @@ type KnockoutMatchCardProps = {
   side?: "left" | "right" | "center";
   showMeta?: boolean;
   isHighlighted?: boolean;
+  communityPicks?: KnockoutCommunityPicksSummary;
+  onCommunityPicksOpen?: (summary: KnockoutCommunityPicksSummary) => void;
   onSelect: (team: string) => void;
 };
 
@@ -103,44 +108,22 @@ function formatLockAt(value: string | null) {
   }).format(new Date(value));
 }
 
-function pointsTitle(match: KnockoutBracketMatch) {
-  const { pointsInfo } = match;
-
-  if (pointsInfo.ancestorMatchesCount === 0) {
-    return "Vale 2 pontos";
+function communityPicksLabel(summary: KnockoutCommunityPicksSummary) {
+  if (summary.totalPicks === 0) {
+    return "Nenhum palpite registrado";
   }
 
-  if (pointsInfo.bonusAvailable) {
-    return `Vale ate ${pointsInfo.totalPossiblePoints} pontos`;
-  }
+  return summary.options
+    .map((option) => {
+      const label = option.teamCode?.slice(0, 3).toUpperCase() ?? option.teamName;
 
-  if (pointsInfo.bonusPending) {
-    return `Pode valer ate ${pointsInfo.basePoints + pointsInfo.bonusPoints} pontos`;
-  }
-
-  return "Vale 2 pontos";
+      return `${label} ${option.percentage}%`;
+    })
+    .join(" | ");
 }
 
-function pointsDescription(match: KnockoutBracketMatch) {
-  const { pointsInfo } = match;
-
-  if (pointsInfo.ancestorMatchesCount === 0) {
-    return null;
-  }
-
-  if (pointsInfo.bonusAvailable) {
-    return `${pointsInfo.basePoints} pelo acerto + ${pointsInfo.bonusPoints} de bonus por sequencia`;
-  }
-
-  if (pointsInfo.bonusPending) {
-    return "Bonus depende dos resultados anteriores desta chave";
-  }
-
-  if (pointsInfo.bonusBlockedReason === "broken_sequence") {
-    return "Bonus indisponivel porque sua sequencia nesta chave foi quebrada";
-  }
-
-  return null;
+function showActiveBonusIcon(match: KnockoutBracketMatch) {
+  return match.pointsInfo.bonusAvailable && !match.isFinished;
 }
 
 export function KnockoutMatchCard({
@@ -149,6 +132,8 @@ export function KnockoutMatchCard({
   side = "center",
   showMeta = false,
   isHighlighted = false,
+  communityPicks,
+  onCommunityPicksOpen,
   onSelect,
 }: KnockoutMatchCardProps) {
   const hasTeams = Boolean(match.teamA.team && match.teamB.team);
@@ -182,6 +167,15 @@ export function KnockoutMatchCard({
       ) : null}
       {side === "right" ? (
         <span className="pointer-events-none absolute right-full top-1/2 hidden h-px w-5 bg-slate-700/75 light:bg-slate-300 lg:block" />
+      ) : null}
+      {showActiveBonusIcon(match) ? (
+        <span
+          title="Bonus ativo"
+          aria-label="Bonus ativo"
+          className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-orange-300 bg-orange-500 text-white shadow-lg shadow-orange-950/30 light:border-orange-400 light:bg-orange-500"
+        >
+          <Flame size={14} aria-hidden="true" fill="currentColor" />
+        </span>
       ) : null}
       <Card
         className={`w-[9.25rem] p-2 shadow-sm ${
@@ -253,16 +247,6 @@ export function KnockoutMatchCard({
             onSelect={() => match.teamB.team && onSelect(match.teamB.team)}
           />
         </div>
-        <div className="mt-2 rounded-md border border-slate-800/80 bg-slate-950/35 px-2 py-1.5 light:border-slate-200 light:bg-slate-50">
-          <p className="text-[10px] font-black leading-3 text-slate-200 light:text-slate-800">
-            {pointsTitle(match)}
-          </p>
-          {pointsDescription(match) ? (
-            <p className="mt-0.5 text-[9px] font-semibold leading-3 text-slate-500 light:text-slate-500">
-              {pointsDescription(match)}
-            </p>
-          ) : null}
-        </div>
         <div className="mt-2 min-h-4 text-[10px] font-bold leading-4 text-slate-500 light:text-slate-500">
           {match.isLocked && hasTeams && !match.isFinished ? (
             <span className="inline-flex items-center gap-1">
@@ -273,6 +257,33 @@ export function KnockoutMatchCard({
             statusLabel
           )}
         </div>
+        {communityPicks ? (
+          <button
+            type="button"
+            onClick={() => onCommunityPicksOpen?.(communityPicks)}
+            className="mt-2 w-full rounded-md border border-slate-800 bg-slate-950/45 px-2 py-1.5 text-left transition hover:border-emerald-400/40 light:border-slate-200 light:bg-slate-50 light:hover:border-emerald-300"
+          >
+            <span className="block text-[9px] font-black uppercase tracking-normal text-slate-400 light:text-slate-500">
+              Palpites
+            </span>
+            <span className="mt-0.5 block truncate text-[10px] font-bold text-slate-200 light:text-slate-800">
+              {communityPicksLabel(communityPicks)}
+            </span>
+            {communityPicks.totalPicks > 0 ? (
+              <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-slate-800 light:bg-slate-200">
+                <span
+                  className="block h-full rounded-full bg-emerald-400 light:bg-emerald-600"
+                  style={{
+                    width: `${communityPicks.options[0]?.percentage ?? 0}%`,
+                  }}
+                />
+              </span>
+            ) : null}
+            <span className="mt-1 block text-[9px] font-black text-emerald-300 light:text-emerald-700">
+              Ver detalhes
+            </span>
+          </button>
+        ) : null}
         {match.selectedTeam ? (
           <div className="mt-1 text-[10px] font-bold text-emerald-200 light:text-emerald-700">
             Palpite: {match.selectedTeam}

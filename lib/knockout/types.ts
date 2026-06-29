@@ -69,6 +69,17 @@ export type UserKnockoutBracket = {
   updatedAt: string;
 };
 
+export type KnockoutRankingPickDetail = {
+  round: KnockoutRound;
+  position: number;
+  teamA: string | null;
+  teamB: string | null;
+  selectedTeam: string;
+  winnerTeam: string | null;
+  points: number;
+  isCorrect: boolean | null;
+};
+
 export type KnockoutRankingEntry = {
   userId: string;
   name: string;
@@ -90,6 +101,7 @@ export type KnockoutRankingEntry = {
   quarterfinalCorrect: number;
   semifinalCorrect: number;
   finalCorrect: number;
+  picks: KnockoutRankingPickDetail[];
 };
 
 export type KnockoutSlot = {
@@ -135,6 +147,31 @@ export type KnockoutBracketMatch = {
     correctAncestorMatchesCount: number;
     pendingAncestorMatchesCount: number;
   };
+};
+
+export type KnockoutCommunityPickUser = {
+  id: string;
+  name: string;
+  username: string | null;
+  avatarUrl: string | null;
+  isCurrentUser: boolean;
+};
+
+export type KnockoutCommunityPickOption = {
+  teamName: string;
+  teamCode: string | null;
+  teamFlagUrl: string | null;
+  count: number;
+  percentage: number;
+  users: KnockoutCommunityPickUser[];
+};
+
+export type KnockoutCommunityPicksSummary = {
+  matchKey: string;
+  isLocked: boolean;
+  totalPicks: number;
+  userPick: string | null;
+  options: KnockoutCommunityPickOption[];
 };
 
 export type KnockoutRoundState = {

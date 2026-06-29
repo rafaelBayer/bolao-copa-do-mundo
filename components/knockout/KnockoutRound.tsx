@@ -1,5 +1,9 @@
 import { KNOCKOUT_ROUND_LABELS } from "@/lib/knockout/buildBracket";
-import type { KnockoutBracketMatch, KnockoutRound as RoundName } from "@/lib/knockout/types";
+import type {
+  KnockoutBracketMatch,
+  KnockoutCommunityPicksSummary,
+  KnockoutRound as RoundName,
+} from "@/lib/knockout/types";
 import { KnockoutMatchCard } from "./KnockoutMatchCard";
 
 type KnockoutRoundProps = {
@@ -11,6 +15,11 @@ type KnockoutRoundProps = {
   compactTitle?: boolean;
   showMeta?: boolean;
   highlightedMatchKey?: string | null;
+  communityPicksByMatchKey?: Record<string, KnockoutCommunityPicksSummary>;
+  onCommunityPicksOpen?: (
+    match: KnockoutBracketMatch,
+    summary: KnockoutCommunityPicksSummary,
+  ) => void;
   onSelect: (round: RoundName, position: number, team: string) => void;
 };
 
@@ -23,6 +32,8 @@ export function KnockoutRound({
   compactTitle = false,
   showMeta = false,
   highlightedMatchKey = null,
+  communityPicksByMatchKey = {},
+  onCommunityPicksOpen,
   onSelect,
 }: KnockoutRoundProps) {
   return (
@@ -46,6 +57,12 @@ export function KnockoutRound({
             showMeta={showMeta}
             isHighlighted={
               highlightedMatchKey === `${match.round}:${match.position}`
+            }
+            communityPicks={
+              communityPicksByMatchKey[`${match.round}:${match.position}`]
+            }
+            onCommunityPicksOpen={(summary) =>
+              onCommunityPicksOpen?.(match, summary)
             }
             onSelect={(team) => onSelect(match.round, match.position, team)}
           />

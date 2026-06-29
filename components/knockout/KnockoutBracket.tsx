@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
@@ -14,6 +15,8 @@ import { pruneInvalidKnockoutPicks } from "@/lib/knockout/validateBracket";
 import { isInLiveScoreRefreshWindow } from "@/lib/scores/liveRefreshWindow";
 import type {
   KnockoutMatch,
+  KnockoutBracketMatch,
+  KnockoutCommunityPicksSummary,
   KnockoutPick,
   KnockoutRankingEntry,
   KnockoutRound,
@@ -34,6 +37,8 @@ type KnockoutBracketProps = {
   initialPicks: KnockoutPick[];
   rankingEntries: KnockoutRankingEntry[];
   rankingError: boolean;
+  communityPicksByMatchKey: Record<string, KnockoutCommunityPicksSummary>;
+  communityPicksError: boolean;
   availableMatchesCount: number;
   openPicksCount: number;
   submittedOpenPicksCount: number;
@@ -46,6 +51,10 @@ type SaveStatus = "idle" | "saving" | "draft" | "error" | "locked";
 type FocusRequest = {
   matchKey: string;
   requestId: number;
+};
+type CommunityPickDialogState = {
+  match: KnockoutBracketMatch;
+  summary: KnockoutCommunityPicksSummary;
 };
 type KnockoutLiveScoreFields = Pick<
   KnockoutMatch,
@@ -118,6 +127,8 @@ export function KnockoutBracket({
   initialPicks,
   rankingEntries,
   rankingError,
+  communityPicksByMatchKey,
+  communityPicksError,
   availableMatchesCount,
   openPicksCount,
   submittedOpenPicksCount,
@@ -131,6 +142,8 @@ export function KnockoutBracket({
     pruneInvalidKnockoutPicks(matches, initialPicks),
   );
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  const [communityPickDialog, setCommunityPickDialog] =
+    useState<CommunityPickDialogState | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const requestIdRef = useRef(0);
   const lastFocusedRoundRequestIdRef = useRef<number | null>(null);
@@ -337,6 +350,13 @@ export function KnockoutBracket({
     });
   }, []);
 
+  const handleCommunityPicksOpen = useCallback(
+    (match: KnockoutBracketMatch, summary: KnockoutCommunityPicksSummary) => {
+      setCommunityPickDialog({ match, summary });
+    },
+    [],
+  );
+
   const persistPick = useCallback(
     (round: KnockoutRound, position: number, team: string) => {
       const requestId = requestIdRef.current + 1;
@@ -526,6 +546,8 @@ export function KnockoutBracket({
                 matches={roundState.matches}
                 disabled={false}
                 highlightedMatchKey={highlightedMatchKey}
+                communityPicksByMatchKey={communityPicksByMatchKey}
+                onCommunityPicksOpen={handleCommunityPicksOpen}
                 onSelect={updatePick}
               />
             </div>
@@ -546,6 +568,8 @@ export function KnockoutBracket({
                 compactTitle
                 className="h-full"
                 highlightedMatchKey={highlightedMatchKey}
+                communityPicksByMatchKey={communityPicksByMatchKey}
+                onCommunityPicksOpen={handleCommunityPicksOpen}
                 onSelect={updatePick}
               />
             ))}
@@ -566,6 +590,14 @@ export function KnockoutBracket({
                       highlightedMatchKey ===
                       `${finalMatch.round}:${finalMatch.position}`
                     }
+                    communityPicks={
+                      communityPicksByMatchKey[
+                        `${finalMatch.round}:${finalMatch.position}`
+                      ]
+                    }
+                    onCommunityPicksOpen={(summary) =>
+                      handleCommunityPicksOpen(finalMatch, summary)
+                    }
                     onSelect={(team) =>
                       updatePick(finalMatch.round, finalMatch.position, team)
                     }
@@ -584,6 +616,8 @@ export function KnockoutBracket({
                 compactTitle
                 className="h-full"
                 highlightedMatchKey={highlightedMatchKey}
+                communityPicksByMatchKey={communityPicksByMatchKey}
+                onCommunityPicksOpen={handleCommunityPicksOpen}
                 onSelect={updatePick}
               />
             ))}
@@ -593,11 +627,133 @@ export function KnockoutBracket({
 
       <KnockoutRanking entries={rankingEntries} hasError={rankingError} />
 
+      {communityPicksError ? (
+        <p className="text-xs font-semibold text-amber-300 light:text-amber-700">
+          Nao foi possivel carregar os palpites fechados da galera agora.
+        </p>
+      ) : null}
+
+      {communityPickDialog ? (
+        <CommunityPicksDialog
+          state={communityPickDialog}
+          onClose={() => setCommunityPickDialog(null)}
+        />
+      ) : null}
+
       {initialBracket ? null : (
         <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
           Seu mata-mata ainda nao foi salvo.
         </p>
       )}
+    </div>
+  );
+}
+
+function CommunityPicksDialog({
+  state,
+  onClose,
+}: {
+  state: CommunityPickDialogState;
+  onClose: () => void;
+}) {
+  const { match, summary } = state;
+  const matchLabel = `${match.teamA.team ?? match.teamA.label} x ${
+    match.teamB.team ?? match.teamB.label
+  }`;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="community-picks-title"
+      className="fixed inset-0 z-50 flex items-end bg-slate-950/75 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-4"
+    >
+      <div className="max-h-[92vh] w-full overflow-hidden rounded-t-2xl border border-slate-800 bg-slate-950 shadow-2xl light:border-slate-200 light:bg-white sm:max-w-2xl sm:rounded-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-slate-800 p-4 light:border-slate-200">
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase tracking-wide text-emerald-300 light:text-emerald-700">
+              Palpites da galera
+            </p>
+            <h2
+              id="community-picks-title"
+              className="mt-1 truncate text-xl font-black text-slate-50 light:text-slate-950"
+            >
+              {matchLabel}
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500 light:text-slate-500">
+              {summary.totalPicks}{" "}
+              {summary.totalPicks === 1 ? "palpite" : "palpites"} no bolao
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-900 hover:text-slate-100 light:text-slate-500 light:hover:bg-slate-100 light:hover:text-slate-950"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="scrollbar-hidden max-h-[70vh] overflow-y-auto p-4">
+          {summary.totalPicks === 0 ? (
+            <p className="rounded-xl border border-slate-800 bg-slate-900/55 p-4 text-sm font-semibold text-slate-400 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
+              Nenhum palpite registrado para este jogo.
+            </p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {summary.options.map((option) => (
+                <section
+                  key={option.teamName}
+                  className="rounded-xl border border-slate-800 bg-slate-900/45 p-3 light:border-slate-200 light:bg-slate-50"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-black text-slate-100 light:text-slate-950">
+                        {option.teamName}
+                      </h3>
+                      <p className="mt-1 text-xs font-bold text-slate-500 light:text-slate-500">
+                        {option.count}{" "}
+                        {option.count === 1 ? "palpite" : "palpites"} ·{" "}
+                        {option.percentage}%
+                      </p>
+                    </div>
+                  </div>
+                  <div className="scrollbar-hidden mt-3 max-h-52 space-y-1 overflow-y-auto pr-1">
+                    {option.users.length === 0 ? (
+                      <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
+                        Nenhum participante escolheu este time.
+                      </p>
+                    ) : (
+                      option.users.map((user) => (
+                        <div
+                          key={user.id}
+                          className={`flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-xs font-bold ${
+                            user.isCurrentUser
+                              ? "bg-emerald-400/15 text-emerald-200 light:bg-emerald-50 light:text-emerald-800"
+                              : "bg-slate-950/35 text-slate-300 light:bg-white light:text-slate-700"
+                          }`}
+                        >
+                          <span className="truncate">{user.name}</span>
+                          {user.isCurrentUser ? (
+                            <span className="shrink-0 text-[10px] font-black uppercase">
+                              Voce
+                            </span>
+                          ) : null}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </section>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/35 p-3 text-sm font-bold text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-700">
+            Seu palpite: {summary.userPick ?? "sem palpite"}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

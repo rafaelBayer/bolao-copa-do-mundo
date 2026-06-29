@@ -2,8 +2,16 @@ import {
   KNOCKOUT_ROUNDS,
 } from "./bracketStructure";
 import { pickKey } from "./buildBracket";
-import { scoreKnockoutBracket } from "./scoreBracket";
-import type { KnockoutMatch, KnockoutPick, KnockoutRankingEntry } from "./types";
+import {
+  calculateKnockoutMatchScore,
+  scoreKnockoutBracket,
+} from "./scoreBracket";
+import type {
+  KnockoutMatch,
+  KnockoutPick,
+  KnockoutRankingEntry,
+  KnockoutRankingPickDetail,
+} from "./types";
 
 export type KnockoutRankingMember = {
   userId: string;
@@ -39,6 +47,62 @@ function pickBelongsToAvailableMatch(
   );
 }
 
+function canRevealPick(match: KnockoutMatch) {
+  const lockAt = match.startsAt
+    ? new Date(match.startsAt).getTime() - 10 * 60 * 1000
+    : null;
+  const isClosedByTime = lockAt !== null && Date.now() >= lockAt;
+
+  return Boolean(
+    match.winnerTeam ||
+      match.isFinished ||
+      isClosedByTime,
+  );
+}
+
+function buildPickDetails(input: {
+  picks: KnockoutRankingPick[];
+  matches: KnockoutMatch[];
+  matchByKey: Map<string, KnockoutMatch>;
+}): KnockoutRankingPickDetail[] {
+  return input.picks
+    .map((pick) => {
+      const match = input.matchByKey.get(pickKey(pick.round, pick.position));
+
+      if (!pickBelongsToAvailableMatch(match, pick) || !match) {
+        return null;
+      }
+
+      if (!canRevealPick(match)) {
+        return null;
+      }
+
+      const score = calculateKnockoutMatchScore(match, input.matches, input.picks);
+
+      return {
+        round: pick.round,
+        position: pick.position,
+        teamA: match.teamA,
+        teamB: match.teamB,
+        selectedTeam: pick.selectedTeam,
+        winnerTeam: match.winnerTeam,
+        points: score.totalPoints,
+        isCorrect: match.winnerTeam ? score.isCorrect : null,
+      } satisfies KnockoutRankingPickDetail;
+    })
+    .filter((pick): pick is KnockoutRankingPickDetail => Boolean(pick))
+    .sort((left, right) => {
+      const leftRoundIndex = KNOCKOUT_ROUNDS.indexOf(left.round);
+      const rightRoundIndex = KNOCKOUT_ROUNDS.indexOf(right.round);
+
+      if (leftRoundIndex !== rightRoundIndex) {
+        return leftRoundIndex - rightRoundIndex;
+      }
+
+      return left.position - right.position;
+    });
+}
+
 export function buildKnockoutRanking(input: {
   members: KnockoutRankingMember[];
   profiles: KnockoutRankingProfile[];
@@ -68,6 +132,11 @@ export function buildKnockoutRanking(input: {
       const bracket = bracketByUserId.get(member.userId);
       const picks = bracket ? picksByBracketId.get(bracket.id) ?? [] : [];
       const score = scoreKnockoutBracket(input.matches, picks);
+      const pickDetails = buildPickDetails({
+        picks,
+        matches: input.matches,
+        matchByKey,
+      });
       const validPicksCount = picks.filter((pick) =>
         pickBelongsToAvailableMatch(
           matchByKey.get(pickKey(pick.round, pick.position)),
@@ -103,6 +172,7 @@ export function buildKnockoutRanking(input: {
         quarterfinalCorrect: score.correctBreakdown.quarterfinalCorrect,
         semifinalCorrect: score.correctBreakdown.semifinalCorrect,
         finalCorrect: score.correctBreakdown.finalCorrect,
+        picks: pickDetails,
       } satisfies KnockoutRankingEntry;
     })
     .sort((left, right) => {
