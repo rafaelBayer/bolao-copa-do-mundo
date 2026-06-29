@@ -8,6 +8,7 @@ import {
   extractEspnGoals,
   fetchEspnScoreboardByDate,
   fetchEspnSummaryByEventId,
+  getEspnWinner,
   mapEspnEventToInternalMatch,
   type EspnEvent,
   type EspnGoal,
@@ -117,10 +118,12 @@ type MatchRow = {
   home_team?: {
     id: string;
     name: string;
+    code?: string | null;
   } | null;
   away_team?: {
     id: string;
     name: string;
+    code?: string | null;
   } | null;
 };
 
@@ -135,6 +138,8 @@ type MatchUpdate = {
   score_updated_at: string;
   score_provider?: string | null;
   score_provider_fixture_id?: string | null;
+  winner_team?: string | null;
+  winner_team_code?: string | null;
 };
 
 type LiveScoreSyncLogInsert = {
@@ -472,7 +477,9 @@ async function fetchKnockoutMatches(supabase: SyncSupabaseClient) {
         "away_score",
         "score_updated_at",
         "team_a",
+        "team_a_code",
         "team_b",
+        "team_b_code",
       ].join(", "),
     )
     .not("starts_at", "is", null)
@@ -517,13 +524,83 @@ async function fetchKnockoutMatches(supabase: SyncSupabaseClient) {
         : null,
     home_team:
       typeof match.team_a === "string"
-        ? { id: `knockout:${match.id}:a`, name: match.team_a }
+        ? {
+            id: `knockout:${match.id}:a`,
+            name: match.team_a,
+            code: typeof match.team_a_code === "string" ? match.team_a_code : null,
+          }
         : null,
     away_team:
       typeof match.team_b === "string"
-        ? { id: `knockout:${match.id}:b`, name: match.team_b }
+        ? {
+            id: `knockout:${match.id}:b`,
+            name: match.team_b,
+            code: typeof match.team_b_code === "string" ? match.team_b_code : null,
+          }
         : null,
   }));
+}
+
+function knockoutWinnerUpdateFromScore(
+  match: MatchRow,
+  homeScore: number | null,
+  awayScore: number | null,
+  isFinal: boolean,
+): Pick<MatchUpdate, "winner_team" | "winner_team_code"> {
+  if (
+    match.source_table !== "knockout_matches" ||
+    !isFinal ||
+    typeof homeScore !== "number" ||
+    typeof awayScore !== "number" ||
+    homeScore === awayScore
+  ) {
+    return {};
+  }
+
+  const winner = homeScore > awayScore ? match.home_team : match.away_team;
+
+  if (!winner?.name) {
+    return {};
+  }
+
+  return {
+    winner_team: winner.name,
+    winner_team_code: winner.code ?? null,
+  };
+}
+
+function knockoutWinnerUpdateFromEspn(input: {
+  match: MatchRow;
+  event: EspnEvent;
+  homeScore: number | null;
+  awayScore: number | null;
+  isFinal: boolean;
+}): Pick<MatchUpdate, "winner_team" | "winner_team_code"> {
+  if (input.match.source_table !== "knockout_matches" || !input.isFinal) {
+    return {};
+  }
+
+  const winner = getEspnWinner(input.event);
+  const localWinner =
+    winner?.side === "home"
+      ? input.match.home_team
+      : winner?.side === "away"
+        ? input.match.away_team
+        : null;
+
+  if (localWinner?.name) {
+    return {
+      winner_team: localWinner.name,
+      winner_team_code: localWinner.code ?? winner?.code ?? null,
+    };
+  }
+
+  return knockoutWinnerUpdateFromScore(
+    input.match,
+    input.homeScore,
+    input.awayScore,
+    input.isFinal,
+  );
 }
 
 function providerFixtureIdForMatch(
@@ -885,6 +962,12 @@ async function runWorldcup26Sync(input: {
       score_updated_at: input.now.toISOString(),
       score_provider: "worldcup26",
       score_provider_fixture_id: fixtureId,
+      ...knockoutWinnerUpdateFromScore(
+        match,
+        fixture.homeScore,
+        fixture.awayScore,
+        isFinal,
+      ),
     };
 
     await updateMatch(input.supabase, match, update);
@@ -1305,6 +1388,13 @@ async function runEspnSync(input: {
       score_updated_at: input.now.toISOString(),
       score_provider: "espn",
       score_provider_fixture_id: fixtureId,
+      ...knockoutWinnerUpdateFromEspn({
+        match,
+        event,
+        homeScore: fixture.homeScore,
+        awayScore: fixture.awayScore,
+        isFinal,
+      }),
     };
 
     await updateMatch(input.supabase, match, update);
@@ -1358,6 +1448,8 @@ async function updateMatch(
         away_score: update.away_score,
         score_provider: update.score_provider,
         score_provider_fixture_id: update.score_provider_fixture_id,
+        winner_team: update.winner_team,
+        winner_team_code: update.winner_team_code,
       })}`,
     );
     return;
@@ -1729,6 +1821,12 @@ async function runLiveScoreSyncForTarget(
               ? fixture.awayScore
               : match.away_score,
           score_updated_at: now.toISOString(),
+          ...knockoutWinnerUpdateFromScore(
+            match,
+            fixture.homeScore,
+            fixture.awayScore,
+            isFinal,
+          ),
         };
 
         await updateMatch(supabase, match, update);

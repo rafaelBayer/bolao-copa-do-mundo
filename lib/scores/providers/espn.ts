@@ -473,6 +473,23 @@ export function mapEspnEventToInternalMatch(
   };
 }
 
+export function getEspnWinner(event: EspnEvent) {
+  const competitors = competitionForEvent(event)?.competitors ?? [];
+  const winner = competitors.find((competitor) => booleanValue(competitor.winner));
+
+  if (!winner) {
+    return null;
+  }
+
+  const side = stringValue(winner.homeAway);
+
+  return {
+    name: teamName(winner),
+    code: stringValue(winner.team?.abbreviation),
+    side: side === "home" || side === "away" ? side : null,
+  };
+}
+
 function minuteFromDetail(detail: EspnDetail) {
   const displayValue = stringValue(detail.clock?.displayValue);
   const fromDisplay = displayValue?.match(/(\d+)/)?.[1];
