@@ -95,16 +95,16 @@ export function GroupSection({
     tableMode === "simulation" ? simulatedStandings : realStandings;
   const tableTitle =
     tableMode === "simulation"
-      ? "Classificacao simulada"
-      : "Classificacao real";
+      ? "Classificação simulada"
+      : "Classificação real";
   const tableSubtitle =
     tableMode === "simulation"
       ? "Baseada nos seus palpites preenchidos."
       : "Baseada nos resultados finais e placares ao vivo.";
   const emptyMessage =
     tableMode === "simulation"
-      ? "Preencha seus palpites para simular a classificacao do grupo."
-      : "Ainda nao ha resultados cadastrados para este grupo.";
+      ? "Preencha seus palpites para simular a classificação do grupo."
+      : "Ainda não há resultados cadastrados para este grupo.";
 
   return (
     <Card className="overflow-hidden p-4 md:p-5 xl:p-6">
@@ -118,7 +118,7 @@ export function GroupSection({
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Badge tone="emerald">{group.teams.length} selecoes</Badge>
+          <Badge tone="emerald">{group.teams.length} seleções</Badge>
           <Badge tone="amber">{group.matches.length} jogos</Badge>
           <Badge tone={isComplete ? "emerald" : "default"}>
             {isComplete
@@ -152,7 +152,7 @@ export function GroupSection({
                     : "text-slate-400 hover:text-slate-100 light:text-slate-500 light:hover:text-slate-950"
                 }`}
               >
-                Minha simulacao
+                Minha simulação
               </button>
               <button
                 type="button"
@@ -163,7 +163,7 @@ export function GroupSection({
                     : "text-slate-400 hover:text-slate-100 light:text-slate-500 light:hover:text-slate-950"
                 }`}
               >
-                Classificacao real
+                Classificação real
               </button>
             </div>
           </div>

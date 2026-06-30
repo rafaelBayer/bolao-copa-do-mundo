@@ -76,7 +76,7 @@ function EmptyState({
     <div className="rounded-2xl border border-slate-800 bg-slate-950/35 p-4 text-sm text-slate-400 light:border-slate-200 light:bg-slate-50 light:text-slate-500">
       {isCurrentUser
         ? "Seus palpites preenchidos aparecem aqui."
-        : "Nenhum palpite liberado ainda. Os palpites dos outros participantes aparecem apos o inicio dos jogos."}
+        : "Nenhum palpite liberado ainda. Os palpites dos outros participantes aparecem após o início dos jogos."}
     </div>
   );
 }
@@ -122,13 +122,13 @@ export default async function UserProfilePage({
             className="inline-flex items-center gap-2 text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
           >
             <ArrowLeft size={16} aria-hidden="true" />
-            Voltar para classificacao
+            Voltar para classificação
           </Link>
           <h1 className="mt-5 text-2xl font-black text-slate-50 light:text-slate-950">
-            Bolao nao encontrado
+            Bolão não encontrado
           </h1>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
-            Esse bolao nao existe ou voce nao tem permissao para ver este contexto.
+            Esse bolão não existe ou você não tem permissão para ver este contexto.
           </p>
         </Card>
       </main>
@@ -139,9 +139,9 @@ export default async function UserProfilePage({
     return (
       <main className="mx-auto w-full max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
         <Card className="p-6">
-          <Badge tone="amber">Sem bolao</Badge>
+          <Badge tone="amber">Sem bolão</Badge>
           <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-            Use um link de convite valido para entrar em um bolao.
+            Use um link de convite válido para entrar em um bolão.
           </p>
         </Card>
       </main>
@@ -167,13 +167,13 @@ export default async function UserProfilePage({
             className="inline-flex items-center gap-2 text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
           >
             <ArrowLeft size={16} aria-hidden="true" />
-            Voltar para classificacao
+            Voltar para classificação
           </Link>
           <h1 className="mt-5 text-2xl font-black text-slate-50 light:text-slate-950">
-            Perfil nao encontrado
+            Perfil não encontrado
           </h1>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
-            Este participante nao existe ou nao faz parte do seu bolao.
+            Este participante não existe ou não faz parte do seu bolão.
           </p>
         </Card>
       </main>
@@ -218,7 +218,7 @@ export default async function UserProfilePage({
           className="inline-flex items-center gap-2 text-sm font-bold text-emerald-300 transition hover:text-emerald-200 light:text-emerald-700 light:hover:text-emerald-800"
         >
           <ArrowLeft size={16} aria-hidden="true" />
-          Voltar para classificacao
+          Voltar para classificação
         </Link>
 
         <Card className="p-5 sm:p-6">
@@ -284,7 +284,7 @@ export default async function UserProfilePage({
               <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
                 {profile.is_current_user
                   ? "Seus palpites preenchidos aparecem aqui."
-                  : "Palpites dos outros participantes aparecem apos o inicio dos jogos."}
+                  : "Palpites dos outros participantes aparecem após o início dos jogos."}
               </p>
             </div>
             {profile.blocked_predictions_count > 0 ? (
@@ -297,7 +297,7 @@ export default async function UserProfilePage({
           {profile.blocked_predictions_count > 0 ? (
             <div className="mb-4 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm font-medium text-amber-200 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
               {profile.blocked_predictions_count} palpites ainda bloqueados
-              porque os jogos ainda nao comecaram.
+              porque os jogos ainda não começaram.
             </div>
           ) : null}
 

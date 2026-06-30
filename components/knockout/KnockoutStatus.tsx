@@ -29,13 +29,13 @@ export function KnockoutStatus({
         ) : (
           <Lock size={14} aria-hidden="true" />
         )}
-        Proximo bloqueio: {nextLockLabel}
+        Próximo bloqueio: {nextLockLabel}
       </span>
       <span className="rounded-full border border-slate-800 bg-slate-900/55 px-3 py-1 text-xs font-bold text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
         {submittedOpenPicksCount} de {openPicksCount} jogos abertos palpitados
       </span>
       <span className="rounded-full border border-slate-800 bg-slate-900/55 px-3 py-1 text-xs font-bold text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
-        {availableMatchesCount} confrontos oficiais disponiveis
+        {availableMatchesCount} confrontos oficiais disponíveis
       </span>
       {submittedAtLabel ? (
         <span className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-xs font-bold text-emerald-200 light:border-emerald-200 light:bg-emerald-50 light:text-emerald-700">

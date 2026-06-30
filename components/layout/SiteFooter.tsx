@@ -51,7 +51,7 @@ export function SiteFooter() {
       <div className="mx-auto grid w-full max-w-[1536px] gap-6 text-center md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:text-left">
         <div className="space-y-2 text-sm font-medium text-slate-400 light:text-slate-500">
           <p className="font-black text-slate-200 light:text-slate-800">
-            Bolao da Copa
+            Bolão da Copa
           </p>
           <p>Feito para acompanhar a Copa com os amigos.</p>
           <p>

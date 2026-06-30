@@ -35,7 +35,7 @@ function validateAvatarFile(file: File) {
   }
 
   if (file.size > MAX_AVATAR_SIZE) {
-    return "A imagem deve ter no maximo 2MB.";
+    return "A imagem deve ter no máximo 2 MB.";
   }
 
   return null;
@@ -190,7 +190,7 @@ export function ProfileForm({
             Perfil
           </h1>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Nome, foto e link publico usados no bolao.
+            Nome, foto e link público usados no bolão.
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label
@@ -201,7 +201,7 @@ export function ProfileForm({
               Alterar foto
             </label>
             <span className="text-xs font-medium text-slate-500 light:text-slate-500">
-              PNG, JPG ou WEBP ate 2MB
+              PNG, JPG ou WEBP até 2 MB
             </span>
           </div>
           <input
@@ -215,7 +215,7 @@ export function ProfileForm({
 
         <div className="space-y-2">
           <label className="text-sm font-bold text-slate-200 light:text-slate-700">
-            Link publico
+            Link público
           </label>
           {initialUsername ? (
             <Link
@@ -226,11 +226,11 @@ export function ProfileForm({
             </Link>
           ) : (
             <p className="rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-3 text-sm font-medium text-amber-200 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
-              Seu username sera criado automaticamente ao entrar em um bolao.
+              Seu username será criado automaticamente ao entrar em um bolão.
             </p>
           )}
           <p className="text-xs text-slate-500 light:text-slate-500">
-            O username e automatico e nao pode ser editado nesta versao.
+            O username é automático e não pode ser editado nesta versão.
           </p>
         </div>
       </div>

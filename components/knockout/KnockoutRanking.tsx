@@ -70,11 +70,11 @@ export function KnockoutRanking({ entries, hasError = false }: KnockoutRankingPr
       <Card className="overflow-hidden">
         {hasError ? (
           <p className="p-4 text-sm font-semibold text-amber-300 light:text-amber-700">
-            Nao foi possivel calcular o ranking do mata-mata agora.
+            Não foi possível calcular o ranking do mata-mata agora.
           </p>
         ) : entries.length === 0 ? (
           <p className="p-4 text-sm font-semibold text-slate-400 light:text-slate-600">
-            Ranking indisponivel ate os primeiros resultados oficiais.
+            Ranking indisponível até os primeiros resultados oficiais.
           </p>
         ) : (
           <div className="divide-y divide-slate-800 light:divide-slate-200">

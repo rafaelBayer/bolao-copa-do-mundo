@@ -65,7 +65,7 @@ function parseScore(value: string) {
 
 function formatKickoff(kickoffAt: string | null) {
   if (!kickoffAt) {
-    return "Horario a definir";
+    return "Horário a definir";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -132,7 +132,7 @@ export function LiveScoreAdminPanel({
     if (homeScore === null || awayScore === null) {
       setSaveState(match.id, {
         status: "error",
-        message: "Informe placares validos.",
+        message: "Informe placares válidos.",
       });
       return;
     }
@@ -140,7 +140,7 @@ export function LiveScoreAdminPanel({
     if (elapsed !== null && (!Number.isInteger(elapsed) || elapsed < 0)) {
       setSaveState(match.id, {
         status: "error",
-        message: "Informe minuto valido.",
+        message: "Informe minuto válido.",
       });
       return;
     }
@@ -184,7 +184,7 @@ export function LiveScoreAdminPanel({
     if (homeScore === null || awayScore === null) {
       setSaveState(match.id, {
         status: "error",
-        message: "Informe placares validos para finalizar.",
+        message: "Informe placares válidos para finalizar.",
       });
       return;
     }

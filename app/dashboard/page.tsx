@@ -13,7 +13,7 @@ function userName(user: {
 
   return typeof metadataName === "string" && metadataName.trim()
     ? metadataName.trim()
-    : user.email ?? "Usuario";
+    : user.email ?? "Usuário";
 }
 
 function isLegacyUser(createdAt?: string | null) {
@@ -80,11 +80,11 @@ export default async function DashboardPage() {
       <section className="mt-8">
         <Card className="p-6 sm:p-8">
           <h2 className="text-2xl font-black text-slate-50 light:text-slate-950">
-            Sua conta esta pronta
+            Sua conta está pronta
           </h2>
           <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-400 light:text-slate-600">
-            Esta e sua area inicial autenticada. Voce ja pode acessar o Bolao
-            Geral, criar boloes privados, convidar amigos, registrar palpites e
+            Esta é sua área inicial autenticada. Você já pode acessar o Bolão
+            Geral, criar bolões privados, convidar amigos, registrar palpites e
             acompanhar rankings.
           </p>
           <div className="mt-6 rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 light:border-emerald-200 light:bg-emerald-50">
@@ -92,8 +92,8 @@ export default async function DashboardPage() {
               Comece agora
             </p>
             <p className="mt-1 text-sm text-emerald-100/80 light:text-emerald-800">
-              Acesse a aba Palpites para participar do Bolao Geral ou gerencie
-              seus boloes privados pelo perfil.
+              Acesse a aba Palpites para participar do Bolão Geral ou gerencie
+              seus bolões privados pelo perfil.
             </p>
           </div>
         </Card>

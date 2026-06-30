@@ -39,7 +39,7 @@ export function RoundNavigator({
         type="button"
         onClick={onNext}
         disabled={isBusy || currentRound >= maxRound}
-        title="Proxima rodada"
+        title="Próxima rodada"
         className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-700 bg-slate-900 text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-emerald-400/10 hover:text-emerald-300 disabled:cursor-not-allowed disabled:opacity-35 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50 light:hover:text-emerald-700"
       >
         <ChevronRight size={18} aria-hidden="true" />

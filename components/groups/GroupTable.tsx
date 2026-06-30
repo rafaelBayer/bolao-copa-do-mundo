@@ -36,7 +36,7 @@ export function GroupTable({
         <table className="w-full min-w-[760px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-500 light:border-slate-200">
-              <th className="w-[44%] py-4 pl-4 pr-3 font-bold">Selecao</th>
+              <th className="w-[44%] py-4 pl-4 pr-3 font-bold">Seleção</th>
               <th className="px-2 py-4 text-center font-bold">Pts</th>
               <th className="px-2 py-4 text-center font-bold">J</th>
               <th className="px-2 py-4 text-center font-bold">V</th>
@@ -113,11 +113,11 @@ export function GroupTable({
       <div className="mt-3 flex flex-wrap gap-2 text-xs font-bold text-slate-400 light:text-slate-500">
         <span className="inline-flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-emerald-400 light:bg-emerald-600" />
-          1o e 2o: classificacao direta
+          1º e 2º: classificação direta
         </span>
         <span className="inline-flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-amber-400 light:bg-amber-500" />
-          3o: possivel classificacao
+          3º: possível classificação
         </span>
       </div>
     </div>

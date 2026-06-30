@@ -149,16 +149,16 @@ export function KnockoutMatchCard({
     : null;
   const scoreTone = isLive ? "live" : isHalftime ? "halftime" : "final";
   const statusLabel = !hasTeams
-    ? "Aguardando definicao dos classificados."
+    ? "Aguardando definição dos classificados."
     : match.isFinished
       ? match.isPickCorrect === null
-        ? "Resultado oficial disponivel."
+        ? "Resultado oficial disponível."
         : match.isPickCorrect
           ? `Acertou +${match.pickPoints} pts`
           : "Errou 0 pts"
       : match.isLocked
         ? "Palpite bloqueado"
-        : `Aberto ate ${formatLockAt(match.lockAt)}`;
+        : `Aberto até ${formatLockAt(match.lockAt)}`;
 
   return (
     <div id={knockoutMatchCardId(match)} className="relative">
@@ -170,8 +170,8 @@ export function KnockoutMatchCard({
       ) : null}
       {showActiveBonusIcon(match) ? (
         <span
-          title="Bonus ativo"
-          aria-label="Bonus ativo"
+          title="Bônus ativo"
+          aria-label="Bônus ativo"
           className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-orange-300 bg-orange-500 text-white shadow-lg shadow-orange-950/30 light:border-orange-400 light:bg-orange-500"
         >
           <Flame size={14} aria-hidden="true" fill="currentColor" />
@@ -291,7 +291,7 @@ export function KnockoutMatchCard({
         ) : null}
         {match.invalidSelectedTeam ? (
           <div className="mt-1 text-[10px] font-bold text-amber-200 light:text-amber-700">
-            Palpite antigo incompativel: {match.invalidSelectedTeam}
+            Palpite antigo incompatível: {match.invalidSelectedTeam}
           </div>
         ) : null}
         {match.winnerTeam ? (

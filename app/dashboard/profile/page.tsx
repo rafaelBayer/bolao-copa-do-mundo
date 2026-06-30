@@ -51,7 +51,7 @@ function mapPoolSummary(row: Record<string, unknown>): PoolSummary | null {
 
   return {
     id: String(pool.id),
-    name: typeof pool.name === "string" ? pool.name : "Meu bolao",
+    name: typeof pool.name === "string" ? pool.name : "Meu bolão",
     description:
       typeof pool.description === "string" ? pool.description : null,
     type: pool.type === "general" ? "general" : "private",
@@ -165,7 +165,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
   const showAdminMenu = visibleTab === "admin" && isSystemAdmin;
   const tabs = [
     { id: "perfil" as const, label: "Perfil" },
-    { id: "boloes" as const, label: "Boloes" },
+    { id: "boloes" as const, label: "Bolões" },
     ...(isSystemAdmin
       ? [{ id: "admin" as const, label: "Painel Admin" }]
       : []),
@@ -174,9 +174,9 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
     { id: "home" as const, label: "Painel" },
     { id: "matches" as const, label: "Partidas" },
     { id: "scores" as const, label: "Placares" },
-    { id: "pools" as const, label: "Boloes" },
-    { id: "users" as const, label: "Usuarios" },
-    { id: "settings" as const, label: "Configuracoes Admin" },
+    { id: "pools" as const, label: "Bolões" },
+    { id: "users" as const, label: "Usuários" },
+    { id: "settings" as const, label: "Configurações Admin" },
   ];
 
   return (

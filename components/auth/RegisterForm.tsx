@@ -64,7 +64,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
     }
 
     if (password !== confirmPassword) {
-      setError("As senhas nao conferem.");
+      setError("As senhas não conferem.");
       return;
     }
 
@@ -93,7 +93,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
     if (!data.session) {
       setMessage(
         userHasNoIdentities(data.user)
-          ? "Este e-mail ja esta cadastrado. Faca login para continuar."
+          ? "Este e-mail já está cadastrado. Faça login para continuar."
           : "Conta criada. Verifique seu e-mail para confirmar o cadastro.",
       );
       return;
@@ -197,7 +197,7 @@ export function RegisterForm({ redirectTo = "/dashboard" }: RegisterFormProps) {
       </Button>
 
       <p className="text-center text-sm text-slate-400 light:text-slate-600">
-        Ja tem conta?{" "}
+        Já tem conta?{" "}
         <Link
           href={
             resolvedRedirectTo === "/dashboard"

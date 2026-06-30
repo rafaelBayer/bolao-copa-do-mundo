@@ -55,7 +55,7 @@ function formatDateTime(value: string | null) {
 
 function formatKickoff(value: string | null) {
   if (!value) {
-    return "Horario a definir";
+    return "Horário a definir";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -97,17 +97,17 @@ function reasonLabel(reason: string | null) {
     case "outside_active_window":
       return "Nenhum jogo ativo agora";
     case "minimum_interval_not_reached":
-      return "Intervalo minimo ainda nao atingido";
+      return "Intervalo mínimo ainda não atingido";
     case "halftime_pause":
       return "Pausa de intervalo";
     case "missing_fixture_mapping":
       return "Jogo ativo sem mapeamento";
     case "provider_error":
-      return "Erro no provider";
+      return "Erro no provedor";
     case "active_match_window":
       return "Sincronizado em janela ativa";
     case "manual_provider":
-      return "Provider manual";
+      return "Provedor manual";
     default:
       return reason ?? "-";
   }
@@ -124,9 +124,9 @@ function generalStatus(logs: LiveScoreMonitorLog[]) {
 
   if (!latest) {
     return {
-      label: "Atencao",
+      label: "Atenção",
       tone: "amber" as const,
-      description: "Nenhuma sincronizacao registrada ainda.",
+      description: "Nenhuma sincronização registrada ainda.",
     };
   }
 
@@ -134,7 +134,7 @@ function generalStatus(logs: LiveScoreMonitorLog[]) {
     return {
       label: "Erro",
       tone: "amber" as const,
-      description: latest.errorMessage ?? "A ultima sincronizacao falhou.",
+      description: latest.errorMessage ?? "A última sincronização falhou.",
     };
   }
 
@@ -159,10 +159,10 @@ export function LiveScoreMonitorPanel({
   return (
     <div className="space-y-4">
       <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
-        <p className="font-black">Sincronizacao automatica desativada no MVP</p>
+        <p className="font-black">Sincronização automática desativada no MVP</p>
         <p className="mt-1">
-          As rotas de sync retornam 410 nesta publicacao. Use a aba Partidas
-          para atualizar placares manualmente quando necessario.
+          As rotas de sincronização retornam 410 nesta publicação. Use a aba Partidas
+          para atualizar placares manualmente quando necessário.
         </p>
       </div>
 
@@ -171,16 +171,16 @@ export function LiveScoreMonitorPanel({
           <div className="flex items-start gap-3">
             <AlertTriangle size={18} aria-hidden="true" className="mt-0.5" />
             <div>
-              <p className="font-black">Erro na sincronizacao do placar</p>
+              <p className="font-black">Erro na sincronização do placar</p>
               <p className="mt-1">
-                Provider: {latestError.provider} · Ultima tentativa:{" "}
+                Provedor: {latestError.provider} · Última tentativa:{" "}
                 {formatDateTime(latestError.startedAt)}
               </p>
               <p className="mt-1">
-                Mensagem: {latestError.errorMessage ?? "Erro nao informado."}
+                Mensagem: {latestError.errorMessage ?? "Erro não informado."}
               </p>
               <p className="mt-2 font-bold">
-                Acao recomendada: tente novamente em alguns minutos ou atualize
+                Ação recomendada: tente novamente em alguns minutos ou atualize
                 manualmente se o jogo estiver ao vivo.
               </p>
             </div>
@@ -202,10 +202,10 @@ export function LiveScoreMonitorPanel({
             <Badge tone={status.tone}>{status.label}</Badge>
           </div>
           <div className="mt-4 space-y-1 text-sm text-slate-300 light:text-slate-600">
-            <p>Provider: {provider}</p>
-            <p>Ultimo sync: {formatDateTime(latestLog?.startedAt ?? null)}</p>
-            <p>Ultimo sucesso: {formatDateTime(latestSuccess?.startedAt ?? null)}</p>
-            <p>Ultimo erro: {formatDateTime(latestError?.startedAt ?? null)}</p>
+            <p>Provedor: {provider}</p>
+            <p>Última sincronização: {formatDateTime(latestLog?.startedAt ?? null)}</p>
+            <p>Último sucesso: {formatDateTime(latestSuccess?.startedAt ?? null)}</p>
+            <p>Último erro: {formatDateTime(latestError?.startedAt ?? null)}</p>
             <p className="text-slate-400 light:text-slate-500">
               {status.description}
             </p>
@@ -249,7 +249,7 @@ export function LiveScoreMonitorPanel({
               <p>Nenhum jogo em janela ativa agora.</p>
               {nextMatch ? (
                 <p className="mt-1">
-                  Proximo jogo: {nextMatch.homeTeamName} x{" "}
+                  Próximo jogo: {nextMatch.homeTeamName} x{" "}
                   {nextMatch.awayTeamName} - {formatKickoff(nextMatch.kickoffAt)}
                 </p>
               ) : null}
@@ -263,8 +263,8 @@ export function LiveScoreMonitorPanel({
           <table className="min-w-full divide-y divide-slate-800 text-sm light:divide-slate-200">
             <thead className="bg-slate-950/70 light:bg-slate-50">
               <tr className="text-left text-xs font-black uppercase tracking-[0.16em] text-slate-500 light:text-slate-400">
-                <th className="px-4 py-3">Horario</th>
-                <th className="px-4 py-3">Provider</th>
+                <th className="px-4 py-3">Horário</th>
+                <th className="px-4 py-3">Provedor</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3">Motivo</th>
                 <th className="px-4 py-3">Ativos</th>
@@ -293,7 +293,7 @@ export function LiveScoreMonitorPanel({
                     colSpan={7}
                     className="px-4 py-6 text-center text-slate-400 light:text-slate-500"
                   >
-                    Nenhuma execucao de sync registrada ainda.
+                    Nenhuma execução de sincronização registrada ainda.
                   </td>
                 </tr>
               )}

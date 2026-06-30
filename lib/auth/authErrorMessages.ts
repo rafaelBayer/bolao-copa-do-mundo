@@ -33,11 +33,11 @@ export function authErrorMessage(error: unknown, email?: string) {
         message.includes("blocked") ||
         message.includes("disposable")))
   ) {
-    return "Informe um e-mail valido.";
+    return "Informe um e-mail válido.";
   }
 
   if (message.includes("already registered")) {
-    return "Este e-mail ja esta cadastrado. Faca login para continuar.";
+    return "Este e-mail já está cadastrado. Faça login para continuar.";
   }
 
   if (message.includes("password should be at least")) {
@@ -45,10 +45,10 @@ export function authErrorMessage(error: unknown, email?: string) {
   }
 
   if (message.includes("signup requires a valid password")) {
-    return "Informe uma senha valida.";
+    return "Informe uma senha válida.";
   }
 
-  return "Nao foi possivel criar sua conta. Verifique os dados e tente novamente.";
+  return "Não foi possível criar sua conta. Verifique os dados e tente novamente.";
 }
 
 export function inviteErrorMessage(error: unknown) {
@@ -59,7 +59,7 @@ export function inviteErrorMessage(error: unknown) {
   const message = rawMessage.toLowerCase();
 
   if (message.includes("browser")) {
-    return "Este navegador ja usou este convite.";
+    return "Este navegador já usou este convite.";
   }
 
   if (message.includes("expired")) {
@@ -67,10 +67,10 @@ export function inviteErrorMessage(error: unknown) {
   }
 
   if (message.includes("invalid invite")) {
-    return "Convite invalido ou expirado.";
+    return "Convite inválido ou expirado.";
   }
 
-  return "Nao conseguimos vincular sua conta ao bolao. Tente novamente.";
+  return "Não conseguimos vincular sua conta ao bolão. Tente novamente.";
 }
 
 export function logUnexpectedAuthError(error: unknown) {

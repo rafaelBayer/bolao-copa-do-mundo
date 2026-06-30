@@ -134,7 +134,7 @@ function sanitizeScore(value: string) {
 
 function formatKickoff(kickoffAt: string | null) {
   if (!kickoffAt) {
-    return "Horario a definir";
+    return "Horário a definir";
   }
 
   return new Intl.DateTimeFormat("pt-BR", {
@@ -349,7 +349,7 @@ function ownPredictionProjection(
   }
 
   return {
-    title: isFinal ? "Pontuacao oficial" : "Projecao atual",
+    title: isFinal ? "Pontuação oficial" : "Projeção atual",
     description: projectionDescription(result.reason, result.points),
     points: result.points,
     isProvisional,
@@ -405,7 +405,7 @@ function goalMinuteLabel(minute: number | null) {
 
 function goalDescription(goal: MatchWithTeams["goals"][number]) {
   const suffixes = [
-    goal.isPenalty ? "Penalti" : null,
+    goal.isPenalty ? "Pênalti" : null,
     goal.isOwnGoal ? "Gol contra" : null,
   ].filter(Boolean);
 
@@ -816,7 +816,7 @@ export const MatchPredictionInput = forwardRef<
               </p>
               {ownProjection.isProvisional ? (
                 <p className="mt-2 text-xs font-bold text-amber-200 light:text-amber-700">
-                  Pontuacao provisoria, pode mudar ate o fim.
+                  Pontuação provisória, pode mudar até o fim.
                 </p>
               ) : null}
             </div>
@@ -887,7 +887,7 @@ export const MatchPredictionInput = forwardRef<
 
               {crowdStatus === "error" ? (
                 <p className="text-sm font-bold text-red-300 light:text-red-600">
-                  Nao foi possivel carregar agora.
+                  Não foi possível carregar agora.
                 </p>
               ) : null}
 
@@ -901,7 +901,7 @@ export const MatchPredictionInput = forwardRef<
                 <div className="space-y-2">
                   {hasProvisionalCrowdPoints ? (
                     <p className="rounded-lg bg-amber-400/10 px-3 py-2 text-xs font-bold text-amber-200 light:bg-amber-50 light:text-amber-800">
-                      Pontuacao parcial, pode mudar ate o fim do jogo.
+                      Pontuação parcial, pode mudar até o fim do jogo.
                     </p>
                   ) : null}
 
@@ -967,7 +967,7 @@ export const MatchPredictionInput = forwardRef<
                           </span>
                           <span className="truncate text-sm font-bold text-slate-100 light:text-slate-800">
                             {item.participantName}
-                            {item.isCurrentUser ? " (voce)" : ""}
+                            {item.isCurrentUser ? " (você)" : ""}
                           </span>
                         </div>
                         <span className="flex shrink-0 items-center gap-2">

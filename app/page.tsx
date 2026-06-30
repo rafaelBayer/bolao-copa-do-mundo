@@ -6,8 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 
 const steps = [
   {
-    title: "Crie seu bolao",
-    description: "Monte um grupo privado para sua turma acompanhar a competicao.",
+    title: "Crie seu bolão",
+    description: "Monte um grupo privado para sua turma acompanhar a competição.",
     icon: Trophy,
   },
   {
@@ -16,13 +16,13 @@ const steps = [
     icon: UsersRound,
   },
   {
-    title: "Faca seus palpites",
-    description: "Registre os placares antes dos jogos e acompanhe sua pontuacao.",
+    title: "Faça seus palpites",
+    description: "Registre os placares antes dos jogos e acompanhe sua pontuação.",
     icon: CheckCircle2,
   },
   {
     title: "Acompanhe o ranking",
-    description: "Veja quem esta liderando e como a classificacao muda rodada a rodada.",
+    description: "Veja quem está liderando e como a classificação muda rodada a rodada.",
     icon: BarChart3,
   },
 ];
@@ -39,7 +39,7 @@ function userName(user: {
 
   return typeof metadataName === "string" && metadataName.trim()
     ? metadataName.trim()
-    : user.email ?? "Usuario";
+    : user.email ?? "Usuário";
 }
 
 export default async function HomePage() {
@@ -63,7 +63,7 @@ export default async function HomePage() {
     <main className="min-h-screen bg-slate-950 text-slate-50 light:bg-slate-50 light:text-slate-950">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
         <Link href="/" className="text-lg font-black">
-          Bolao
+          Bolão
         </Link>
         {user && userLabel ? (
           <nav className="flex items-center gap-2">
@@ -100,14 +100,14 @@ export default async function HomePage() {
       <section className="mx-auto grid w-full max-w-6xl gap-10 px-4 pb-12 pt-12 sm:px-6 sm:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:px-8">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.24em] text-emerald-300 light:text-emerald-700">
-            Plataforma de bolao
+            Plataforma de bolão
           </p>
           <h1 className="mt-4 max-w-4xl text-4xl font-black leading-tight sm:text-6xl">
-            Crie seus boloes e dispute palpites com seus amigos
+            Crie seus bolões e dispute palpites com seus amigos
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300 light:text-slate-600">
             Monte grupos privados, convide seus amigos, registre palpites e
-            acompanhe a classificacao em tempo real.
+            acompanhe a classificação em tempo real.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             {user ? (
@@ -168,11 +168,11 @@ export default async function HomePage() {
         <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-5 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-2xl font-black text-slate-50 light:text-slate-950">
-              Comece seu bolao em poucos minutos
+              Comece seu bolão em poucos minutos
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400 light:text-slate-600">
-              Crie sua conta, entre no Bolao Geral, registre seus palpites e
-              convide amigos para disputar em boloes privados.
+              Crie sua conta, entre no Bolão Geral, registre seus palpites e
+              convide amigos para disputar em bolões privados.
             </p>
           </div>
           {user ? (

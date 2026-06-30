@@ -43,12 +43,12 @@ export function KnockoutGlobalNotice({
           </span>
           <div className="min-w-0">
             <p className="text-sm font-black text-emerald-100 light:text-emerald-900">
-              Os playoffs comecaram!
+              O mata-mata começou!
             </p>
             <p className="mt-1 text-sm leading-5 text-emerald-50/80 light:text-emerald-800">
-              Faca seus palpites do mata-mata. Cada jogo bloqueia 10 minutos antes do inicio.
-              Voce ja palpitou {submittedOpenPicksCount} de {openPicksCount} jogos abertos.
-              Proximo bloqueio: {formatLockAt(nextLockAt)}.
+              Faça seus palpites do mata-mata. Cada jogo bloqueia 10 minutos antes do início.
+              Você já palpitou {submittedOpenPicksCount} de {openPicksCount} jogos abertos.
+              Próximo bloqueio: {formatLockAt(nextLockAt)}.
             </p>
           </div>
         </div>

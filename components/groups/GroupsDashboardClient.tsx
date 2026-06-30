@@ -187,7 +187,7 @@ function TodayMatchesBlock({
           Jogos de hoje
         </h2>
         <p className="mt-1 text-xs text-slate-400 light:text-slate-500">
-          Partidas ao vivo e encerradas no horario do Brasil.
+          Partidas ao vivo e encerradas no horário do Brasil.
         </p>
       </div>
 
@@ -478,14 +478,14 @@ export function GroupsDashboardClient({
               Fase de grupos
             </h1>
             <p className="mt-3 max-w-2xl text-base text-slate-400 light:text-slate-500">
-              Faca seus palpites da Copa do Mundo.
+              Faça seus palpites da Copa do Mundo.
             </p>
             <p className="mt-3 inline-flex max-w-2xl rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-sm font-bold text-emerald-200 light:border-emerald-200 light:bg-emerald-50 light:text-emerald-800">
-              Voce palpita uma vez por partida. Esse palpite vale para todos os seus boloes.
+              Você palpita uma vez por partida. Esse palpite vale para todos os seus bolões.
             </p>
             {pools.length > 1 ? (
               <p className="mt-2 max-w-2xl text-xs font-bold text-slate-500 light:text-slate-500">
-                A troca de bolao muda apenas o contexto social e os palpites da galera.
+                A troca de bolão muda apenas o contexto social e os palpites da galera.
               </p>
             ) : null}
           </div>
@@ -564,7 +564,7 @@ export function GroupsDashboardClient({
 
           {filledPredictions === 0 ? (
             <p className="mt-4 text-sm font-medium text-slate-300 light:text-slate-600">
-              Voce ainda nao fez nenhum palpite. Comece pela Rodada 1.
+              Você ainda não fez nenhum palpite. Comece pela Rodada 1.
             </p>
           ) : null}
         </div>

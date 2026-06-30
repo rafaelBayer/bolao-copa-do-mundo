@@ -159,7 +159,7 @@ function PodiumCard({
     >
       <div className="flex items-center gap-3">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-black text-emerald-300 light:bg-white light:text-emerald-700">
-          {entry.position}o
+          {entry.position}º
         </div>
         <div className="min-w-0">
           <ParticipantIdentity
@@ -490,8 +490,8 @@ function createLiveImpactMessage(
     nextLeader.totalPoints > 0
   ) {
     return {
-      title: "Novo lider provisorio",
-      description: `${nextLeader.name} assumiu a lideranca do ranking ao vivo.`,
+      title: "Novo líder provisório",
+      description: `${nextLeader.name} assumiu a liderança do ranking ao vivo.`,
     };
   }
 
@@ -514,8 +514,8 @@ function createLiveImpactMessage(
     return {
       title: "Ranking ao vivo mudou",
       description: `${biggestClimb.entry.name} subiu ${biggestClimb.climb} ${
-        biggestClimb.climb === 1 ? "posicao" : "posicoes"
-      } na classificacao provisoria.`,
+        biggestClimb.climb === 1 ? "posição" : "posições"
+      } na classificação provisória.`,
     };
   }
 
@@ -531,13 +531,13 @@ function createLiveImpactMessage(
   if (nextExactScores > previousExactScores) {
     return {
       title: "Placares exatos ao vivo",
-      description: `${nextExactScores} placares exatos aparecem na projecao agora.`,
+      description: `${nextExactScores} placares exatos aparecem na projeção agora.`,
     };
   }
 
   return {
     title: "GOL!",
-    description: "O gol mudou a classificacao provisoria.",
+    description: "O gol mudou a classificação provisória.",
   };
 }
 
@@ -634,7 +634,7 @@ export function LeaderboardClient({
             : `Top 3 da Rodada ${selectedRound}`;
   const tableTitle =
     mode === "overall"
-      ? "Classificacao geral"
+      ? "Classificação geral"
       : mode === "groups"
         ? "Fase de grupos"
         : mode === "knockout"
@@ -644,14 +644,14 @@ export function LeaderboardClient({
             : `Ranking da Rodada ${selectedRound}`;
   const emptyMessage =
     mode === "overall"
-      ? "A classificacao sera atualizada quando os primeiros resultados forem cadastrados."
+      ? "A classificação será atualizada quando os primeiros resultados forem cadastrados."
       : mode === "groups"
-        ? "A fase de grupos ainda nao possui jogos com resultado."
+        ? "A fase de grupos ainda não possui jogos com resultado."
         : mode === "knockout"
-          ? "O mata-mata ainda nao possui resultados oficiais para pontuar."
+          ? "O mata-mata ainda não possui resultados oficiais para pontuar."
           : mode === "live"
-            ? "Ainda nao ha placares finalizados ou ao vivo para calcular a classificacao."
-            : `A Rodada ${selectedRound} ainda nao possui jogos com resultado.`;
+            ? "Ainda não há placares finalizados ou ao vivo para calcular a classificação."
+            : `A Rodada ${selectedRound} ainda não possui jogos com resultado.`;
   const noScoreMessage =
     mode === "overall"
       ? "Nenhum participante pontuou ainda."
@@ -660,7 +660,7 @@ export function LeaderboardClient({
         : mode === "knockout"
           ? "Nenhum participante pontuou no mata-mata ainda."
           : mode === "live"
-            ? "Nenhum participante pontuou na classificacao ao vivo ainda."
+            ? "Nenhum participante pontuou na classificação ao vivo ainda."
             : `Nenhum participante pontuou na Rodada ${selectedRound} ainda.`;
 
   const refreshLiveLeaderboard = useCallback(async () => {
@@ -749,10 +749,10 @@ export function LeaderboardClient({
             {poolName}
           </p>
           <h1 className="mt-2 text-3xl font-black text-slate-50 light:text-slate-950">
-            Classificacao
+            Classificação
           </h1>
           <p className="mt-2 max-w-2xl text-sm text-slate-400 light:text-slate-500">
-            Ranking dos participantes com base nos jogos que ja possuem resultado.
+            Ranking dos participantes com base nos jogos que já possuem resultado.
           </p>
         </div>
 
@@ -770,7 +770,7 @@ export function LeaderboardClient({
           {showScoringInfo ? (
             <div className="absolute right-0 z-10 mt-2 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-slate-800 bg-slate-950 p-4 shadow-xl light:border-slate-200 light:bg-white">
               <p className="text-sm font-black text-slate-50 light:text-slate-950">
-                Como funciona a pontuacao
+                Como funciona a pontuação
               </p>
               <p className="mt-3 text-sm font-bold text-slate-300 light:text-slate-700">
                 Grupos - placar exato: 3 pts
@@ -782,8 +782,8 @@ export function LeaderboardClient({
                 Mata-mata: 2 pts por vencedor correto
               </p>
               <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
-                Bonus de sequencia entra quando toda a arvore anterior do
-                confronto tambem foi acertada.
+                Bônus de sequência entra quando toda a árvore anterior do
+                confronto também foi acertada.
               </p>
             </div>
           ) : null}
@@ -857,10 +857,10 @@ export function LeaderboardClient({
                 Ranking ao vivo
               </p>
               <p className="mt-2 text-sm font-bold text-slate-200 light:text-slate-800">
-                Classificacao provisoria considerando os placares atuais.
+                Classificação provisória considerando os placares atuais.
               </p>
               <p className="mt-1 text-sm text-slate-400 light:text-slate-600">
-                Os pontos so sao confirmados ao fim das partidas.
+                Os pontos só são confirmados ao fim das partidas.
               </p>
               {liveRankingMatchesCount === 0 ? (
                 <p className="mt-2 text-sm font-bold text-amber-200 light:text-amber-800">
@@ -872,7 +872,7 @@ export function LeaderboardClient({
               {liveRefreshStatus === "refreshing"
                 ? "Atualizando..."
                 : liveRefreshStatus === "error"
-                  ? "Nao atualizou agora"
+                  ? "Não atualizou agora"
                   : `${liveRankingMatchesCount} ao vivo`}
             </span>
           </div>
@@ -907,7 +907,7 @@ export function LeaderboardClient({
                   : mode === "knockout"
                     ? "Melhores participantes considerando apenas vencedores de confrontos oficiais."
                     : mode === "live"
-                      ? "Classificacao provisoria com jogos finalizados e placares atuais."
+                      ? "Classificação provisória com jogos finalizados e placares atuais."
                       : `Desempenho considerando apenas jogos da Rodada ${selectedRound}.`}
             </p>
           </div>

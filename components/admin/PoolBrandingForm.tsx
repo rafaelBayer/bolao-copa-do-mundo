@@ -88,7 +88,7 @@ export function PoolBrandingForm({
 
       if (logoFile.size > MAX_LOGO_SIZE_BYTES) {
         setStatus("error");
-        setErrorMessage("Envie uma imagem com ate 2 MB.");
+        setErrorMessage("Envie uma imagem com até 2 MB.");
         return;
       }
 
@@ -104,7 +104,7 @@ export function PoolBrandingForm({
 
       if (uploadError) {
         setStatus("error");
-        setErrorMessage("Erro ao enviar logo. Verifique o bucket no Supabase.");
+        setErrorMessage("Não foi possível enviar o logo. Tente novamente.");
         return;
       }
 
@@ -126,7 +126,7 @@ export function PoolBrandingForm({
 
     if (error || !data) {
       setStatus("error");
-      setErrorMessage("Erro ao salvar aparencia.");
+      setErrorMessage("Erro ao salvar aparência.");
       return;
     }
 
@@ -143,8 +143,8 @@ export function PoolBrandingForm({
   const statusLabel = {
     idle: "",
     saving: "Salvando...",
-    saved: "Aparencia atualizada com sucesso.",
-    error: errorMessage || "Erro ao salvar aparencia.",
+    saved: "Aparência atualizada com sucesso.",
+    error: errorMessage || "Erro ao salvar aparência.",
   }[status];
   const statusClass = {
     idle: "text-slate-500",
@@ -163,7 +163,7 @@ export function PoolBrandingForm({
           htmlFor="pool-header-title"
           className="text-sm font-bold text-slate-200 light:text-slate-700"
         >
-          Titulo do header
+          Título do cabeçalho
         </label>
         <Input
           id="pool-header-title"
@@ -173,7 +173,7 @@ export function PoolBrandingForm({
             setStatus("idle");
             setErrorMessage("");
           }}
-          placeholder="Bolao da Copa"
+          placeholder="Bolão da Copa"
         />
       </div>
 
@@ -216,7 +216,7 @@ export function PoolBrandingForm({
             {logoFile ? logoFile.name : "Selecionar imagem"}
           </span>
           <span className="text-xs font-medium text-slate-500">
-            PNG, JPG, WebP ou SVG ate 2 MB
+            PNG, JPG, WebP ou SVG até 2 MB
           </span>
         </label>
         <input
@@ -248,7 +248,7 @@ export function PoolBrandingForm({
 
       <Button type="submit" disabled={isSaving} className="lg:self-end">
         <Save size={17} aria-hidden="true" />
-        Salvar aparencia
+        Salvar aparência
       </Button>
 
       <p className={`min-h-5 text-sm font-bold lg:col-span-3 ${statusClass}`}>

@@ -40,7 +40,7 @@ export async function savePrediction({
   const savedPrediction = Array.isArray(data) ? data[0] : data;
 
   if (!savedPrediction) {
-    throw new Error("Nao foi possivel salvar o palpite.");
+    throw new Error("Não foi possível salvar o palpite.");
   }
 
   return {

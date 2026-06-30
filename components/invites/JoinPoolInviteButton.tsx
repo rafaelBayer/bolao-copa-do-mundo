@@ -62,15 +62,15 @@ export function JoinPoolInviteButton({
         <p className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-emerald-400/10 px-3 py-2 text-sm font-bold text-emerald-200 light:border-emerald-200 light:bg-emerald-50 light:text-emerald-800">
           <CheckCircle2 size={17} aria-hidden="true" />
           {status === "joined"
-            ? "Voce entrou neste bolao."
-            : "Voce ja participa deste bolao."}
+            ? "Você entrou neste bolão."
+            : "Você já participa deste bolão."}
         </p>
         <div>
           <Link
             href={`/dashboard/groups?pool=${poolId}`}
             className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-sm transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
           >
-            Acessar bolao
+            Acessar bolão
           </Link>
         </div>
       </div>
@@ -83,12 +83,12 @@ export function JoinPoolInviteButton({
         {status === "joining" ? (
           <Loader2 size={17} className="animate-spin" aria-hidden="true" />
         ) : null}
-        {status === "joining" ? "Entrando..." : "Entrar no bolao"}
+        {status === "joining" ? "Entrando..." : "Entrar no bolão"}
       </Button>
 
       {status === "error" ? (
         <p className="text-sm font-bold text-red-300 light:text-red-600">
-          Nao foi possivel entrar no bolao agora.
+          Não foi possível entrar no bolão agora.
         </p>
       ) : null}
     </div>

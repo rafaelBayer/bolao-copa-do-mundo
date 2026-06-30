@@ -37,11 +37,11 @@ export function ForgotPasswordForm() {
     setIsSubmitting(false);
 
     if (resetError) {
-      setError("Nao foi possivel enviar o link. Verifique o e-mail informado.");
+      setError("Não foi possível enviar o link. Verifique o e-mail informado.");
       return;
     }
 
-    setMessage("Enviamos um link de recuperacao para o seu e-mail.");
+    setMessage("Enviamos um link de recuperação para o seu e-mail.");
   }
 
   return (

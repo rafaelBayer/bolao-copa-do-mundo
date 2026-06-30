@@ -29,7 +29,7 @@ export function ResetPasswordForm() {
       if (!code) {
         if (isMounted) {
           setMissingCode(true);
-          setError("Solicite um novo link de recuperacao para redefinir sua senha.");
+          setError("Solicite um novo link de recuperação para redefinir sua senha.");
           setIsPreparingSession(false);
         }
         return;
@@ -41,7 +41,7 @@ export function ResetPasswordForm() {
 
         if (exchangeError && isMounted) {
           setError(
-            "O link de recuperacao expirou ou ja foi usado. Solicite um novo link.",
+            "O link de recuperação expirou ou já foi usado. Solicite um novo link.",
           );
         }
       }
@@ -64,7 +64,7 @@ export function ResetPasswordForm() {
     setMessage(null);
 
     if (password !== confirmPassword) {
-      setError("As senhas nao conferem.");
+      setError("As senhas não conferem.");
       return;
     }
 
@@ -78,7 +78,7 @@ export function ResetPasswordForm() {
 
     if (updateError) {
       setError(
-        "Nao foi possivel redefinir a senha. Solicite um novo link e tente novamente.",
+        "Não foi possível redefinir a senha. Solicite um novo link e tente novamente.",
       );
       return;
     }

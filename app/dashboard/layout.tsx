@@ -52,7 +52,7 @@ export async function generateMetadata(): Promise<Metadata> {
     logo_url?: string | null;
   } | null;
   const brandTitle =
-    branding?.header_title?.trim() || pool?.name?.trim() || "Bolao da Copa";
+    branding?.header_title?.trim() || pool?.name?.trim() || "Bolão da Copa";
   const brandLogoUrl = branding?.logo_url?.trim() || "/icon.svg";
 
   return {
@@ -158,10 +158,10 @@ export default async function DashboardLayout({
     logo_url?: string | null;
   } | null;
   const brandTitle =
-    branding?.header_title?.trim() || pool?.name?.trim() || "Bolao da Copa";
+    branding?.header_title?.trim() || pool?.name?.trim() || "Bolão da Copa";
   const brandLogoUrl = branding?.logo_url?.trim() || null;
   const profileName = profile?.name?.trim();
-  const userLabel = profileName || email || "Usuario";
+  const userLabel = profileName || email || "Usuário";
   const knockoutNotice = Array.isArray(knockoutNoticeData)
     ? (knockoutNoticeData[0] as Record<string, unknown> | undefined)
     : (knockoutNoticeData as Record<string, unknown> | null);
@@ -178,12 +178,12 @@ export default async function DashboardLayout({
         />
         <main className="mx-auto w-full max-w-[960px] px-3 py-8 sm:px-5 lg:px-8">
           <Card className="p-6">
-            <Badge tone="amber">Configuracao</Badge>
+            <Badge tone="amber">Configuração</Badge>
             <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
-              Nao foi possivel preparar seu Bolao Geral
+              Não foi possível preparar seu Bolão Geral
             </h1>
             <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-              O sistema nao conseguiu vincular sua conta ao bolao padrao.
+              O sistema não conseguiu vincular sua conta ao bolão padrão.
               Tente novamente em alguns instantes ou avise o administrador.
             </p>
           </Card>

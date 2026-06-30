@@ -15,19 +15,19 @@ export function AdminStats({
   const stats = [
     { label: "participantes", value: participantsCount },
     { label: "partidas", value: matchesCount },
-    { label: "bolao admin", value: 1 },
+    { label: "bolão admin", value: 1 },
   ];
 
   return (
     <Card className="p-5 sm:p-7">
-      <Badge tone="emerald">Administracao</Badge>
+      <Badge tone="emerald">Administração</Badge>
       <div className="mt-4 grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
         <div>
           <h1 className="text-3xl font-black text-slate-50 light:text-slate-950">
             {poolName}
           </h1>
           <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
-            Gerencie partidas, placares e participantes do bolao.
+            Gerencie partidas, placares e participantes do bolão.
           </p>
         </div>
 

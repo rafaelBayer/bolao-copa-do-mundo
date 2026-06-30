@@ -14,7 +14,7 @@ O frontend nunca chama a API externa.
 
 ## Providers
 
-O provider e escolhido por:
+O provedor é escolhido por:
 
 ```env
 LIVE_SCORE_PROVIDER=football-data
@@ -28,7 +28,7 @@ football-data
 manual
 ```
 
-Provider automatico recomendado para Copa 2026:
+Provedor automático recomendado para Copa 2026:
 
 ```env
 LIVE_SCORE_PROVIDER=football-data
@@ -36,7 +36,7 @@ FOOTBALL_DATA_API_KEY=
 FOOTBALL_DATA_COMPETITION_CODE=WC
 ```
 
-O provider `football-data` usa apenas endpoints por matchday:
+O provedor `football-data` usa apenas endpoints por matchday:
 
 ```txt
 /v4/competitions/WC/matches?matchday=1
@@ -44,10 +44,10 @@ O provider `football-data` usa apenas endpoints por matchday:
 /v4/competitions/WC/matches?matchday=3
 ```
 
-O endpoint `/v4/competitions/WC` pode retornar 403 no plano atual e nao deve
-ser dependencia obrigatoria.
+O endpoint `/v4/competitions/WC` pode retornar 403 no plano atual e não deve
+ser dependência obrigatória.
 
-Observacao importante: a API-Football Free retornou que nao libera `season=2026`.
+Observação importante: a API-Football Free retornou que não libera `season=2026`.
 Ela continua implementada, mas pode exigir plano pago ou outro `league/season`.
 
 Para fallback garantido, use:
@@ -56,16 +56,16 @@ Para fallback garantido, use:
 LIVE_SCORE_PROVIDER=manual
 ```
 
-Nesse modo, `/api/scores/sync` nao chama API externa e o system admin atualiza o placar
+Nesse modo, `/api/scores/sync` não chama API externa e o system admin atualiza o placar
 pelo admin.
 
-Se `LIVE_SCORE_PROVIDER` nao estiver definido, o app usa `manual` como fallback
+Se `LIVE_SCORE_PROVIDER` não estiver definido, o app usa `manual` como fallback
 seguro e registra um aviso server-side. Isso evita tentar API-Football por
-engano durante a operacao inicial.
+engano durante a operação inicial.
 
-## Operacao recomendada para placar automatico
+## Operação recomendada para placar automático
 
-Use football-data como provider principal:
+Use football-data como provedor principal:
 
 ```env
 LIVE_SCORE_PROVIDER=football-data
@@ -81,35 +81,35 @@ npm run scores:map-fixtures:dry
 npm run scores:map-fixtures
 ```
 
-Para fase de grupos, o mapeamento busca matchday 1, 2 e 3. Na sync automatica,
+Para fase de grupos, o mapeamento busca matchday 1, 2 e 3. Na sincronização automática,
 o endpoint busca apenas os matchdays ativos em janela de jogo.
 
-## Operacao manual de emergencia
+## Operação manual de emergência
 
-Use o modo manual quando a API atrasar, cair, falhar ou algum jogo nao mapear:
+Use o modo manual quando a API atrasar, cair, falhar ou algum jogo não mapear:
 
 ```env
 LIVE_SCORE_PROVIDER=manual
 SCORES_SYNC_SECRET=um_secret_forte
 ```
 
-Checklist de operacao:
+Checklist de operação:
 
 1. Entrar como system admin.
 2. Abrir `/dashboard/admin`.
 3. Conferir `Provider de placar: manual`.
-4. Atualizar placar live na secao `Placar dos jogos`.
+4. Atualizar placar live na seção `Placar dos jogos`.
 5. Conferir `/dashboard/groups`.
-6. Finalizar o jogo apos o apito final.
+6. Finalizar o jogo após o apito final.
 7. Conferir `/dashboard/leaderboard`.
 
 Notas:
 
-* API-Football Free nao acessa a temporada 2026.
-* football-data e o provider automatico principal viavel para Copa 2026.
-* manual continua como fallback seguro para emergencia.
+* API-Football Free não acessa a temporada 2026.
+* football-data é o provedor automático principal viável para Copa 2026.
+* manual continua como fallback seguro para emergência.
 
-## Variaveis de ambiente
+## Variáveis de ambiente
 
 ```env
 API_FOOTBALL_KEY=
@@ -120,7 +120,7 @@ SCORES_SYNC_SECRET=
 ```
 
 O app usa o Supabase principal definido em `.env.local`. Para scripts locais de
-placar, voce pode escolher outro projeto Supabase sem expor nenhuma variavel no
+placar, você pode escolher outro projeto Supabase sem expor nenhuma variável no
 frontend. Crie `.env.scores.local` a partir de `.env.scores.example`:
 
 ```env
@@ -143,8 +143,8 @@ local
 all
 ```
 
-Use lista separada por virgula quando quiser aplicar a mesma execucao em mais de
-um banco. Os scripts de placar nunca usam variaveis `NEXT_PUBLIC_*` para
+Use lista separada por vírgula quando quiser aplicar a mesma execução em mais de
+um banco. Os scripts de placar nunca usam variáveis `NEXT_PUBLIC_*` para
 selecionar projetos alternativos.
 
 No PowerShell:
@@ -161,14 +161,14 @@ Antes de rodar um comando real, use dry-run. O sync local aceita:
 npm run scores:watch:local:dry
 ```
 
-Para popular um banco novo com selecoes, grupos e jogos:
+Para popular um banco novo com seleções, grupos e jogos:
 
 ```bash
 npm run seed:worldcup:dry
 npm run seed:worldcup
 ```
 
-Para buscar resultados finais ja ocorridos pela ESPN:
+Para buscar resultados finais já ocorridos pela ESPN:
 
 ```bash
 npm run scores:sync-results:dry
@@ -182,14 +182,14 @@ $env:SCORE_SUPABASE_TARGET="production,staging"; npm run scores:sync-results:dry
 Remove-Item Env:\SCORE_SUPABASE_TARGET
 ```
 
-O mapeamento de fixtures tambem aceita estes opcionais:
+O mapeamento de fixtures também aceita estes opcionais:
 
 ```env
 API_FOOTBALL_WORLD_CUP_LEAGUE_ID=
 API_FOOTBALL_WORLD_CUP_SEASON=
 ```
 
-Padroes atuais:
+Padrões atuais:
 
 ```txt
 league = 1
@@ -220,17 +220,17 @@ away_score_live
 score_updated_at
 ```
 
-A migration `0016` adiciona os campos genericos de provider e RPCs seguras para
+A migration `0016` adiciona os campos genéricos de provider e RPCs seguras para
 o fallback manual no admin.
 
 A migration `0017` cria `live_score_sync_logs`, usada pelo admin para monitorar
-ultimas execucoes do sync, erros, jogos ativos e quantidade de jogos atualizados.
+últimas execuções do sync, erros, jogos ativos e quantidade de jogos atualizados.
 Somente system admins conseguem ler esses logs pelo app. O endpoint server-side grava
 apenas resumo operacional e nunca salva keys ou secrets.
 
 ## Mapear fixtures
 
-Antes do sync automatico funcionar, cada jogo precisa estar mapeado ao provider.
+Antes do sync automático funcionar, cada jogo precisa estar mapeado ao provider.
 Para providers novos, o app usa:
 
 ```txt
@@ -258,16 +258,16 @@ matchday 2
 matchday 3
 ```
 
-O script so atualiza matches quando encontra uma correspondencia segura por:
+O script só atualiza matches quando encontra uma correspondência segura por:
 
 ```txt
 round_number = matchday
 home_team.code = homeTeam.tla
 away_team.code = awayTeam.tla
-kickoff_at proximo de utcDate
+kickoff_at próximo de utcDate
 ```
 
-Se houver duvida, preencha manualmente:
+Se houver dúvida, preencha manualmente:
 
 ```sql
 update public.matches
@@ -307,7 +307,7 @@ Chamada manual:
 /api/scores/sync?secret=SCORES_SYNC_SECRET
 ```
 
-Tambem aceita header:
+Também aceita header:
 
 ```txt
 x-sync-secret: SCORES_SYNC_SECRET
@@ -342,23 +342,23 @@ Janela ativa:
 
 ```txt
 5 minutos antes do kickoff
-ate 2h15 depois do kickoff
+até 2h15 depois do kickoff
 ```
 
-Intervalo minimo por quantidade de horarios no dia:
+Intervalo mínimo por quantidade de horários no dia:
 
 ```txt
-1-2 horarios: 3 min
-3 horarios: 4 min
-4 horarios: 5 min
-5+ horarios: 7 min
+1-2 horários: 3 min
+3 horários: 4 min
+4 horários: 5 min
+5+ horários: 7 min
 ```
 
 Pausa no intervalo:
 
 ```txt
-Se todos os jogos ativos estiverem HT e a ultima sync tem menos de 15 min,
-o endpoint nao chama a API externa.
+Se todos os jogos ativos estiverem HT e a última sync tem menos de 15 min,
+o endpoint não chama a API externa.
 ```
 
 ## Cron
@@ -372,28 +372,28 @@ Exemplo:
 GET https://SEU_DOMINIO/api/scores/sync?secret=SCORES_SYNC_SECRET
 ```
 
-Se `LIVE_SCORE_PROVIDER=manual`, o endpoint retorna `manual_provider` e nao
+Se `LIVE_SCORE_PROVIDER=manual`, o endpoint retorna `manual_provider` e não
 gasta requests externos.
 
 Se `LIVE_SCORE_PROVIDER=football-data`, o endpoint chama apenas matchdays ativos
-com jogos dentro da janela ativa. Ele nao busca matchday 1, 2 e 3 em toda sync.
+com jogos dentro da janela ativa. Ele não busca matchday 1, 2 e 3 em toda sync.
 
 ## Monitoramento no admin
 
-System admins veem a secao `Status do placar ao vivo` em `/dashboard/admin`.
+System admins veem a seção `Status do placar ao vivo` em `/dashboard/admin`.
 
 Ela mostra:
 
-* provider atual;
-* ultimo sync;
-* ultimo sucesso;
-* ultimo erro;
+* provedor atual;
+* último sync;
+* último sucesso;
+* último erro;
 * jogos em janela ativa;
-* proximo jogo;
-* historico recente;
-* alerta visual quando a ultima falha ainda nao foi superada por sucesso.
+* próximo jogo;
+* histórico recente;
+* alerta visual quando a última falha ainda não foi superada por sucesso.
 
-O botao `Rodar sincronizacao agora` chama uma rota admin-only server-side e nao
+O botão `Rodar sincronização agora` chama uma rota admin-only server-side e não
 envia `SCORES_SYNC_SECRET` para o navegador.
 
 ## Uso na tela
@@ -403,17 +403,17 @@ envia `SCORES_SYNC_SECRET` para o navegador.
 * `AO VIVO` para jogos em andamento;
 * `Intervalo` para `HT`;
 * `Finalizado` para `FT`, `AET` ou `PEN`;
-* horario do jogo quando ainda nao iniciou.
+* horário do jogo quando ainda não iniciou.
 
-A classificacao real do grupo usa:
+A classificação real do grupo usa:
 
 ```txt
 1. home_score/away_score se finalizado
 2. home_score_live/away_score_live se em andamento ou intervalo
-3. ignora jogo nao iniciado
+3. ignora jogo não iniciado
 ```
 
-O ranking dos usuarios continua usando somente:
+O ranking dos usuários continua usando somente:
 
 ```txt
 matches.home_score
@@ -426,7 +426,7 @@ matches.away_score
 
 1. Entrar como system admin.
 2. Abrir `/dashboard/admin`.
-3. Usar a secao `Placar dos jogos`.
+3. Usar a seção `Placar dos jogos`.
 4. Preencher placar live, status e minuto.
 5. Clicar em `Salvar`.
 6. Abrir `/dashboard/groups` e confirmar `AO VIVO`.
@@ -475,6 +475,6 @@ where id = 'MATCH_ID';
 ## Fallback manual
 
 Se API ou cron falhar durante um jogo, atualize os campos live manualmente no
-Supabase. Quando terminar, preencha `home_score` e `away_score`; so esses campos
-entram no ranking dos usuarios.
+Supabase. Quando terminar, preencha `home_score` e `away_score`; só esses campos
+entram no ranking dos usuários.
 

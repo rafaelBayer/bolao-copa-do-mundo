@@ -454,10 +454,10 @@ export function KnockoutBracket({
               {settings.name}
             </p>
             <p className="mt-3 max-w-xl text-sm text-slate-500 light:text-slate-500">
-              Voce pode preencher os palpites do mata-mata aos poucos. Cada jogo bloqueia 10 minutos antes do inicio.
+              Você pode preencher os palpites do mata-mata aos poucos. Cada jogo bloqueia 10 minutos antes do início.
             </p>
             <p className="mt-2 max-w-xl text-sm text-slate-500 light:text-slate-500">
-              As proximas fases seguem os classificados reais da Copa. Se voce errar um classificado, ainda podera palpitar nos proximos confrontos oficiais.
+              As próximas fases seguem os classificados reais da Copa. Se você errar um classificado, ainda poderá palpitar nos próximos confrontos oficiais.
             </p>
           </div>
 
@@ -469,7 +469,7 @@ export function KnockoutBracket({
         <div className="mt-4 min-h-6 text-sm font-bold text-slate-500 light:text-slate-500">
           {missingOpenPicksCount > 0
             ? `Ainda faltam ${missingOpenPicksCount} jogos abertos para palpitar.`
-            : "Todos os jogos abertos ja foram palpitados."}
+            : "Todos os jogos abertos já foram palpitados."}
           {saveStatus === "error" ? (
             <span className="ml-2 text-red-300 light:text-red-600">
               Erro ao salvar. Tente novamente.
@@ -486,7 +486,7 @@ export function KnockoutBracket({
       {!hasRoundOf32 ? (
         <Card className="p-5">
           <p className="text-sm font-bold text-slate-300 light:text-slate-700">
-            Os confrontos do mata-mata ainda serao divulgados.
+            Os confrontos do mata-mata ainda serão divulgados.
           </p>
         </Card>
       ) : null}
@@ -495,16 +495,16 @@ export function KnockoutBracket({
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
-              Pontuacao dos confrontos oficiais
+              Pontuação dos confrontos oficiais
             </h2>
             <p className="mt-2 text-sm text-slate-400 light:text-slate-600">
-              Cada acerto vale 2 pts. Jogos avancados podem somar bonus se sua
-              sequencia anterior naquela chave estiver perfeita.
+              Cada acerto vale 2 pts. Jogos avançados podem somar bônus se sua
+              sequência anterior naquela chave estiver perfeita.
             </p>
           </div>
           <div className="rounded-lg border border-slate-800 bg-slate-950/45 px-4 py-3 text-right light:border-slate-200 light:bg-slate-50">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500 light:text-slate-500">
-              Sua pontuacao
+              Sua pontuação
             </p>
             <p className="mt-1 text-2xl font-black text-emerald-300 light:text-emerald-700">
               {currentUserScore?.totalPoints ?? 0} pts
@@ -512,7 +512,7 @@ export function KnockoutBracket({
             <p className="mt-1 text-xs font-semibold text-slate-500 light:text-slate-500">
               {currentUserScore
                 ? `${currentUserScore.correctPicks} acertos em confrontos oficiais`
-                : "Sera calculada conforme os jogos terminarem"}
+                : "Será calculada conforme os jogos terminarem"}
             </p>
           </div>
         </div>
@@ -629,7 +629,7 @@ export function KnockoutBracket({
 
       {communityPicksError ? (
         <p className="text-xs font-semibold text-amber-300 light:text-amber-700">
-          Nao foi possivel carregar os palpites fechados da galera agora.
+          Não foi possível carregar os palpites fechados da galera agora.
         </p>
       ) : null}
 
@@ -642,7 +642,7 @@ export function KnockoutBracket({
 
       {initialBracket ? null : (
         <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
-          Seu mata-mata ainda nao foi salvo.
+          Seu mata-mata ainda não foi salvo.
         </p>
       )}
     </div>
@@ -682,7 +682,7 @@ function CommunityPicksDialog({
             </h2>
             <p className="mt-1 text-sm font-semibold text-slate-500 light:text-slate-500">
               {summary.totalPicks}{" "}
-              {summary.totalPicks === 1 ? "palpite" : "palpites"} no bolao
+              {summary.totalPicks === 1 ? "palpite" : "palpites"} no bolão
             </p>
           </div>
           <button
@@ -737,7 +737,7 @@ function CommunityPicksDialog({
                           <span className="truncate">{user.name}</span>
                           {user.isCurrentUser ? (
                             <span className="shrink-0 text-[10px] font-black uppercase">
-                              Voce
+                              Você
                             </span>
                           ) : null}
                         </div>

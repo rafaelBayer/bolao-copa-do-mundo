@@ -71,7 +71,7 @@ function mapPoolSummary(row: Record<string, unknown>): PoolSummary | null {
 
   return {
     id: String(pool.id),
-    name: typeof pool.name === "string" ? pool.name : "Meu bolao",
+    name: typeof pool.name === "string" ? pool.name : "Meu bolão",
     isDefault: pool.is_default === true,
   };
 }
@@ -249,10 +249,10 @@ function UnavailableKnockoutMessage() {
       <Card className="p-6">
         <Badge tone="amber">Mata-mata</Badge>
         <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
-          O mata-mata ainda nao esta disponivel.
+          O mata-mata ainda não está disponível.
         </h1>
         <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-          Assim que os confrontos forem definidos, voce podera palpitar nos jogos oficiais.
+          Assim que os confrontos forem definidos, você poderá palpitar nos jogos oficiais.
         </p>
       </Card>
     </main>
@@ -265,7 +265,7 @@ function LoadErrorMessage() {
       <Card className="p-6">
         <Badge tone="amber">Mata-mata</Badge>
         <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
-          Nao foi possivel carregar o mata-mata agora.
+          Não foi possível carregar o mata-mata agora.
         </h1>
         <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
           Tente novamente em alguns instantes.
@@ -345,7 +345,7 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         <Card className="p-6">
           <Badge tone="amber">Acesso negado</Badge>
           <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
-            Bolao nao encontrado
+            Bolão não encontrado
           </h1>
         </Card>
       </main>
@@ -356,12 +356,12 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     return (
       <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
         <Card className="p-6">
-          <Badge tone="amber">Sem bolao</Badge>
+          <Badge tone="amber">Sem bolão</Badge>
           <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
             Mata-mata
           </h1>
           <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
-            Use um link de convite valido para entrar em um bolao.
+            Use um link de convite válido para entrar em um bolão.
           </p>
         </Card>
       </main>
@@ -429,7 +429,7 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
       {pools.length > 1 ? (
         <Card className="mb-5 p-4 sm:p-5">
           <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
-            Ranking por bolao
+            Ranking por bolão
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
             {pools.map((pool) => {

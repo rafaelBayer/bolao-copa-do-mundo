@@ -38,7 +38,7 @@ export function PoolContextPanel({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
-              Meus boloes
+              Meus bolões
             </h2>
             {selectedPool ? (
               <Badge tone={selectedPool.isDefault ? "emerald" : "default"}>
@@ -49,7 +49,7 @@ export function PoolContextPanel({
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
             {selectedPool
               ? `Visualizando ${selectedPool.name}.`
-              : "Visualize seus palpites em um bolao."}
+              : "Visualize seus palpites em um bolão."}
           </p>
 
           {showPoolSwitcher ? (
@@ -85,7 +85,7 @@ export function PoolContextPanel({
           className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-900/80 px-4 py-2.5 text-sm font-bold text-slate-100 shadow-sm transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
         >
           <Settings size={16} aria-hidden="true" />
-          Gerenciar boloes
+          Gerenciar bolões
         </Link>
       </div>
     </Card>

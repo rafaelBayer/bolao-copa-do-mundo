@@ -18,12 +18,12 @@ export function DashboardHeader({
   userLabel,
   userEmail = null,
   avatarUrl = null,
-  brandTitle = "Bolao da Copa",
+  brandTitle = "Bolão da Copa",
   brandLogoUrl = null,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
-  const title = brandTitle?.trim() || "Bolao da Copa";
+  const title = brandTitle?.trim() || "Bolão da Copa";
   const logoUrl = brandLogoUrl?.trim() || null;
   const shouldShowLogo = Boolean(logoUrl && failedLogoUrl !== logoUrl);
   const navItems = [
@@ -36,7 +36,7 @@ export function DashboardHeader({
     },
     {
       href: "/dashboard/leaderboard",
-      label: "Classificacao",
+      label: "Classificação",
       icon: Medal,
       isActive: pathname === "/dashboard/leaderboard",
     },

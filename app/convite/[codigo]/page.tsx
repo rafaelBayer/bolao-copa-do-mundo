@@ -42,12 +42,12 @@ export default async function InvitePage({ params }: InvitePageProps) {
     return (
       <main className="flex min-h-screen items-center justify-center px-4 py-10">
         <Card className="w-full max-w-xl p-6 sm:p-8">
-          <Badge tone="amber">Convite invalido</Badge>
+          <Badge tone="amber">Convite inválido</Badge>
           <h1 className="mt-4 text-3xl font-black text-slate-50 light:text-slate-950">
-            Nao encontramos este convite
+            Não encontramos este convite
           </h1>
           <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
-            O codigo pode estar incorreto ou o bolao privado pode nao aceitar
+            O código pode estar incorreto ou o bolão privado pode não aceitar
             entrada por este link.
           </p>
           <div className="mt-6">
@@ -66,9 +66,9 @@ export default async function InvitePage({ params }: InvitePageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <Card className="w-full max-w-2xl p-6 sm:p-8">
-        <Badge tone="emerald">Convite de bolao</Badge>
+        <Badge tone="emerald">Convite de bolão</Badge>
         <h1 className="mt-4 text-3xl font-black text-slate-50 light:text-slate-950">
-          Voce foi convidado para o bolao &quot;{invite.pool_name}&quot;
+          Você foi convidado para o bolão &quot;{invite.pool_name}&quot;
         </h1>
         <p className="mt-3 text-sm text-slate-400 light:text-slate-500">
           {invite.pool_description?.trim()
@@ -76,8 +76,8 @@ export default async function InvitePage({ params }: InvitePageProps) {
             : "Entre com sua conta para participar da disputa com seus amigos."}
         </p>
         <p className="mt-4 rounded-xl border border-slate-800 bg-slate-950/35 px-3 py-2 text-sm text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
-          Seus palpites continuam globais: o mesmo palpite vale no Bolao Geral
-          e neste bolao privado.
+          Seus palpites continuam globais: o mesmo palpite vale no Bolão Geral
+          e neste bolão privado.
         </p>
 
         <div className="mt-6">

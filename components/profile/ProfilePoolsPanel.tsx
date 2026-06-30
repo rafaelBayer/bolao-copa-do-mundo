@@ -31,17 +31,17 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
     const trimmedDescription = description.trim();
 
     if (!trimmedName) {
-      setError("Informe o nome do bolao.");
+      setError("Informe o nome do bolão.");
       return;
     }
 
     if (trimmedName.length < 2) {
-      setError("O nome do bolao precisa ter pelo menos 2 caracteres.");
+      setError("O nome do bolão precisa ter pelo menos 2 caracteres.");
       return;
     }
 
     if (trimmedName.length > 80) {
-      setError("Use um nome com ate 80 caracteres.");
+      setError("Use um nome com até 80 caracteres.");
       return;
     }
 
@@ -58,8 +58,8 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
     if (createError) {
       setError(
         createError.message.includes("Pool name is required")
-          ? "Informe o nome do bolao."
-          : "Nao foi possivel criar o bolao agora. Tente novamente.",
+          ? "Informe o nome do bolão."
+          : "Não foi possível criar o bolão agora. Tente novamente.",
       );
       return;
     }
@@ -92,10 +92,10 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
       <Card className="p-5">
         <div className="mb-4">
           <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
-            Criar bolao privado
+            Criar bolão privado
           </h2>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Voce ja participa do Bolao Geral. Crie um bolao privado apenas se quiser disputar com amigos.
+            Você já participa do Bolão Geral. Crie um bolão privado apenas se quiser disputar com amigos.
           </p>
         </div>
 
@@ -106,14 +106,14 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
           <Input
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Nome do bolao"
+            placeholder="Nome do bolão"
             required
             minLength={2}
           />
           <Input
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="Descricao opcional"
+            placeholder="Descrição opcional"
           />
           <Button type="submit" disabled={isCreating}>
             <Plus size={16} aria-hidden="true" />
@@ -130,7 +130,7 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
         {manualInviteLink ? (
           <div className="mt-3 rounded-xl border border-amber-400/25 bg-amber-400/10 p-3 text-sm text-amber-100 light:border-amber-200 light:bg-amber-50 light:text-amber-800">
             <p className="font-bold">
-              Nao foi possivel copiar automaticamente. Copie o link abaixo:
+              Não foi possível copiar automaticamente. Copie o link abaixo:
             </p>
             <p className="mt-2 break-all font-mono text-xs">{manualInviteLink}</p>
           </div>
@@ -140,10 +140,10 @@ export function ProfilePoolsPanel({ pools }: ProfilePoolsPanelProps) {
       <Card className="p-5">
         <div className="mb-4">
           <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
-            Seus boloes
+            Seus bolões
           </h2>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Voce ve apenas os boloes dos quais participa.
+            Você vê apenas os bolões dos quais participa.
           </p>
         </div>
 

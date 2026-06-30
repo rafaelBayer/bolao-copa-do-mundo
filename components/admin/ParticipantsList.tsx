@@ -41,7 +41,7 @@ export function ParticipantsList({ participants }: ParticipantsListProps) {
           Participantes
         </h2>
         <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-          Lista de membros vinculados a este bolao.
+          Lista de membros vinculados a este bolão.
         </p>
       </div>
 
@@ -49,7 +49,7 @@ export function ParticipantsList({ participants }: ParticipantsListProps) {
         <table className="w-full min-w-[620px] text-sm">
           <thead>
             <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wide text-slate-500 light:border-slate-200">
-              <th className="px-4 py-3">Usuario</th>
+              <th className="px-4 py-3">Usuário</th>
               <th className="px-4 py-3">Role</th>
               <th className="px-4 py-3">Entrada</th>
             </tr>

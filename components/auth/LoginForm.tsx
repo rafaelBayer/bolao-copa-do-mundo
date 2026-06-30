@@ -49,7 +49,7 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
 
     if (signInError) {
       setIsSubmitting(false);
-      setError("E-mail ou senha invalidos.");
+      setError("E-mail ou senha inválidos.");
       return;
     }
 
@@ -121,7 +121,7 @@ export function LoginForm({ redirectTo = "/dashboard" }: LoginFormProps) {
           </Link>
         </p>
         <p>
-          Ainda nao tem conta?{" "}
+          Ainda não tem conta?{" "}
           <Link
             href={
               resolvedRedirectTo === "/dashboard"

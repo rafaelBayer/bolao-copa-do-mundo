@@ -160,7 +160,7 @@ function knockoutRoundLabel(round: string) {
     case "final":
       return "Mata-mata - Final";
     case "third_place":
-      return "Mata-mata - 3o lugar";
+      return "Mata-mata - 3º lugar";
     default:
       return "Mata-mata";
   }
@@ -292,22 +292,22 @@ function AdminHome({
     },
     {
       title: "Placares",
-      description: "Monitore provider, execucoes e janela ativa.",
+      description: "Monitore provedor, execuções e janela ativa.",
       section: "scores" as const,
     },
     {
-      title: "Boloes",
+      title: "Bolões",
       description: "Veja onde gerenciar links de convite.",
       section: "pools" as const,
     },
     {
-      title: "Usuarios",
-      description: "Veja os participantes do bolao administrado.",
+      title: "Usuários",
+      description: "Veja os participantes do bolão administrado.",
       section: "users" as const,
     },
     {
-      title: "Configuracoes",
-      description: "Ajuste aparencia e configuracoes administrativas.",
+      title: "Configurações",
+      description: "Ajuste aparência e configurações administrativas.",
       section: "settings" as const,
     },
   ];
@@ -320,8 +320,8 @@ function AdminHome({
           {pool.name}
         </h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-400 light:text-slate-500">
-          Gerencie partidas, placares, participantes e configuracoes
-          do bolao em um unico lugar.
+          Gerencie partidas, placares, participantes e configurações
+          do bolão em um único lugar.
         </p>
       </Card>
 
@@ -378,12 +378,12 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
   if (!adminPool?.id) {
     return (
       <Card className="p-5">
-        <Badge tone="amber">Configuracao</Badge>
+        <Badge tone="amber">Configuração</Badge>
         <h2 className="mt-3 text-xl font-black text-slate-50 light:text-slate-950">
-          Nenhum bolao encontrado
+          Nenhum bolão encontrado
         </h2>
         <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
-          Aplique as migrations e garanta o Bolao Geral antes de usar o Painel Admin.
+          Aplique as migrations e garanta o Bolão Geral antes de usar o Painel Admin.
         </p>
       </Card>
     );
@@ -395,7 +395,7 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
   };
   const pool: PoolInfo = {
     id: adminPool.id,
-    name: adminPool.name?.trim() || "Bolao Geral",
+    name: adminPool.name?.trim() || "Bolão Geral",
     headerTitle:
       typeof branding?.header_title === "string"
         ? branding.header_title
@@ -536,7 +536,7 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
             Placares
           </h2>
           <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-            Consulte historico e janela ativa. No MVP publico, a sincronizacao automatica fica desativada e o placar e manual.
+            Consulte histórico e janela ativa. No MVP público, a sincronização automática fica desativada e o placar é manual.
           </p>
         </div>
         <LiveScoreMonitorPanel
@@ -555,12 +555,12 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
         <Card className="p-5">
           <div>
             <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
-              Boloes
+              Bolões
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-slate-400 light:text-slate-500">
-              A criacao de boloes privados e os links de convite ficam
-              centralizados na secao Boloes do perfil. Assim o Painel Admin
-              permanece focado em partidas, placares e configuracoes do sistema.
+              A criação de bolões privados e os links de convite ficam
+              centralizados na seção Bolões do perfil. Assim o Painel Admin
+              permanece focado em partidas, placares e configurações do sistema.
             </p>
           </div>
         </Card>
@@ -578,10 +578,10 @@ export async function AdminPanelContent({ section }: AdminPanelContentProps) {
         <Card className="p-5">
           <div className="mb-4">
             <h2 className="text-xl font-black text-slate-50 light:text-slate-950">
-              Configuracoes Admin
+              Configurações Admin
             </h2>
             <p className="mt-1 text-sm text-slate-400 light:text-slate-500">
-              Personalize o titulo e o logo exibidos no header.
+              Personalize o título e o logo exibidos no cabeçalho.
             </p>
           </div>
           <PoolBrandingForm
