@@ -114,6 +114,8 @@ type MatchRow = {
   away_score_live: number | null;
   home_score: number | null;
   away_score: number | null;
+  winner_team?: string | null;
+  winner_team_code?: string | null;
   score_updated_at: string | null;
   home_team?: {
     id: string;
@@ -475,6 +477,8 @@ async function fetchKnockoutMatches(supabase: SyncSupabaseClient) {
         "away_score_live",
         "home_score",
         "away_score",
+        "winner_team",
+        "winner_team_code",
         "score_updated_at",
         "team_a",
         "team_a_code",
@@ -518,6 +522,12 @@ async function fetchKnockoutMatches(supabase: SyncSupabaseClient) {
         : null,
     home_score: typeof match.home_score === "number" ? match.home_score : null,
     away_score: typeof match.away_score === "number" ? match.away_score : null,
+    winner_team:
+      typeof match.winner_team === "string" ? match.winner_team : null,
+    winner_team_code:
+      typeof match.winner_team_code === "string"
+        ? match.winner_team_code
+        : null,
     score_updated_at:
       typeof match.score_updated_at === "string"
         ? match.score_updated_at
@@ -603,6 +613,25 @@ function knockoutWinnerUpdateFromEspn(input: {
   );
 }
 
+function needsKnockoutWinnerRepair(match: MatchRow) {
+  return (
+    match.source_table === "knockout_matches" &&
+    isFinalMatchStatus(match.status_short) &&
+    !match.winner_team
+  );
+}
+
+function shouldSyncFinalMatch(
+  match: MatchRow,
+  provider: LiveScoreProvider,
+) {
+  if (!isFinalMatchStatus(match.status_short)) {
+    return true;
+  }
+
+  return provider === "espn" && needsKnockoutWinnerRepair(match);
+}
+
 function providerFixtureIdForMatch(
   match: MatchRow,
   provider: LiveScoreProvider,
@@ -635,6 +664,23 @@ function providerFixtureIdForMatch(
   }
 
   return match.score_provider_fixture_id;
+}
+
+function needsEspnKnockoutWinnerRepair(match: MatchRow) {
+  return (
+    needsKnockoutWinnerRepair(match) &&
+    providerFixtureIdForMatch(match, "espn") !== null
+  );
+}
+
+function uniqueMatches(matches: MatchRow[]) {
+  const byKey = new Map<string, MatchRow>();
+
+  matches.forEach((match) => {
+    byKey.set(`${match.source_table}:${match.id}`, match);
+  });
+
+  return Array.from(byKey.values());
 }
 
 async function fetchProviderFixtures(
@@ -1296,7 +1342,23 @@ async function runEspnSync(input: {
       continue;
     }
 
-    if (isFinalMatchStatus(match.status_short) && !isFinalMatchStatus(fixture.statusShort)) {
+    const winnerUpdate = knockoutWinnerUpdateFromEspn({
+      match,
+      event,
+      homeScore: fixture.homeScore,
+      awayScore: fixture.awayScore,
+      isFinal:
+        isFinalMatchStatus(fixture.statusShort) ||
+        isFinalMatchStatus(match.status_short),
+    });
+    const isWinnerRepair =
+      needsKnockoutWinnerRepair(match) && Boolean(winnerUpdate.winner_team);
+
+    if (
+      isFinalMatchStatus(match.status_short) &&
+      !isFinalMatchStatus(fixture.statusShort) &&
+      !isWinnerRepair
+    ) {
       console.log("[espn] skipped downgrade from FT");
       continue;
     }
@@ -1355,18 +1417,23 @@ async function runEspnSync(input: {
       continue;
     }
 
-    if (fixture.statusShort === "NS") {
+    if (fixture.statusShort === "NS" && !isWinnerRepair) {
       console.log("[espn] skipped notstarted status");
       continue;
     }
 
     const isFinal = isFinalMatchStatus(fixture.statusShort);
+    const keepFinalLocalScore = isWinnerRepair && !isFinal;
     const statusShort = staleHalftimeAfterLive
       ? match.status_short
-      : fixture.statusShort;
+      : keepFinalLocalScore
+        ? match.status_short
+        : fixture.statusShort;
     const statusLong = staleHalftimeAfterLive
       ? match.status_long
-      : fixture.statusLong;
+      : keepFinalLocalScore
+        ? match.status_long
+        : fixture.statusLong;
     const elapsed = isFinal
       ? fixture.elapsed
       : isCurrentHalftime
@@ -1388,13 +1455,7 @@ async function runEspnSync(input: {
       score_updated_at: input.now.toISOString(),
       score_provider: "espn",
       score_provider_fixture_id: fixtureId,
-      ...knockoutWinnerUpdateFromEspn({
-        match,
-        event,
-        homeScore: fixture.homeScore,
-        awayScore: fixture.awayScore,
-        isFinal,
-      }),
+      ...winnerUpdate,
     };
 
     await updateMatch(input.supabase, match, update);
@@ -1612,11 +1673,19 @@ async function runLiveScoreSyncForTarget(
     );
     const activeCandidateMatches =
       provider === "espn" || provider === "worldcup26" ? matches : todayMatches;
-    const activeMatches = activeCandidateMatches.filter((match) =>
+    const activeWindowMatches = activeCandidateMatches.filter((match) =>
       isWithinActiveWindow(match, now, provider) &&
       ((provider !== "worldcup26" && provider !== "espn") ||
-        !isFinalMatchStatus(match.status_short)),
+        shouldSyncFinalMatch(match, provider)),
     );
+    const pendingEspnWinnerRepairs =
+      provider === "espn"
+        ? activeCandidateMatches.filter(needsEspnKnockoutWinnerRepair)
+        : [];
+    const activeMatches = uniqueMatches([
+      ...activeWindowMatches,
+      ...pendingEspnWinnerRepairs,
+    ]);
     const kickoffTimes = new Set(
       todayMatches
         .filter((match) => match.kickoff_at)
@@ -1639,7 +1708,12 @@ async function runLiveScoreSyncForTarget(
     console.log(`Knockout matches loaded: ${knockoutMatches.length}`);
     console.log(`Today matches: ${todayMatches.length}`);
     console.log(`Active candidate matches: ${activeCandidateMatches.length}`);
-    console.log(`Active matches in window: ${activeMatches.length}`);
+    console.log(`Matches selected for sync: ${activeMatches.length}`);
+    if (provider === "espn") {
+      console.log(
+        `Pending ESPN knockout winner repairs: ${pendingEspnWinnerRepairs.length}`,
+      );
+    }
     console.log(
       `Kickoff times today: ${
         Array.from(kickoffTimes).join(", ") || "none"
