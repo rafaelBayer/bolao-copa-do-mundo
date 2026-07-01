@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { AuthRequiredModal } from "@/components/auth/AuthRequiredModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/client";
@@ -39,6 +40,7 @@ type KnockoutBracketProps = {
   rankingError: boolean;
   communityPicksByMatchKey: Record<string, KnockoutCommunityPicksSummary>;
   communityPicksError: boolean;
+  isAuthenticated?: boolean;
   availableMatchesCount: number;
   openPicksCount: number;
   submittedOpenPicksCount: number;
@@ -129,6 +131,7 @@ export function KnockoutBracket({
   rankingError,
   communityPicksByMatchKey,
   communityPicksError,
+  isAuthenticated = true,
   availableMatchesCount,
   openPicksCount,
   submittedOpenPicksCount,
@@ -144,6 +147,7 @@ export function KnockoutBracket({
   const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
   const [communityPickDialog, setCommunityPickDialog] =
     useState<CommunityPickDialogState | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const requestIdRef = useRef(0);
   const lastFocusedRoundRequestIdRef = useRef<number | null>(null);
@@ -409,6 +413,11 @@ export function KnockoutBracket({
   );
 
   function updatePick(round: KnockoutRound, position: number, team: string) {
+    if (!isAuthenticated) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const match = visibleMatches.find(
       (item) => item.round === round && item.position === position,
     );
@@ -454,7 +463,9 @@ export function KnockoutBracket({
               {settings.name}
             </p>
             <p className="mt-3 max-w-xl text-sm text-slate-500 light:text-slate-500">
-              Você pode preencher os palpites do mata-mata aos poucos. Cada jogo bloqueia 10 minutos antes do início.
+              {isAuthenticated
+                ? "Você pode preencher os palpites do mata-mata aos poucos. Cada jogo bloqueia 10 minutos antes do início."
+                : "Você pode acompanhar a bracket sem login. Para salvar palpites, entre ou crie sua conta."}
             </p>
             <p className="mt-2 max-w-xl text-sm text-slate-500 light:text-slate-500">
               As próximas fases seguem os classificados reais da Copa. Se você errar um classificado, ainda poderá palpitar nos próximos confrontos oficiais.
@@ -462,14 +473,16 @@ export function KnockoutBracket({
           </div>
 
           <div className="rounded-full border border-slate-800 bg-slate-900/55 px-3 py-1.5 text-xs font-black text-slate-300 light:border-slate-200 light:bg-slate-50 light:text-slate-600">
-            {statusLabel(saveStatus)}
+            {isAuthenticated ? statusLabel(saveStatus) : "Entre para palpitar"}
           </div>
         </div>
 
         <div className="mt-4 min-h-6 text-sm font-bold text-slate-500 light:text-slate-500">
-          {missingOpenPicksCount > 0
-            ? `Ainda faltam ${missingOpenPicksCount} jogos abertos para palpitar.`
-            : "Todos os jogos abertos já foram palpitados."}
+          {!isAuthenticated
+            ? "Para registrar seu palpite no mata-mata, entre ou crie sua conta."
+            : missingOpenPicksCount > 0
+              ? `Ainda faltam ${missingOpenPicksCount} jogos abertos para palpitar.`
+              : "Todos os jogos abertos já foram palpitados."}
           {saveStatus === "error" ? (
             <span className="ml-2 text-red-300 light:text-red-600">
               Erro ao salvar. Tente novamente.
@@ -504,15 +517,17 @@ export function KnockoutBracket({
           </div>
           <div className="rounded-lg border border-slate-800 bg-slate-950/45 px-4 py-3 text-right light:border-slate-200 light:bg-slate-50">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500 light:text-slate-500">
-              Sua pontuação
+              {isAuthenticated ? "Sua pontuação" : "Ranking"}
             </p>
             <p className="mt-1 text-2xl font-black text-emerald-300 light:text-emerald-700">
-              {currentUserScore?.totalPoints ?? 0} pts
+              {isAuthenticated ? `${currentUserScore?.totalPoints ?? 0} pts` : "-"}
             </p>
             <p className="mt-1 text-xs font-semibold text-slate-500 light:text-slate-500">
               {currentUserScore
                 ? `${currentUserScore.correctPicks} acertos em confrontos oficiais`
-                : "Será calculada conforme os jogos terminarem"}
+                : isAuthenticated
+                  ? "Será calculada conforme os jogos terminarem"
+                  : "Crie sua conta para salvar palpites e acompanhar sua pontuação"}
             </p>
           </div>
         </div>
@@ -625,7 +640,9 @@ export function KnockoutBracket({
         </div>
       </div>
 
-      <KnockoutRanking entries={rankingEntries} hasError={rankingError} />
+      {isAuthenticated ? (
+        <KnockoutRanking entries={rankingEntries} hasError={rankingError} />
+      ) : null}
 
       {communityPicksError ? (
         <p className="text-xs font-semibold text-amber-300 light:text-amber-700">
@@ -640,11 +657,20 @@ export function KnockoutBracket({
         />
       ) : null}
 
-      {initialBracket ? null : (
+      {isAuthenticated && !initialBracket ? (
         <p className="text-xs font-semibold text-slate-500 light:text-slate-500">
           Seu mata-mata ainda não foi salvo.
         </p>
-      )}
+      ) : null}
+
+      <AuthRequiredModal
+        isOpen={isAuthModalOpen}
+        title="Entre para palpitar"
+        message="Para registrar seu palpite no mata-mata, entre ou crie sua conta."
+        note="Ainda não tem conta? Crie uma agora e participe do ranking."
+        redirectTo="/dashboard/mata-mata"
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </div>
   );
 }

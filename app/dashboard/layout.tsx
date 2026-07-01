@@ -1,5 +1,4 @@
-﻿import { redirect } from "next/navigation";
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import { KnockoutGlobalNotice } from "@/components/knockout/KnockoutGlobalNotice";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Badge } from "@/components/ui/Badge";
@@ -74,7 +73,19 @@ export default async function DashboardLayout({
   const { data, error } = await supabase.auth.getClaims();
 
   if (error || !data?.claims?.sub) {
-    redirect("/login");
+    return (
+      <div className="min-h-screen">
+        <DashboardHeader
+          userLabel={null}
+          userEmail={null}
+          avatarUrl={null}
+          brandTitle="Bolão da Copa"
+          brandLogoUrl={null}
+          isAuthenticated={false}
+        />
+        {children}
+      </div>
+    );
   }
 
   const userId = data.claims.sub;
@@ -175,6 +186,7 @@ export default async function DashboardLayout({
           avatarUrl={profile?.avatar_url ?? null}
           brandTitle={brandTitle}
           brandLogoUrl={brandLogoUrl}
+          isAuthenticated
         />
         <main className="mx-auto w-full max-w-[960px] px-3 py-8 sm:px-5 lg:px-8">
           <Card className="p-6">
@@ -200,6 +212,7 @@ export default async function DashboardLayout({
         avatarUrl={profile?.avatar_url ?? null}
         brandTitle={brandTitle}
         brandLogoUrl={brandLogoUrl}
+        isAuthenticated
       />
       {knockoutNotice ? (
         <KnockoutGlobalNotice

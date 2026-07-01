@@ -49,6 +49,14 @@ type PoolSummary = {
   isDefault: boolean;
 };
 
+const previewRows = [
+  { position: 1, name: "Participante", points: 18 },
+  { position: 2, name: "Participante", points: 15 },
+  { position: 3, name: "Participante", points: 13 },
+  { position: 4, name: "Participante", points: 10 },
+  { position: 5, name: "Participante", points: 8 },
+];
+
 function single<T>(value: T | T[] | null | undefined): T | null {
   if (!value) return null;
   return Array.isArray(value) ? value[0] ?? null : value;
@@ -296,6 +304,91 @@ function combineRankings(
   };
 }
 
+function PublicLeaderboardLocked() {
+  return (
+    <main className="mx-auto w-full max-w-[1536px] px-3 py-5 sm:px-5 sm:py-7 lg:px-8">
+      <div className="space-y-5">
+        <section>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-emerald-300 light:text-emerald-700">
+            Bolão Geral
+          </p>
+          <h1 className="mt-2 text-3xl font-black text-slate-50 light:text-slate-950">
+            Classificação
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm text-slate-400 light:text-slate-500">
+            Acompanhe sua posição no ranking depois de criar sua conta.
+          </p>
+        </section>
+
+        <Card className="relative overflow-hidden p-4 sm:p-5">
+          <div className="pointer-events-none select-none blur-sm">
+            <div className="mb-4 flex flex-wrap gap-2">
+              {["Geral", "Grupos", "Mata-mata", "Por rodada", "Ao vivo"].map(
+                (item, index) => (
+                  <span
+                    key={item}
+                    className={`rounded-lg px-3 py-2 text-sm font-bold ${
+                      index === 0
+                        ? "bg-emerald-400 text-slate-950 light:bg-emerald-600 light:text-white"
+                        : "bg-slate-950/45 text-slate-400 light:bg-slate-50 light:text-slate-500"
+                    }`}
+                  >
+                    {item}
+                  </span>
+                ),
+              )}
+            </div>
+            <div className="overflow-hidden rounded-2xl border border-slate-800 light:border-slate-200">
+              {previewRows.map((row) => (
+                <div
+                  key={row.position}
+                  className="grid grid-cols-[3rem_minmax(0,1fr)_5rem] items-center gap-3 border-b border-slate-800/70 px-4 py-4 last:border-b-0 light:border-slate-200/80"
+                >
+                  <span className="text-lg font-black text-slate-50 light:text-slate-950">
+                    {row.position}
+                  </span>
+                  <span className="font-bold text-slate-100 light:text-slate-800">
+                    {row.name}
+                  </span>
+                  <span className="text-right font-black text-emerald-300 light:text-emerald-700">
+                    {row.points}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-[2px] light:bg-white/75">
+            <div className="max-w-md rounded-2xl border border-slate-800 bg-slate-950 p-5 text-center shadow-2xl light:border-slate-200 light:bg-white">
+              <Badge tone="emerald">Ranking</Badge>
+              <h2 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+                Crie sua conta para ver a classificação
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-slate-400 light:text-slate-600">
+                Entre no bolão, registre seus palpites e acompanhe sua posição no ranking.
+              </p>
+              <div className="mt-5 grid gap-2 sm:grid-cols-2">
+                <Link
+                  href="/login?redirectTo=%2Fdashboard%2Fleaderboard"
+                  className="inline-flex items-center justify-center rounded-xl border border-slate-700 bg-slate-900/80 px-5 py-3 text-sm font-bold text-slate-100 transition hover:border-emerald-400/60 hover:bg-slate-800 light:border-slate-200 light:bg-white light:text-slate-700 light:hover:border-emerald-300 light:hover:bg-emerald-50"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  href="/cadastro?redirectTo=%2Fdashboard%2Fleaderboard"
+                  className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-5 py-3 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+                >
+                  Criar conta
+                </Link>
+              </div>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </main>
+  );
+}
+
 export default async function LeaderboardPage({
   searchParams,
 }: LeaderboardPageProps) {
@@ -308,7 +401,7 @@ export default async function LeaderboardPage({
   const userId = claimsData?.claims?.sub;
 
   if (!userId) {
-    return null;
+    return <PublicLeaderboardLocked />;
   }
 
   const { data: membershipsData } = await supabase

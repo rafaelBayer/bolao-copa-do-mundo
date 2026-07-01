@@ -1,6 +1,7 @@
 ﻿import { GroupsDashboardClient } from "@/components/groups/GroupsDashboardClient";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import type { PoolSummary } from "@/components/pools/PoolContextPanel";
 import type { GroupWithTeamsAndMatches } from "@/types/group";
@@ -76,6 +77,22 @@ function mapPoolSummary(row: Record<string, unknown>): PoolSummary | null {
     type: rawType === "general" ? "general" : "private",
     isDefault: pool.is_default === true,
     role,
+  };
+}
+
+function mapGeneralPool(row: Record<string, unknown> | null): PoolSummary | null {
+  if (!row?.id || row.type !== "general" || row.is_default !== true) {
+    return null;
+  }
+
+  return {
+    id: String(row.id),
+    name: typeof row.name === "string" ? row.name : "Bolão Geral",
+    description:
+      typeof row.description === "string" ? row.description : null,
+    type: "general",
+    isDefault: true,
+    role: "member",
   };
 }
 
@@ -228,24 +245,42 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
     ? resolvedSearchParams?.pool[0]
     : resolvedSearchParams?.pool;
   const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
-
-  if (!userId) {
-    return null;
-  }
-
-  const { data: membershipsData } = await supabase
-    .from("pool_members")
-    .select("pool_id, role, pools(id, name, description, type, is_default)")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
-  const pools = sortPools(
+  const userId =
+    typeof claimsData?.claims?.sub === "string" ? claimsData.claims.sub : null;
+  const isAuthenticated = Boolean(userId);
+  const dataClient = isAuthenticated ? supabase : createAdminClient();
+  const { data: membershipsData } = isAuthenticated
+    ? await supabase
+        .from("pool_members")
+        .select("pool_id, role, pools(id, name, description, type, is_default)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+    : { data: [] };
+  const userPools = sortPools(
     (membershipsData ?? [])
       .map((row) => mapPoolSummary(row as Record<string, unknown>))
       .filter((pool): pool is PoolSummary => Boolean(pool)),
   );
-  const selectedPool =
-    pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null;
+  const { data: publicPoolData } = !isAuthenticated
+    ? requestedPoolId
+      ? await dataClient
+          .from("pools")
+          .select("id, name, description, type, is_default")
+          .eq("id", requestedPoolId)
+          .maybeSingle()
+      : await dataClient
+          .from("pools")
+          .select("id, name, description, type, is_default")
+          .eq("is_default", true)
+          .maybeSingle()
+    : { data: null };
+  const publicPool = mapGeneralPool(publicPoolData as Record<string, unknown> | null);
+  const pools = isAuthenticated ? userPools : publicPool ? [publicPool] : [];
+  const selectedPool = isAuthenticated
+    ? pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null
+    : publicPool?.type === "general" && publicPool.isDefault
+      ? publicPool
+      : null;
 
   if (requestedPoolId && !pools.some((pool) => pool.id === requestedPoolId)) {
     return (
@@ -289,7 +324,7 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
     { data: predictionsData },
     { data: selectedPoolMembers },
   ] = await Promise.all([
-      supabase
+      dataClient
         .from("groups")
         .select(
           `
@@ -333,14 +368,16 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
         `,
         )
         .order("name"),
-      supabase
-        .from("predictions")
-        .select(
-          "id, user_id, match_id, home_score, away_score, created_at, updated_at",
-        )
-        .eq("user_id", userId)
-        .order("updated_at", { ascending: false }),
-      supabase
+      isAuthenticated && userId
+        ? supabase
+            .from("predictions")
+            .select(
+              "id, user_id, match_id, home_score, away_score, created_at, updated_at",
+            )
+            .eq("user_id", userId)
+            .order("updated_at", { ascending: false })
+        : { data: [] },
+      dataClient
         .from("pool_members")
         .select("id")
         .eq("pool_id", pool.id),
@@ -378,9 +415,12 @@ export default async function GroupsPage({ searchParams }: GroupsPageProps) {
       poolName={pool.name}
       pools={pools}
       canViewPoolPredictions={
-        pools.length > 1 || (selectedPoolMembers?.length ?? 0) > 1
+        isAuthenticated
+          ? pools.length > 1 || (selectedPoolMembers?.length ?? 0) > 1
+          : Boolean(publicPool?.id)
       }
       userId={userId}
+      isAuthenticated={isAuthenticated}
     />
   );
 }

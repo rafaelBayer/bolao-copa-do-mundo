@@ -7,13 +7,17 @@ import {
 } from "@/lib/knockout/buildBracket";
 import { loadCommunityPicks } from "@/lib/knockout/loadCommunityPicks";
 import { loadPoolKnockoutRanking } from "@/lib/knockout/loadKnockoutRanking";
+import { isKnockoutMatchPickLocked } from "@/lib/knockout/pickLock";
 import type {
   KnockoutMatch,
+  KnockoutCommunityPicksSummary,
   KnockoutPick,
+  KnockoutRankingEntry,
   KnockoutRound,
   KnockoutSettings,
   UserKnockoutBracket,
 } from "@/lib/knockout/types";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -144,6 +148,31 @@ function mapMatch(value: unknown): KnockoutMatch {
   };
 }
 
+function mapSettingsRow(row: Record<string, unknown>): KnockoutSettings {
+  return {
+    id: String(row.id),
+    tournamentKey: String(row.tournament_key),
+    name: typeof row.name === "string" ? row.name : "Copa do Mundo 2026",
+    deadlineAt:
+      typeof row.deadline_at === "string" ? row.deadline_at : new Date(0).toISOString(),
+    isActive: row.is_active === true,
+  };
+}
+
+function lockAtFromStartsAt(startsAt: string | null) {
+  if (!startsAt) {
+    return null;
+  }
+
+  const startsAtTime = new Date(startsAt).getTime();
+
+  if (!Number.isFinite(startsAtTime)) {
+    return null;
+  }
+
+  return new Date(startsAtTime - 10 * 60 * 1000).toISOString();
+}
+
 function mapLiveScoreFields(row: Record<string, unknown>): KnockoutLiveScoreFields {
   return {
     statusShort:
@@ -158,6 +187,60 @@ function mapLiveScoreFields(row: Record<string, unknown>): KnockoutLiveScoreFiel
     awayScore: typeof row.away_score === "number" ? row.away_score : null,
     scoreUpdatedAt:
       typeof row.score_updated_at === "string" ? row.score_updated_at : null,
+  };
+}
+
+function mapMatchRow(row: Record<string, unknown>): KnockoutMatch {
+  const startsAt = typeof row.starts_at === "string" ? row.starts_at : null;
+  const baseMatch = {
+    id: String(row.id),
+    tournamentKey: String(row.tournament_key),
+    round: String(row.round) as KnockoutRound,
+    position: Number(row.position),
+    externalMatchId:
+      typeof row.external_match_id === "string" ? row.external_match_id : null,
+    teamASource:
+      typeof row.team_a_source === "string" ? row.team_a_source : null,
+    teamA: typeof row.team_a === "string" ? row.team_a : null,
+    teamACode: typeof row.team_a_code === "string" ? row.team_a_code : null,
+    teamAFlagUrl:
+      typeof row.team_a_flag_url === "string" ? row.team_a_flag_url : null,
+    teamBSource:
+      typeof row.team_b_source === "string" ? row.team_b_source : null,
+    teamB: typeof row.team_b === "string" ? row.team_b : null,
+    teamBCode: typeof row.team_b_code === "string" ? row.team_b_code : null,
+    teamBFlagUrl:
+      typeof row.team_b_flag_url === "string" ? row.team_b_flag_url : null,
+    startsAt,
+    lockAt: lockAtFromStartsAt(startsAt),
+    statusShort:
+      typeof row.status_short === "string" ? row.status_short : null,
+    statusLong: typeof row.status_long === "string" ? row.status_long : null,
+    elapsed: typeof row.elapsed === "number" ? row.elapsed : null,
+    homeScoreLive:
+      typeof row.home_score_live === "number" ? row.home_score_live : null,
+    awayScoreLive:
+      typeof row.away_score_live === "number" ? row.away_score_live : null,
+    homeScore: typeof row.home_score === "number" ? row.home_score : null,
+    awayScore: typeof row.away_score === "number" ? row.away_score : null,
+    scoreUpdatedAt:
+      typeof row.score_updated_at === "string" ? row.score_updated_at : null,
+    userPick: null,
+    pointsIfCorrect: 2,
+    isPickCorrect: null,
+    pickPoints: 0,
+    winnerTeam: typeof row.winner_team === "string" ? row.winner_team : null,
+    winnerTeamCode:
+      typeof row.winner_team_code === "string" ? row.winner_team_code : null,
+  };
+  const isLocked = isKnockoutMatchPickLocked(baseMatch);
+  const hasTeams = Boolean(baseMatch.teamA && baseMatch.teamB);
+
+  return {
+    ...baseMatch,
+    isLocked,
+    canPick: hasTeams && !isLocked,
+    isFinished: Boolean(baseMatch.winnerTeam),
   };
 }
 
@@ -320,26 +403,52 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     ? resolvedSearchParams?.pool[0]
     : resolvedSearchParams?.pool;
   const { data: claimsData } = await supabase.auth.getClaims();
-  const userId = claimsData?.claims?.sub;
-
-  if (!userId) {
-    return null;
-  }
-
-  const { data: membershipsData } = await supabase
-    .from("pool_members")
-    .select("pool_id, pools(id, name, is_default)")
-    .eq("user_id", userId)
-    .order("created_at", { ascending: true });
+  const userId =
+    typeof claimsData?.claims?.sub === "string" ? claimsData.claims.sub : null;
+  const isAuthenticated = Boolean(userId);
+  const dataClient = isAuthenticated ? supabase : createAdminClient();
+  const { data: membershipsData } = isAuthenticated
+    ? await supabase
+        .from("pool_members")
+        .select("pool_id, pools(id, name, is_default)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: true })
+    : { data: [] };
   const pools = sortPools(
     (membershipsData ?? [])
       .map((row) => mapPoolSummary(row as Record<string, unknown>))
       .filter((pool): pool is PoolSummary => Boolean(pool)),
   );
-  const selectedPool =
-    pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null;
+  const { data: publicPoolData } = !isAuthenticated
+    ? requestedPoolId
+      ? await dataClient
+          .from("pools")
+          .select("id, name, type, is_default")
+          .eq("id", requestedPoolId)
+          .maybeSingle()
+      : await dataClient
+          .from("pools")
+          .select("id, name, type, is_default")
+          .eq("is_default", true)
+          .maybeSingle()
+    : { data: null };
+  const publicPool =
+    publicPoolData?.type === "general" && publicPoolData.is_default === true
+      ? {
+          id: String(publicPoolData.id),
+          name:
+            typeof publicPoolData.name === "string"
+              ? publicPoolData.name
+              : "Bolão Geral",
+          isDefault: true,
+        }
+      : null;
+  const visiblePools = isAuthenticated ? pools : publicPool ? [publicPool] : [];
+  const selectedPool = isAuthenticated
+    ? pools.find((pool) => pool.id === requestedPoolId) ?? pools[0] ?? null
+    : publicPool;
 
-  if (requestedPoolId && !pools.some((pool) => pool.id === requestedPoolId)) {
+  if (requestedPoolId && !visiblePools.some((pool) => pool.id === requestedPoolId)) {
     return (
       <main className="mx-auto w-full max-w-[1536px] px-3 py-8 sm:px-5 sm:py-10 lg:px-8">
         <Card className="p-6">
@@ -368,55 +477,167 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
     );
   }
 
-  const { data: stateData, error: stateError } = await supabase.rpc(
-    "get_knockout_state",
-    {
-      target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
-    },
-  );
+  let settings: KnockoutSettings;
+  let matches: KnockoutMatch[];
+  let bracket: UserKnockoutBracket | null = null;
+  let picks: KnockoutPick[] = [];
+  let rankingEntries: KnockoutRankingEntry[] = [];
+  let rankingError = false;
+  let communityPicks = new Map<string, KnockoutCommunityPicksSummary>();
+  let communityPicksError = false;
+  let availableMatchesCount = 0;
+  let openPicksCount = 0;
+  let submittedOpenPicksCount = 0;
+  let missingOpenPicksCount = 0;
+  let nextLockAt: string | null = null;
 
-  if (stateError) {
-    if (
-      stateError.code === "P0001" &&
-      stateError.message?.toLowerCase().includes("not found")
-    ) {
+  if (isAuthenticated) {
+    const { data: stateData, error: stateError } = await supabase.rpc(
+      "get_knockout_state",
+      {
+        target_tournament_key: KNOCKOUT_TOURNAMENT_KEY,
+      },
+    );
+
+    if (stateError) {
+      if (
+        stateError.code === "P0001" &&
+        stateError.message?.toLowerCase().includes("not found")
+      ) {
+        return <UnavailableKnockoutMessage />;
+      }
+
+      if (process.env.NODE_ENV !== "production") {
+        logKnockoutStateError(stateError);
+      }
+
+      return <LoadErrorMessage />;
+    }
+
+    const stateRow = single(stateData as Record<string, unknown>[] | null);
+    if (!stateRow) {
       return <UnavailableKnockoutMessage />;
     }
 
-    if (process.env.NODE_ENV !== "production") {
-      logKnockoutStateError(stateError);
+    settings = mapSettings(stateRow.settings);
+    const rawMatches = Array.isArray(stateRow.matches)
+      ? (stateRow.matches as unknown[]).map(mapMatch)
+      : [];
+    matches = await enrichMatchesWithLiveScores(supabase, rawMatches);
+    const rankingResult = await loadPoolKnockoutRanking({
+      poolId: selectedPool.id,
+      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
+      matches,
+    });
+    const communityResult = await loadCommunityPicks({
+      poolId: selectedPool.id,
+      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
+      currentUserId: userId ?? "",
+      matches,
+    });
+
+    rankingEntries = rankingResult.entries;
+    rankingError = Boolean(rankingResult.error);
+    communityPicks = communityResult.summaries;
+    communityPicksError = Boolean(communityResult.error);
+    bracket = mapBracket(stateRow.bracket);
+    picks = Array.isArray(stateRow.picks)
+      ? (stateRow.picks as unknown[]).map(mapPick)
+      : [];
+    availableMatchesCount =
+      typeof stateRow.available_matches_count === "number"
+        ? stateRow.available_matches_count
+        : 0;
+    openPicksCount =
+      typeof stateRow.open_picks_count === "number"
+        ? stateRow.open_picks_count
+        : 0;
+    submittedOpenPicksCount =
+      typeof stateRow.submitted_open_picks_count === "number"
+        ? stateRow.submitted_open_picks_count
+        : 0;
+    missingOpenPicksCount =
+      typeof stateRow.missing_open_picks_count === "number"
+        ? stateRow.missing_open_picks_count
+        : 0;
+    nextLockAt =
+      typeof stateRow.next_lock_at === "string" ? stateRow.next_lock_at : null;
+  } else {
+    const [{ data: settingsRow }, { data: matchRows, error: matchesError }] =
+      await Promise.all([
+        dataClient
+          .from("knockout_settings")
+          .select("id, tournament_key, name, deadline_at, is_active")
+          .eq("tournament_key", KNOCKOUT_TOURNAMENT_KEY)
+          .maybeSingle(),
+        dataClient
+          .from("knockout_matches")
+          .select(
+            [
+              "id",
+              "tournament_key",
+              "round",
+              "position",
+              "external_match_id",
+              "team_a_source",
+              "team_a",
+              "team_a_code",
+              "team_a_flag_url",
+              "team_b_source",
+              "team_b",
+              "team_b_code",
+              "team_b_flag_url",
+              "starts_at",
+              "status_short",
+              "status_long",
+              "elapsed",
+              "home_score_live",
+              "away_score_live",
+              "home_score",
+              "away_score",
+              "score_updated_at",
+              "winner_team",
+              "winner_team_code",
+            ].join(", "),
+          )
+          .eq("tournament_key", KNOCKOUT_TOURNAMENT_KEY),
+      ]);
+
+    if (!settingsRow) {
+      return <UnavailableKnockoutMessage />;
     }
 
-    return <LoadErrorMessage />;
-  }
+    if (matchesError || !matchRows) {
+      return <LoadErrorMessage />;
+    }
 
-  const stateRow = single(stateData as Record<string, unknown>[] | null);
-  if (!stateRow) {
-    return <UnavailableKnockoutMessage />;
-  }
+    settings = mapSettingsRow(settingsRow as Record<string, unknown>);
+    matches = (matchRows as unknown as Record<string, unknown>[]).map(mapMatchRow);
+    const communityResult = selectedPool.id
+      ? await loadCommunityPicks({
+          poolId: selectedPool.id,
+          tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
+          currentUserId: "",
+          matches,
+        })
+      : {
+          summaries: new Map(),
+          error: null,
+        };
+    const openMatches = matches.filter((match) => match.canPick);
 
-  const settings = mapSettings(stateRow.settings);
-  const rawMatches = Array.isArray(stateRow.matches)
-    ? (stateRow.matches as unknown[]).map(mapMatch)
-    : [];
-  const matches = await enrichMatchesWithLiveScores(supabase, rawMatches);
-  const { entries: rankingEntries, error: rankingError } =
-    await loadPoolKnockoutRanking({
-      poolId: selectedPool.id,
-      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
-      matches,
-    });
-  const { summaries: communityPicks, error: communityPicksError } =
-    await loadCommunityPicks({
-      poolId: selectedPool.id,
-      tournamentKey: KNOCKOUT_TOURNAMENT_KEY,
-      currentUserId: userId,
-      matches,
-    });
-  const bracket = mapBracket(stateRow.bracket);
-  const picks = Array.isArray(stateRow.picks)
-    ? (stateRow.picks as unknown[]).map(mapPick)
-    : [];
+    communityPicks = communityResult.summaries;
+    communityPicksError = Boolean(communityResult.error);
+    availableMatchesCount = matches.filter(
+      (match) => match.teamA && match.teamB,
+    ).length;
+    openPicksCount = openMatches.length;
+    missingOpenPicksCount = openMatches.length;
+    nextLockAt = openMatches
+      .map((match) => match.lockAt)
+      .filter((value): value is string => Boolean(value))
+      .sort()[0] ?? null;
+  }
 
   if (
     matches.filter((match) => match.round === "round_of_32").length < 16
@@ -426,13 +647,13 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
 
   return (
     <main className="mx-auto w-full max-w-[1800px] px-3 py-5 sm:px-5 sm:py-7 lg:px-8">
-      {pools.length > 1 ? (
+      {isAuthenticated && visiblePools.length > 1 ? (
         <Card className="mb-5 p-4 sm:p-5">
           <h2 className="text-lg font-black text-slate-50 light:text-slate-950">
             Ranking por bolão
           </h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {pools.map((pool) => {
+            {visiblePools.map((pool) => {
               const isSelected = pool.id === selectedPool.id;
 
               return (
@@ -464,32 +685,13 @@ export default async function MataMataPage({ searchParams }: MataMataPageProps) 
         rankingError={rankingError ? true : false}
         communityPicksByMatchKey={Object.fromEntries(communityPicks)}
         communityPicksError={communityPicksError ? true : false}
-        availableMatchesCount={
-          typeof stateRow.available_matches_count === "number"
-            ? stateRow.available_matches_count
-            : 0
-        }
-        openPicksCount={
-          typeof stateRow.open_picks_count === "number"
-            ? stateRow.open_picks_count
-            : 0
-        }
-        submittedOpenPicksCount={
-          typeof stateRow.submitted_open_picks_count === "number"
-            ? stateRow.submitted_open_picks_count
-            : 0
-        }
-        missingOpenPicksCount={
-          typeof stateRow.missing_open_picks_count === "number"
-            ? stateRow.missing_open_picks_count
-            : 0
-        }
+        isAuthenticated={isAuthenticated}
+        availableMatchesCount={availableMatchesCount}
+        openPicksCount={openPicksCount}
+        submittedOpenPicksCount={submittedOpenPicksCount}
+        missingOpenPicksCount={missingOpenPicksCount}
         nextLockLabel={
-          formatDateTime(
-            typeof stateRow.next_lock_at === "string"
-              ? stateRow.next_lock_at
-              : null,
-          ) ?? "Sem jogos abertos"
+          formatDateTime(nextLockAt) ?? "Sem jogos abertos"
         }
         submittedAtLabel={formatDateTime(bracket?.submittedAt)}
       />

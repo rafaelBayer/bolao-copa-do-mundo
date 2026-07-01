@@ -1,5 +1,13 @@
 import Link from "next/link";
-import { BarChart3, CheckCircle2, Trophy, UsersRound } from "lucide-react";
+import {
+  BarChart3,
+  CheckCircle2,
+  GitBranch,
+  ListChecks,
+  Medal,
+  Trophy,
+  UsersRound,
+} from "lucide-react";
 import { UserMenu } from "@/components/layout/UserMenu";
 import { Card } from "@/components/ui/Card";
 import { createClient } from "@/lib/supabase/server";
@@ -24,6 +32,26 @@ const steps = [
     title: "Acompanhe o ranking",
     description: "Veja quem está liderando e como a classificação muda rodada a rodada.",
     icon: BarChart3,
+  },
+];
+const mainLinks = [
+  {
+    href: "/dashboard/groups",
+    label: "Palpites",
+    description: "Jogos, placares e palpites da fase de grupos.",
+    icon: ListChecks,
+  },
+  {
+    href: "/dashboard/leaderboard",
+    label: "Classificação",
+    description: "Ranking geral, por fase, por rodada e ao vivo.",
+    icon: Medal,
+  },
+  {
+    href: "/dashboard/mata-mata",
+    label: "Mata-mata",
+    description: "Bracket, confrontos oficiais e palpites de vencedor.",
+    icon: GitBranch,
   },
 ];
 
@@ -61,18 +89,28 @@ export default async function HomePage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50 light:bg-slate-50 light:text-slate-950">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
+      <header className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-5 sm:px-6 lg:px-8">
         <Link href="/" className="text-lg font-black">
           Bolão
         </Link>
+        <nav className="order-3 grid w-full grid-cols-3 gap-2 text-xs font-black sm:order-none sm:w-auto sm:flex sm:items-center sm:text-sm">
+          {mainLinks.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-800 bg-slate-900/55 px-2 text-slate-300 transition hover:border-emerald-400/40 hover:text-emerald-200 light:border-slate-200 light:bg-white light:text-slate-600 light:hover:border-emerald-300 light:hover:text-emerald-700 sm:h-auto sm:border-0 sm:bg-transparent sm:px-3 sm:py-2 light:sm:bg-transparent"
+              >
+                <Icon size={16} aria-hidden="true" />
+                <span className="truncate">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
         {user && userLabel ? (
           <nav className="flex items-center gap-2">
-            <Link
-              href="/dashboard/groups"
-              className="hidden rounded-xl px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-slate-900 hover:text-slate-50 light:text-slate-600 light:hover:bg-white light:hover:text-slate-950 sm:inline-flex"
-            >
-              Ver palpites
-            </Link>
             <UserMenu
               userLabel={userLabel}
               userEmail={user.email}
@@ -133,6 +171,29 @@ export default async function HomePage() {
                 </Link>
               </>
             )}
+          </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            {mainLinks.map((item) => {
+              const Icon = item.icon;
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="group rounded-2xl border border-slate-800 bg-slate-900/55 p-4 transition hover:border-emerald-400/45 hover:bg-slate-900 light:border-slate-200 light:bg-white light:hover:border-emerald-300 light:hover:bg-emerald-50"
+                >
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-400/10 text-emerald-300 transition group-hover:bg-emerald-400 group-hover:text-slate-950 light:bg-emerald-50 light:text-emerald-700 light:group-hover:bg-emerald-600 light:group-hover:text-white">
+                    <Icon size={19} aria-hidden="true" />
+                  </span>
+                  <span className="mt-3 block font-black text-slate-50 light:text-slate-950">
+                    {item.label}
+                  </span>
+                  <span className="mt-1 block text-sm leading-6 text-slate-400 light:text-slate-600">
+                    {item.description}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
 

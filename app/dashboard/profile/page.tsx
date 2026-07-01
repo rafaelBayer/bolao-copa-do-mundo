@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
   AdminPanelContent,
   normalizeAdminSection,
@@ -91,7 +92,7 @@ export default async function ProfilePage({ searchParams }: ProfilePageProps) {
       : null;
 
   if (!userId) {
-    return null;
+    redirect("/login?redirectTo=/dashboard/profile");
   }
 
   const { data: profileData } = await supabase

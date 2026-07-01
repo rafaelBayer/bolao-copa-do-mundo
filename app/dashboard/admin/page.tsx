@@ -10,7 +10,7 @@ export default async function AdminPage() {
   const userId = claimsData?.claims?.sub;
 
   if (!userId) {
-    return null;
+    redirect("/login?redirectTo=/dashboard/admin");
   }
 
   const { data: isSystemAdmin } = await supabase.rpc("is_system_admin");

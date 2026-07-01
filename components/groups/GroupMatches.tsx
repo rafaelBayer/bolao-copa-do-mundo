@@ -12,14 +12,16 @@ import type { Prediction } from "@/types/prediction";
 
 type GroupMatchesProps = {
   poolId: string;
-  userId: string;
+  userId: string | null;
   matches: MatchWithTeams[];
   predictions: Prediction[];
   canViewPoolPredictions: boolean;
+  isAuthenticated: boolean;
   focusRequest?: {
     matchId: string;
     requestId: number;
   } | null;
+  onLoginRequired: () => void;
   onPredictionSaved: (prediction: Prediction) => void;
 };
 
@@ -54,7 +56,9 @@ export function GroupMatches({
   matches,
   predictions,
   canViewPoolPredictions,
+  isAuthenticated,
   focusRequest = null,
+  onLoginRequired,
   onPredictionSaved,
 }: GroupMatchesProps) {
   const inputRefs = useRef(new Map<string, MatchPredictionInputHandle>());
@@ -241,6 +245,8 @@ export function GroupMatches({
               prediction={prediction}
               isHighlighted={focusRequest?.matchId === match.id}
               canViewPoolPredictions={canViewPoolPredictions}
+              isAuthenticated={isAuthenticated}
+              onLoginRequired={onLoginRequired}
               onSaved={onPredictionSaved}
             />
           );

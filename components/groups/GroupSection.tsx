@@ -14,12 +14,14 @@ type GroupSectionProps = {
   group: GroupWithTeamsAndMatches;
   predictions: Prediction[];
   poolId: string;
-  userId: string;
+  userId: string | null;
   canViewPoolPredictions: boolean;
+  isAuthenticated: boolean;
   focusRequest?: {
     matchId: string;
     requestId: number;
   } | null;
+  onLoginRequired: () => void;
   onPredictionSaved: (prediction: Prediction) => void;
 };
 
@@ -39,10 +41,14 @@ export function GroupSection({
   poolId,
   userId,
   canViewPoolPredictions,
+  isAuthenticated,
   focusRequest = null,
+  onLoginRequired,
   onPredictionSaved,
 }: GroupSectionProps) {
-  const [tableMode, setTableMode] = useState<TableMode>("simulation");
+  const [tableMode, setTableMode] = useState<TableMode>(
+    isAuthenticated ? "simulation" : "real",
+  );
   const filledMatches = group.matches.filter((match) =>
     isFilledPrediction(
       predictions.find((prediction) => prediction.matchId === match.id),
@@ -143,17 +149,19 @@ export function GroupSection({
             </div>
 
             <div className="inline-flex rounded-xl border border-slate-800 bg-slate-950/45 p-1 light:border-slate-200 light:bg-slate-50">
-              <button
-                type="button"
-                onClick={() => setTableMode("simulation")}
-                className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
-                  tableMode === "simulation"
-                    ? "bg-emerald-400 text-slate-950 light:bg-emerald-600 light:text-white"
-                    : "text-slate-400 hover:text-slate-100 light:text-slate-500 light:hover:text-slate-950"
-                }`}
-              >
-                Minha simulação
-              </button>
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  onClick={() => setTableMode("simulation")}
+                  className={`rounded-lg px-3 py-2 text-sm font-bold transition ${
+                    tableMode === "simulation"
+                      ? "bg-emerald-400 text-slate-950 light:bg-emerald-600 light:text-white"
+                      : "text-slate-400 hover:text-slate-100 light:text-slate-500 light:hover:text-slate-950"
+                  }`}
+                >
+                  Minha simulação
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={() => setTableMode("real")}
@@ -180,7 +188,9 @@ export function GroupSection({
             matches={group.matches}
             predictions={predictions}
             canViewPoolPredictions={canViewPoolPredictions}
+            isAuthenticated={isAuthenticated}
             focusRequest={focusRequest}
+            onLoginRequired={onLoginRequired}
             onPredictionSaved={onPredictionSaved}
           />
         </aside>

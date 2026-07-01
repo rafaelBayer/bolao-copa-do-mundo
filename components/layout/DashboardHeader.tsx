@@ -7,25 +7,33 @@ import { GitBranch, ListChecks, Medal, Trophy } from "lucide-react";
 import { UserMenu } from "./UserMenu";
 
 type DashboardHeaderProps = {
-  userLabel: string;
+  userLabel?: string | null;
   userEmail?: string | null;
   avatarUrl?: string | null;
   brandTitle?: string | null;
   brandLogoUrl?: string | null;
+  isAuthenticated?: boolean;
 };
 
 export function DashboardHeader({
-  userLabel,
+  userLabel = null,
   userEmail = null,
   avatarUrl = null,
   brandTitle = "Bolão da Copa",
   brandLogoUrl = null,
+  isAuthenticated = true,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
   const [failedLogoUrl, setFailedLogoUrl] = useState<string | null>(null);
   const title = brandTitle?.trim() || "Bolão da Copa";
   const logoUrl = brandLogoUrl?.trim() || null;
   const shouldShowLogo = Boolean(logoUrl && failedLogoUrl !== logoUrl);
+  const authHref = `/login?redirectTo=${encodeURIComponent(
+    pathname || "/dashboard/groups",
+  )}`;
+  const registerHref = `/cadastro?redirectTo=${encodeURIComponent(
+    pathname || "/dashboard/groups",
+  )}`;
   const navItems = [
     {
       href: "/dashboard/groups",
@@ -77,11 +85,28 @@ export function DashboardHeader({
           <span className="min-w-0 truncate">{title}</span>
         </Link>
 
-        <UserMenu
-          userLabel={userLabel}
-          userEmail={userEmail}
-          avatarUrl={avatarUrl}
-        />
+        {isAuthenticated && userLabel ? (
+          <UserMenu
+            userLabel={userLabel}
+            userEmail={userEmail}
+            avatarUrl={avatarUrl}
+          />
+        ) : (
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Link
+              href={authHref}
+              className="inline-flex items-center justify-center rounded-xl px-2.5 py-2 text-xs font-bold text-slate-300 transition hover:bg-slate-900 hover:text-slate-50 light:text-slate-600 light:hover:bg-white light:hover:text-slate-950"
+            >
+              Entrar
+            </Link>
+            <Link
+              href={registerHref}
+              className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-2.5 py-2 text-xs font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+            >
+              Criar conta
+            </Link>
+          </div>
+        )}
       </div>
 
       <nav
@@ -159,11 +184,28 @@ export function DashboardHeader({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <UserMenu
-            userLabel={userLabel}
-            userEmail={userEmail}
-            avatarUrl={avatarUrl}
-          />
+          {isAuthenticated && userLabel ? (
+            <UserMenu
+              userLabel={userLabel}
+              userEmail={userEmail}
+              avatarUrl={avatarUrl}
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href={authHref}
+                className="rounded-xl px-4 py-2 text-sm font-bold text-slate-300 transition hover:bg-slate-900 hover:text-slate-50 light:text-slate-600 light:hover:bg-white light:hover:text-slate-950"
+              >
+                Entrar
+              </Link>
+              <Link
+                href={registerHref}
+                className="inline-flex items-center justify-center rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+              >
+                Criar conta
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

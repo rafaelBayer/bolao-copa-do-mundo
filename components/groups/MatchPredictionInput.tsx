@@ -28,11 +28,13 @@ import type { Prediction } from "@/types/prediction";
 
 type MatchPredictionInputProps = {
   poolId: string;
-  userId: string;
+  userId: string | null;
   match: MatchWithTeams;
   prediction?: Prediction;
   isHighlighted?: boolean;
   canViewPoolPredictions?: boolean;
+  isAuthenticated?: boolean;
+  onLoginRequired?: () => void;
   onSaved?: (prediction: Prediction) => void;
 };
 
@@ -423,6 +425,8 @@ export const MatchPredictionInput = forwardRef<
     prediction,
     isHighlighted = false,
     canViewPoolPredictions = false,
+    isAuthenticated = true,
+    onLoginRequired,
     onSaved,
   },
   ref,
@@ -509,6 +513,11 @@ export const MatchPredictionInput = forwardRef<
         return;
       }
 
+      if (!isAuthenticated || !userId) {
+        onLoginRequired?.();
+        return;
+      }
+
       setStatus("saving");
 
       try {
@@ -548,7 +557,16 @@ export const MatchPredictionInput = forwardRef<
         setStatus("error");
       }
     },
-    [match.id, onSaved, poolId, prediction, shouldSave, userId],
+    [
+      isAuthenticated,
+      match.id,
+      onLoginRequired,
+      onSaved,
+      poolId,
+      prediction,
+      shouldSave,
+      userId,
+    ],
   );
 
   const loadCrowdPredictions = useCallback(async () => {
@@ -557,6 +575,29 @@ export const MatchPredictionInput = forwardRef<
     }
 
     setCrowdStatus("loading");
+
+    if (!isAuthenticated) {
+      const response = await fetch(
+        `/api/public/match-predictions?poolId=${encodeURIComponent(
+          poolId,
+        )}&matchId=${encodeURIComponent(match.id)}`,
+      );
+
+      if (!response.ok) {
+        setCrowdStatus("error");
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        predictions?: Record<string, unknown>[];
+      };
+
+      setCrowdPredictions(
+        (payload.predictions ?? []).map(mapCrowdPrediction),
+      );
+      setCrowdStatus("loaded");
+      return;
+    }
 
     const supabase = createClient();
     const { data, error } = await supabase.rpc(
@@ -576,9 +617,14 @@ export const MatchPredictionInput = forwardRef<
       ((data ?? []) as Record<string, unknown>[]).map(mapCrowdPrediction),
     );
     setCrowdStatus("loaded");
-  }, [crowdStatus, isLocked, match.id, poolId]);
+  }, [crowdStatus, isAuthenticated, isLocked, match.id, poolId]);
 
   function handleScoreChange(side: "home" | "away", value: string) {
+    if (!isAuthenticated) {
+      onLoginRequired?.();
+      return;
+    }
+
     if (isLocked) {
       setStatus("error");
       return;
@@ -768,6 +814,12 @@ export const MatchPredictionInput = forwardRef<
             inputMode="numeric"
             value={homeScore}
             disabled={isLocked}
+            readOnly={!isAuthenticated}
+            onFocus={() => {
+              if (!isAuthenticated) {
+                onLoginRequired?.();
+              }
+            }}
             onChange={(event) => handleScoreChange("home", event.target.value)}
             className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:disabled:bg-slate-100 light:disabled:text-slate-400 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
             aria-label={`Palpite de gols para ${match.homeTeam.name}`}
@@ -782,6 +834,12 @@ export const MatchPredictionInput = forwardRef<
             inputMode="numeric"
             value={awayScore}
             disabled={isLocked}
+            readOnly={!isAuthenticated}
+            onFocus={() => {
+              if (!isAuthenticated) {
+                onLoginRequired?.();
+              }
+            }}
             onChange={(event) => handleScoreChange("away", event.target.value)}
             className="h-12 w-16 rounded-xl border border-slate-700 bg-slate-950 text-center text-lg font-black text-slate-50 outline-none transition disabled:cursor-not-allowed disabled:bg-slate-800 disabled:text-slate-500 focus:border-emerald-400 focus:ring-4 focus:ring-emerald-400/10 light:border-slate-200 light:bg-slate-50 light:text-slate-950 light:disabled:bg-slate-100 light:disabled:text-slate-400 light:focus:border-emerald-600 light:focus:ring-emerald-600/10"
             aria-label={`Palpite de gols para ${match.awayTeam.name}`}
@@ -893,7 +951,7 @@ export const MatchPredictionInput = forwardRef<
 
               {crowdStatus === "loaded" && crowdPredictions.length === 0 ? (
                 <p className="text-sm font-bold text-slate-400 light:text-slate-500">
-                  Ninguem palpitou neste jogo.
+                  Ninguém palpitou neste jogo.
                 </p>
               ) : null}
 

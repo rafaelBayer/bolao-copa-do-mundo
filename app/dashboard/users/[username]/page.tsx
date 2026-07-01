@@ -95,7 +95,25 @@ export default async function UserProfilePage({
   const userId = claimsData?.claims?.sub;
 
   if (!userId) {
-    return null;
+    return (
+      <main className="mx-auto w-full max-w-[1200px] px-3 py-8 sm:px-5 lg:px-8">
+        <Card className="p-6">
+          <Badge tone="amber">Login necessário</Badge>
+          <h1 className="mt-4 text-2xl font-black text-slate-50 light:text-slate-950">
+            Entre para ver perfis de participantes
+          </h1>
+          <p className="mt-3 text-sm text-slate-400 light:text-slate-600">
+            Os perfis fazem parte da área protegida do bolão.
+          </p>
+          <Link
+            href="/login?redirectTo=/dashboard/leaderboard"
+            className="mt-5 inline-flex rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-emerald-400 light:bg-emerald-600 light:text-white light:hover:bg-emerald-700"
+          >
+            Entrar
+          </Link>
+        </Card>
+      </main>
+    );
   }
 
   const { data: membershipsData } = await supabase

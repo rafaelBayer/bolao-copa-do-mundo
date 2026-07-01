@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ListChecks } from "lucide-react";
+import { AuthRequiredModal } from "@/components/auth/AuthRequiredModal";
 import { GroupSection } from "@/components/groups/GroupSection";
 import {
   PoolContextPanel,
@@ -23,7 +24,8 @@ type GroupsDashboardClientProps = {
   poolName: string;
   pools: PoolSummary[];
   canViewPoolPredictions: boolean;
-  userId: string;
+  userId: string | null;
+  isAuthenticated?: boolean;
 };
 
 function isFilledPrediction(prediction: Prediction) {
@@ -246,9 +248,11 @@ export function GroupsDashboardClient({
   pools,
   canViewPoolPredictions,
   userId,
+  isAuthenticated = true,
 }: GroupsDashboardClientProps) {
   const [visibleGroups, setVisibleGroups] = useState(groups);
   const [predictions, setPredictions] = useState(initialPredictions);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [focusRequest, setFocusRequest] = useState<{
     matchId: string;
     requestId: number;
@@ -468,7 +472,9 @@ export function GroupsDashboardClient({
 
   return (
     <main className="mx-auto w-full max-w-[1800px] px-3 py-8 sm:px-5 sm:py-10 lg:px-6">
-      <PoolContextPanel pools={pools} selectedPoolId={poolId} />
+      {isAuthenticated ? (
+        <PoolContextPanel pools={pools} selectedPoolId={poolId} />
+      ) : null}
 
       <Card className="mb-6 overflow-hidden p-5 sm:p-7">
         <div className="grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
@@ -478,10 +484,14 @@ export function GroupsDashboardClient({
               Fase de grupos
             </h1>
             <p className="mt-3 max-w-2xl text-base text-slate-400 light:text-slate-500">
-              Faça seus palpites da Copa do Mundo.
+              {isAuthenticated
+                ? "Faça seus palpites da Copa do Mundo."
+                : "Acompanhe jogos, placares e status da Copa do Mundo."}
             </p>
             <p className="mt-3 inline-flex max-w-2xl rounded-xl border border-emerald-400/20 bg-emerald-400/10 px-3 py-2 text-sm font-bold text-emerald-200 light:border-emerald-200 light:bg-emerald-50 light:text-emerald-800">
-              Você palpita uma vez por partida. Esse palpite vale para todos os seus bolões.
+              {isAuthenticated
+                ? "Você palpita uma vez por partida. Esse palpite vale para todos os seus bolões."
+                : "Entre ou crie sua conta para registrar seus palpites e participar do ranking."}
             </p>
             {pools.length > 1 ? (
               <p className="mt-2 max-w-2xl text-xs font-bold text-slate-500 light:text-slate-500">
@@ -509,10 +519,10 @@ export function GroupsDashboardClient({
             </div>
             <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/10 p-4 light:border-emerald-200 light:bg-emerald-50">
               <p className="text-2xl font-black text-emerald-300 light:text-emerald-700">
-                {filledPredictions}
+                {isAuthenticated ? filledPredictions : "-"}
               </p>
               <p className="mt-1 text-xs font-bold uppercase tracking-wide text-emerald-200/80 light:text-emerald-700">
-                preenchidos
+                {isAuthenticated ? "preenchidos" : "login"}
               </p>
             </div>
           </div>
@@ -532,16 +542,20 @@ export function GroupsDashboardClient({
                 </h2>
               </div>
               <p className="mt-2 text-sm text-slate-400 light:text-slate-500">
-                {filledPredictions} de {totalMatches} jogos preenchidos
+                {isAuthenticated
+                  ? `${filledPredictions} de ${totalMatches} jogos preenchidos`
+                  : "Entre para salvar seus palpites e disputar o ranking"}
               </p>
             </div>
 
             <div className="text-left sm:text-right">
               <p className="text-2xl font-black text-slate-50 light:text-slate-950">
-                {progressPercentage}%
+                {isAuthenticated ? `${progressPercentage}%` : "Público"}
               </p>
               <p className="mt-1 text-sm font-bold text-amber-300 light:text-amber-700">
-                {missingPredictions === 0
+                {!isAuthenticated
+                  ? "Visualização liberada"
+                  : missingPredictions === 0
                   ? "Tudo preenchido"
                   : `${missingPredictions} ${
                       missingPredictions === 1
@@ -554,15 +568,15 @@ export function GroupsDashboardClient({
 
           <div
             className="mt-5 h-3 overflow-hidden rounded-full bg-slate-800 light:bg-slate-200"
-            aria-label={`${progressPercentage}% dos palpites preenchidos`}
+            aria-label={`${isAuthenticated ? progressPercentage : 100}% dos palpites preenchidos`}
           >
             <div
               className="h-full rounded-full bg-emerald-400 transition-all duration-500 light:bg-emerald-600"
-              style={{ width: `${progressPercentage}%` }}
+              style={{ width: `${isAuthenticated ? progressPercentage : 100}%` }}
             />
           </div>
 
-          {filledPredictions === 0 ? (
+          {isAuthenticated && filledPredictions === 0 ? (
             <p className="mt-4 text-sm font-medium text-slate-300 light:text-slate-600">
               Você ainda não fez nenhum palpite. Comece pela Rodada 1.
             </p>
@@ -585,11 +599,21 @@ export function GroupsDashboardClient({
             poolId={poolId}
             userId={userId}
             canViewPoolPredictions={canViewPoolPredictions}
+            isAuthenticated={isAuthenticated}
             focusRequest={focusRequest}
+            onLoginRequired={() => setIsAuthModalOpen(true)}
             onPredictionSaved={handlePredictionSaved}
           />
         ))}
       </div>
+
+      <AuthRequiredModal
+        isOpen={isAuthModalOpen}
+        title="Entre para palpitar"
+        message="Entre ou crie sua conta para registrar seus palpites e participar do ranking."
+        redirectTo="/dashboard/groups"
+        onClose={() => setIsAuthModalOpen(false)}
+      />
     </main>
   );
 }
